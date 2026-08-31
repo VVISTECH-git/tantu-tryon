@@ -20,9 +20,11 @@ const ROWS = [
 ];
 
 /**
- * A real table where there is room for one, and a stacked comparison on a
- * phone. Three columns of prose at 375px is unreadable, and a horizontally
- * scrolling table hides half the argument behind a gesture nobody makes.
+ * Built for a dark ground — this is the page's mid-point break, so it inverts.
+ *
+ * A real table where there is room for one, and a stacked comparison on a phone.
+ * Three columns of prose at 375px is unreadable, and a horizontally scrolling
+ * table hides half the argument behind a gesture nobody makes.
  */
 export function ComparisonTable() {
   return (
@@ -33,31 +35,41 @@ export function ComparisonTable() {
           and re-shooting a colourway.
         </caption>
         <thead>
-          <tr className="border-b border-line">
+          <tr className="border-b border-white/15">
             <th scope="col" className="w-1/4 pb-4 pr-6">
               <span className="sr-only">Measure</span>
             </th>
-            <th scope="col" className="label pb-4 pr-6 font-medium">
+            <th
+              scope="col"
+              className="pb-4 pr-6 text-[11px] font-medium uppercase tracking-[0.1em] text-white/45"
+            >
               Studio shoot
             </th>
             <th
               scope="col"
-              className="pb-4 text-[13px] font-semibold uppercase tracking-[0.1em] text-madder"
+              className="rounded-t-lg bg-white/8 px-5 pb-4 pt-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-white"
             >
               Tantu
             </th>
           </tr>
         </thead>
         <tbody>
-          {ROWS.map((row) => (
-            <tr key={row.label} className="border-b border-line-soft last:border-b-0">
-              <th scope="row" className="py-6 pr-6 align-top text-[15px] font-medium">
+          {ROWS.map((row, index) => (
+            <tr key={row.label} className="border-b border-white/10 last:border-b-0">
+              <th
+                scope="row"
+                className="py-6 pr-6 align-top text-[15px] font-medium text-white/90"
+              >
                 {row.label}
               </th>
-              <td className="py-6 pr-6 align-top text-[15px] leading-relaxed text-ink-faint">
+              <td className="py-6 pr-6 align-top text-[15px] leading-relaxed text-white/45">
                 {row.studio}
               </td>
-              <td className="bg-madder-wash/40 px-5 py-6 align-top text-[15px] font-medium leading-relaxed text-ink">
+              <td
+                className={`bg-white/8 px-5 py-6 align-top text-[15px] font-medium leading-relaxed text-white ${
+                  index === ROWS.length - 1 ? "rounded-b-lg" : ""
+                }`}
+              >
                 {row.tantu}
               </td>
             </tr>
@@ -67,15 +79,17 @@ export function ComparisonTable() {
 
       <div className="space-y-4 md:hidden">
         {ROWS.map((row) => (
-          <div key={row.label} className="overflow-hidden rounded-xl border border-line bg-surface">
-            <p className="label border-b border-line-soft px-5 py-3">{row.label}</p>
+          <div key={row.label} className="overflow-hidden rounded-xl border border-white/15">
+            <p className="border-b border-white/10 px-5 py-3 text-[11px] uppercase tracking-[0.1em] text-white/45">
+              {row.label}
+            </p>
             <div className="px-5 py-4">
-              <p className="text-[12px] uppercase tracking-wide text-ink-faint">Studio shoot</p>
-              <p className="mt-1 text-[15px] leading-relaxed text-ink-faint">{row.studio}</p>
+              <p className="text-[12px] uppercase tracking-wide text-white/40">Studio shoot</p>
+              <p className="mt-1 text-[15px] leading-relaxed text-white/55">{row.studio}</p>
             </div>
-            <div className="bg-madder-wash/50 px-5 py-4">
-              <p className="text-[12px] uppercase tracking-wide text-madder">Tantu</p>
-              <p className="mt-1 text-[15px] font-medium leading-relaxed text-ink">{row.tantu}</p>
+            <div className="bg-white/8 px-5 py-4">
+              <p className="text-[12px] uppercase tracking-wide text-white/70">Tantu</p>
+              <p className="mt-1 text-[15px] font-medium leading-relaxed text-white">{row.tantu}</p>
             </div>
           </div>
         ))}

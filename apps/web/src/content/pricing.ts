@@ -40,7 +40,7 @@ export const PACKS: Pack[] = [
     audience: "For trying Tantu on your first few designs.",
     images: 25,
     inr: 299,
-    cta: "Start with Trial",
+    cta: "Get Trial",
     microcopy: "One-time. No card kept on file.",
     includes: [
       "Every tool — nothing held back",
@@ -55,7 +55,7 @@ export const PACKS: Pack[] = [
     audience: "For shops adding new arrivals regularly.",
     images: 150,
     inr: 1299,
-    cta: "Choose Boutique",
+    cta: "Get Boutique",
     microcopy: "About thirty designs at five poses each.",
     includes: [
       "Everything in Trial",
@@ -71,7 +71,7 @@ export const PACKS: Pack[] = [
     images: 600,
     inr: 4199,
     featured: true,
-    cta: "Choose House",
+    cta: "Get House",
     microcopy: "The pack most catalogues settle on.",
     includes: [
       "Everything in Boutique",
@@ -86,7 +86,7 @@ export const PACKS: Pack[] = [
     audience: "For large catalogues and teams.",
     images: 2500,
     inr: 14999,
-    cta: "Choose Mill",
+    cta: "Get Mill",
     microcopy: "Shared across everyone on your team.",
     includes: [
       "Everything in House",

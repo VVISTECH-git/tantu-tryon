@@ -1,12 +1,16 @@
-import { SCENARIOS, inr, packById } from "@/content/pricing";
+import { SCENARIOS, packById } from "@/content/pricing";
 
 /**
- * Self-selection by situation rather than by feature list. Someone who knows
- * they run a boutique should be able to stop reading here.
+ * A decision helper, not a second pricing grid.
+ *
+ * It used to restate every price and quantity directly under the cards that had
+ * just said them. Someone who has already read the cards does not need the
+ * numbers again — they need to know which row describes them. So this carries
+ * only the situation and the plan it points at.
  */
 export function PlanSelector() {
   return (
-    <ol className="grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
+    <ul className="divide-y divide-line border-y border-line">
       {SCENARIOS.map((scenario) => {
         const pack = packById(scenario.packId);
         const featured = Boolean(pack.featured);
@@ -14,30 +18,21 @@ export function PlanSelector() {
         return (
           <li
             key={scenario.packId}
-            className={`flex flex-col p-7 transition-colors duration-200 ${
-              featured ? "bg-accent-wash" : "bg-surface"
-            }`}
+            className="flex flex-col gap-2 py-6 sm:flex-row sm:items-baseline sm:gap-8"
           >
-            <p className="label">{scenario.situation}</p>
-
-            <p className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-2">
-              <span className="display text-[24px] leading-none">{pack.name}</span>
+            <p className="text-[16px] font-medium sm:w-64 sm:shrink-0">{scenario.situation}</p>
+            <p className="flex-1 text-[15px] leading-relaxed text-ink-soft">{scenario.body}</p>
+            <p className="flex items-center gap-2.5 sm:w-52 sm:shrink-0 sm:justify-end">
+              <span className="display text-[20px] leading-none">{pack.name}</span>
               {featured && (
-                <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
-                  Recommended
+                <span className="rounded-full bg-madder px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
+                  Most chosen
                 </span>
               )}
-            </p>
-
-            <p className="mt-3 flex-1 text-[14px] leading-relaxed text-ink-soft">{scenario.body}</p>
-
-            <p className="mt-5 border-t border-line-soft pt-4 text-[14px] text-ink-faint">
-              {inr(pack.inr)} · {pack.images.toLocaleString("en-IN")} images ·{" "}
-              {`₹${(pack.inr / pack.images).toFixed(1)}/image`}
             </p>
           </li>
         );
       })}
-    </ol>
+    </ul>
   );
 }
