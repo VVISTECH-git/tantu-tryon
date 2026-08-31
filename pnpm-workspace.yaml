@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+allowBuilds:
+  # eslint's native resolver; nothing at runtime depends on it
+  unrs-resolver: false

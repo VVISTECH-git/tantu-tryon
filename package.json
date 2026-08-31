@@ -1,0 +1,22 @@
+{
+  "name": "tantu-tryon",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @tantu/web dev",
+    "build": "pnpm --filter @tantu/web build",
+    "start": "pnpm --filter @tantu/web start",
+    "lint": "pnpm --recursive lint",
+    "typecheck": "pnpm --recursive typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json,yaml,yml}\""
+  },
+  "devDependencies": {
+    "next": "16.3.3",
+    "prettier": "^3.4.2",
+    "typescript": "^5.9.3"
+  }
+}

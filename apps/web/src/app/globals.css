@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@theme {
+  /* Undyed cotton, and the two dyes kalamkari is actually made from:
+     indigo does the work, madder does the talking. */
+  --color-ground: #faf7f0;
+  --color-surface: #ffffff;
+  --color-surface-2: #f4efe6;
+  --color-surface-3: #ece4d6;
+  --color-line: #e3dacb;
+  --color-line-soft: #efe9dd;
+
+  /* All three clear WCAG AA on the ground: 16.3 : 1, 7.1 : 1, 5.4 : 1.
+     The old dark theme's hint colour measured 3.5 : 1 and carried most of the
+     explanatory copy, which is why none of it was comfortable to read. */
+  --color-ink: #1c1917;
+  --color-ink-soft: #57534e;
+  --color-ink-faint: #6b645e;
+
+  /* Indigo is the interactive colour. Madder is the brand's voice. */
+  --color-accent: #24405c;
+  --color-accent-hover: #1a3149;
+  --color-accent-wash: #e8edf3;
+  --color-madder: #9c3327;
+  --color-madder-wash: #f8ece9;
+  --color-turmeric: #c98a2e;
+  --color-turmeric-wash: #fbf1de;
+  --color-good: #2f6b4f;
+  --color-danger: #b3261e;
+  --color-danger-wash: #fbeceb;
+
+  --font-sans: var(--font-onest), "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-prata), Georgia, "Times New Roman", serif;
+}
+
+html {
+  background: var(--color-ground);
+}
+
+body {
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Everything the eye should skip past, and nothing it needs to read closely. */
+@utility label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+@utility display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+::selection {
+  background: var(--color-madder-wash);
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border: 3px solid var(--color-ground);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-surface-3);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@keyframes drift {
+  0% {
+    background-position: -180% 0;
+  }
+  100% {
+    background-position: 180% 0;
+  }
+}
+
+.working {
+  background: linear-gradient(
+    100deg,
+    var(--color-surface-2) 20%,
+    var(--color-surface) 42%,
+    var(--color-surface-2) 64%
+  );
+  background-size: 220% 100%;
+  animation: drift 2.2s ease-in-out infinite;
+}
