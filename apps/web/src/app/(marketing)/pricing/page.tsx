@@ -1,179 +1,327 @@
 import type { Metadata } from "next";
-import { DONE_FOR_YOU, PACKS, STUDIO_COST_INR, perImage } from "@/content/pricing";
+import { Accordion } from "@/components/pricing/Accordion";
+import { PlanCard } from "@/components/pricing/PlanCard";
+import { TextileWash } from "@/components/site/art/TextileWash";
+import {
+  DONE_FOR_YOU,
+  FAQ,
+  PACKS,
+  PHILOSOPHY,
+  SCENARIOS,
+  STEPS,
+  STUDIO_COST_INR,
+  inr,
+  packById,
+  perImage,
+} from "@/content/pricing";
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: "Image packs that do not expire. A failed render is not charged.",
+  description:
+    "One-time image packs for model-worn catalogue imagery. No subscription, no expiry, and no charge for a render that fails.",
 };
 
-const FAQ = [
+const COMPARISON = [
   {
-    q: "Do credits expire?",
-    a: "No. Not after thirty days, not at the end of a month, not at all. If that ever changes it will change here first and you will be told before it applies to anything you have already bought.",
+    label: "Cost per image",
+    studio: `₹${STUDIO_COST_INR.low}–${STUDIO_COST_INR.high} plus model fees`,
+    tantu: "₹6–12",
+  },
+  { label: "Turnaround", studio: "3–7 days", tantu: "About a minute" },
+  {
+    label: "Logistics",
+    studio: "Ship, iron, book, schedule",
+    tantu: "Photograph the cloth where it is",
   },
   {
-    q: "Am I charged for a render that fails?",
-    a: "No. Failures are tracked per pose rather than per batch, so one refused image never costs you the other four. If you press Stop, poses that had not started never start.",
-  },
-  {
-    q: "Can I sell the images?",
-    a: "Yes. Every pack includes commercial use — your website, your Shopify store, marketplace listings, advertising, print.",
-  },
-  {
-    q: "What happens to the photographs I upload?",
-    a: "They are sent to the image engine to make your render and are not used to train anything. Your renders are kept so you can find and re-run them, and you can delete any of them at any time.",
-  },
-  {
-    q: "How many images is a saree?",
-    a: "A standard catalogue set is five poses. Nine if you want the walking, seated and macro detail shots as well. Most people settle on five per colourway.",
-  },
-  {
-    q: "Is there a subscription?",
-    a: "No. You buy a pack of images and use them when you use them.",
+    label: "Re-shoot a colourway",
+    studio: "Book it all again",
+    tantu: "Change the colour, press Generate",
   },
 ];
 
 export default function PricingPage() {
+  const cheapest = PACKS.reduce((best, pack) => (perImage(pack) < perImage(best) ? pack : best));
+  const trial = packById("trial");
+
   return (
-    <div className="mx-auto max-w-[1280px] px-6 py-16">
-      <div className="text-center">
-        <p className="label mb-3">Pricing</p>
-        <h1 className="display mx-auto max-w-3xl text-[38px] leading-tight sm:text-[48px]">
-          Buy images. Use them whenever.
-        </h1>
-        <p className="mx-auto mt-5 max-w-2xl text-[17px] leading-relaxed text-ink-soft">
-          No subscription, no expiry, and no charge for a render that fails.
-        </p>
-      </div>
+    <>
+      {/* ── 1 · hero ─────────────────────────────────────────────── */}
+      <section className="relative border-b border-line">
+        <TextileWash />
+        <div className="relative mx-auto max-w-[1280px] px-6 pt-16 pb-14 sm:pt-20">
+          <p className="label mb-4">Pricing</p>
+          <h1 className="display max-w-3xl text-[42px] leading-[1.08] sm:text-[56px]">
+            Buy images. Use them whenever.
+          </h1>
+          <p className="mt-6 max-w-xl text-[18px] leading-relaxed text-ink-soft">
+            No subscription. No expiry. No charge for a render that fails.
+          </p>
 
-      <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-        {PACKS.map((pack) => (
-          <div
-            key={pack.id}
-            className={`flex flex-col rounded-2xl border p-7 ${
-              pack.featured ? "border-accent bg-surface shadow-sm" : "border-line bg-surface"
-            }`}
-          >
-            {pack.featured && (
-              <span className="mb-3 self-start rounded-full bg-accent px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-white">
-                most chosen
-              </span>
-            )}
-            <h2 className="display text-[24px]">{pack.name}</h2>
-            <p className="mt-1.5 text-[13px] leading-snug text-ink-faint">{pack.audience}</p>
-
-            <p className="display mt-6 text-[36px]">₹{pack.inr.toLocaleString("en-IN")}</p>
-            <p className="mt-1 text-[14px] text-ink-soft">
-              {pack.images} images · ₹{perImage(pack).toFixed(1)} each
-            </p>
-
-            <ul className="mt-6 space-y-2.5">
-              {pack.includes.map((item) => (
-                <li key={item} className="flex gap-2.5 text-[14px] leading-relaxed text-ink-soft">
-                  <span className="text-madder">·</span>
+          <ul className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] text-ink-faint">
+            {["One-time purchase", "Credits never expire", "Commercial use included"].map(
+              (item, index) => (
+                <li key={item} className="flex items-center gap-3">
+                  {index > 0 && (
+                    <span aria-hidden className="text-line">
+                      ·
+                    </span>
+                  )}
                   {item}
                 </li>
-              ))}
-            </ul>
+              ),
+            )}
+          </ul>
+        </div>
+      </section>
 
+      {/* ── 2 · the packs ────────────────────────────────────────── */}
+      <section aria-labelledby="packs" className="mx-auto max-w-[1280px] px-6 pt-16 pb-4">
+        <h2 id="packs" className="sr-only">
+          Image packs
+        </h2>
+        {/* Four across only from 1280 up: at 1024 it squeezed the cards to
+            229px, which is where a price stops reading as a price. */}
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4 xl:items-start">
+          {PACKS.map((pack) => (
+            <PlanCard key={pack.id} pack={pack} />
+          ))}
+        </div>
+        <p className="mt-8 text-center text-[13px] text-ink-faint">
+          Checkout is not wired up yet — packs are arranged by talking to us.
+        </p>
+      </section>
+
+      {/* ── 4 · which one is right for you ───────────────────────── */}
+      <section aria-labelledby="choose" className="mx-auto max-w-[1280px] px-6 py-16">
+        <h2 id="choose" className="display text-[30px] leading-tight sm:text-[36px]">
+          Which one is right for you?
+        </h2>
+
+        <ol className="mt-10 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
+          {SCENARIOS.map((scenario) => {
+            const pack = packById(scenario.packId);
+            const featured = Boolean(pack.featured);
+            return (
+              <li
+                key={scenario.packId}
+                className={`flex flex-col p-7 ${featured ? "bg-accent-wash" : "bg-surface"}`}
+              >
+                <p className="label">{scenario.situation}</p>
+                <p className="display mt-3 flex items-center gap-2.5 text-[24px] leading-none">
+                  {pack.name}
+                  {featured && (
+                    <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
+                      Recommended
+                    </span>
+                  )}
+                </p>
+                <p className="mt-3 flex-1 text-[14px] leading-relaxed text-ink-soft">
+                  {scenario.body}
+                </p>
+                <p className="mt-5 text-[14px] text-ink-faint">
+                  {inr(pack.inr)} · {pack.images.toLocaleString("en-IN")} images
+                </p>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+
+      {/* ── 5 · why the pricing works this way ───────────────────── */}
+      <section aria-labelledby="philosophy" className="border-y border-line bg-surface">
+        <div className="mx-auto max-w-[1280px] px-6 py-20">
+          <h2 id="philosophy" className="display max-w-2xl text-[32px] leading-tight sm:text-[40px]">
+            No subscription. No ticking clock.
+          </h2>
+
+          <dl className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
+            {PHILOSOPHY.map((item) => (
+              <div key={item.title} className="border-t border-madder/25 pt-6">
+                <span aria-hidden className="numeral block text-[30px] leading-none text-madder">
+                  {item.mark}
+                </span>
+                <dt className="mt-4 text-[17px] font-medium">{item.title}</dt>
+                <dd className="mt-2 max-w-sm text-[15px] leading-relaxed text-ink-soft">
+                  {item.body}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
+
+      {/* ── 6 · against a studio shoot ───────────────────────────── */}
+      <section aria-labelledby="comparison" className="mx-auto max-w-[1280px] px-6 py-20">
+        <h2 id="comparison" className="display max-w-3xl text-[32px] leading-tight sm:text-[40px]">
+          A catalogue shoot, without the catalogue-shoot logistics.
+        </h2>
+
+        {/* table on anything with room for one */}
+        <table className="mt-12 hidden w-full border-collapse text-left md:table">
+          <caption className="sr-only">
+            A traditional studio shoot compared with Tantu, by cost, turnaround, logistics and
+            re-shooting a colourway.
+          </caption>
+          <thead>
+            <tr className="border-b border-line">
+              <th scope="col" className="label w-1/4 pb-4 pr-6 font-medium">
+                <span className="sr-only">Measure</span>
+              </th>
+              <th scope="col" className="label pb-4 pr-6 font-medium">
+                Studio shoot
+              </th>
+              <th scope="col" className="pb-4 text-[13px] font-semibold uppercase tracking-[0.1em] text-madder">
+                Tantu
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {COMPARISON.map((row) => (
+              <tr key={row.label} className="border-b border-line-soft last:border-b-0">
+                <th scope="row" className="py-6 pr-6 align-top text-[15px] font-medium">
+                  {row.label}
+                </th>
+                <td className="py-6 pr-6 align-top text-[15px] leading-relaxed text-ink-faint">
+                  {row.studio}
+                </td>
+                <td className="py-6 align-top text-[15px] leading-relaxed text-ink">{row.tantu}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* stacked on phones, where a three-column table is unreadable */}
+        <div className="mt-10 space-y-4 md:hidden">
+          {COMPARISON.map((row) => (
+            <div key={row.label} className="rounded-xl border border-line bg-surface p-5">
+              <p className="label">{row.label}</p>
+              <div className="mt-3 space-y-2.5">
+                <p className="text-[14px] leading-relaxed text-ink-faint">
+                  <span className="mr-2 text-[12px] uppercase tracking-wide">Studio</span>
+                  {row.studio}
+                </p>
+                <p className="text-[14px] leading-relaxed text-ink">
+                  <span className="mr-2 text-[12px] uppercase tracking-wide text-madder">Tantu</span>
+                  {row.tantu}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-10 max-w-2xl rounded-xl border-l-2 border-madder bg-madder-wash/60 px-6 py-5">
+          <p className="label !text-madder">A note on what this is</p>
+          <p className="mt-2 text-[15px] leading-relaxed text-ink">
+            A generated image is not a photograph of your saree. It is a rendering — which is exactly
+            why the fidelity check exists, and why every render keeps the fabric it came from.
+          </p>
+        </div>
+      </section>
+
+      {/* ── 7 · what happens after you buy ───────────────────────── */}
+      <section aria-labelledby="after" className="border-y border-line bg-surface">
+        <div className="mx-auto max-w-[1280px] px-6 py-20">
+          <h2 id="after" className="display text-[30px] leading-tight sm:text-[36px]">
+            What happens after you buy
+          </h2>
+
+          <ol className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
+            {STEPS.map((step) => (
+              <li key={step.n} className="border-t border-line pt-6">
+                <span className="numeral text-[15px] tracking-[0.1em] text-madder">{step.n}</span>
+                <h3 className="mt-3 text-[19px] font-medium">{step.title}</h3>
+                <p className="mt-2 max-w-sm text-[15px] leading-relaxed text-ink-soft">
+                  {step.body}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* ── 8 · the concierge option ─────────────────────────────── */}
+      <section aria-labelledby="service" className="mx-auto max-w-[1280px] px-6 py-20">
+        <div className="overflow-hidden rounded-2xl bg-accent text-white">
+          <div className="grid gap-10 p-8 sm:p-12 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-center lg:gap-16">
+            <div>
+              <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-white/60">
+                Rather not touch it yourself?
+              </p>
+              <h2 id="service" className="display mt-4 text-[30px] leading-tight sm:text-[38px]">
+                We will shoot the first one for you.
+              </h2>
+              <p className="mt-5 max-w-xl text-[16px] leading-relaxed text-white/80">
+                {DONE_FOR_YOU.what}
+              </p>
+            </div>
+
+            <div className="border-t border-white/20 pt-8 lg:border-l lg:border-t-0 lg:pl-12 lg:pt-0">
+              <p className="text-[12px] uppercase tracking-[0.14em] text-white/60">From</p>
+              <p className="numeral mt-2 text-[40px] leading-none">
+                {inr(DONE_FOR_YOU.fromInr)}
+              </p>
+              <p className="mt-2 text-[15px] text-white/75">per design, all colourways</p>
+              <p className="mt-4 text-[15px] text-white/75">Back in {DONE_FOR_YOU.turnaround}.</p>
+              <a
+                href="/contact"
+                className="mt-7 block rounded-full bg-white px-6 py-3.5 text-center text-[15px] font-medium text-accent transition duration-200 hover:bg-white/90"
+              >
+                Send us a design
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 9 · questions ────────────────────────────────────────── */}
+      <section aria-labelledby="faq" className="mx-auto max-w-[1280px] px-6 pb-20">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:gap-16">
+          <div>
+            <h2 id="faq" className="display text-[30px] leading-tight sm:text-[36px]">
+              Questions
+            </h2>
+            <p className="mt-4 max-w-xs text-[15px] leading-relaxed text-ink-soft">
+              If something here is not answered plainly enough, write to us and we will fix the
+              wording.
+            </p>
+          </div>
+          <Accordion items={FAQ} />
+        </div>
+      </section>
+
+      {/* ── 10 · close ───────────────────────────────────────────── */}
+      <section className="relative border-t border-line bg-surface">
+        <TextileWash />
+        <div className="relative mx-auto max-w-[1280px] px-6 py-20 text-center">
+          <h2 className="display mx-auto max-w-2xl text-[32px] leading-tight sm:text-[42px]">
+            Ready to turn your fabric into a catalogue?
+          </h2>
+          <p className="mx-auto mt-5 max-w-lg text-[16px] leading-relaxed text-ink-soft">
+            Start with {trial.images} images. No subscription. No expiry.
+          </p>
+
+          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
             <a
               href="/contact"
-              className={`mt-7 rounded-full px-5 py-3 text-center text-[15px] font-medium transition ${
-                pack.featured
-                  ? "bg-accent text-white hover:bg-accent-hover"
-                  : "border border-line text-ink-soft hover:border-ink-faint hover:text-ink"
-              }`}
+              className="rounded-full bg-accent px-7 py-3.5 text-[16px] font-medium text-white transition duration-200 hover:bg-accent-hover"
+            >
+              Start with Trial — {inr(trial.inr)}
+            </a>
+            <a
+              href="/contact"
+              className="rounded-full border border-ink/15 px-7 py-3.5 text-[16px] text-ink transition duration-200 hover:border-ink/40 hover:bg-surface-2"
             >
               Talk to us
             </a>
           </div>
-        ))}
-      </div>
 
-      <p className="mt-6 text-center text-[14px] text-ink-faint">
-        Checkout is not wired up yet — packs are arranged by talking to us.
-      </p>
-
-      {/* ── done for you ─────────────────────────────────────────── */}
-      <section className="mt-20 rounded-3xl border border-line bg-surface p-8 sm:p-12">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-center">
-          <div>
-            <p className="label mb-3">Rather not touch it yourself?</p>
-            <h2 className="display text-[30px] leading-tight">We will shoot the first one for you.</h2>
-            <p className="mt-4 max-w-xl text-[16px] leading-relaxed text-ink-soft">
-              {DONE_FOR_YOU.what}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-line bg-ground p-7">
-            <p className="label">From</p>
-            <p className="display mt-1 text-[34px]">
-              ₹{DONE_FOR_YOU.fromInr.toLocaleString("en-IN")}
-            </p>
-            <p className="mt-1 text-[14px] text-ink-soft">per design, all colourways</p>
-            <p className="mt-4 text-[14px] text-ink-soft">
-              Back in {DONE_FOR_YOU.turnaround}.
-            </p>
-            <a
-              href="/contact"
-              className="mt-6 block rounded-full bg-accent px-5 py-3 text-center text-[15px] font-medium text-white transition hover:bg-accent-hover"
-            >
-              Send us a design
-            </a>
-          </div>
+          <p className="mt-6 text-[13px] text-ink-faint">
+            Buying at volume instead? {cheapest.name} is {inr(cheapest.inr)} for{" "}
+            {cheapest.images.toLocaleString("en-IN")} images.
+          </p>
         </div>
       </section>
-
-      {/* ── against a studio ─────────────────────────────────────── */}
-      <section className="mt-20">
-        <h2 className="display text-[30px]">Against a studio shoot</h2>
-        <div className="mt-6 overflow-x-auto rounded-2xl border border-line">
-          <table className="w-full min-w-[560px] border-collapse bg-surface text-left">
-            <thead>
-              <tr className="border-b border-line">
-                <th className="label px-6 py-4">&nbsp;</th>
-                <th className="label px-6 py-4">Studio shoot</th>
-                <th className="label px-6 py-4">Tantu</th>
-              </tr>
-            </thead>
-            <tbody className="text-[15px]">
-              {[
-                [
-                  "Cost per image",
-                  `₹${STUDIO_COST_INR.low}–${STUDIO_COST_INR.high} plus model fees`,
-                  `₹${perImage(PACKS[PACKS.length - 1]!).toFixed(1)}–${perImage(PACKS[0]!).toFixed(1)}`,
-                ],
-                ["Turnaround", "3–7 days", "About a minute for a pose set"],
-                ["Logistics", "Ship, iron, book, schedule", "Photograph the cloth where it is"],
-                ["Re-shoot a colourway", "Book it all again", "Change the colour, press Generate"],
-                ["What it cannot do", "Nothing — it is a real photograph", "It is generated; check it against the fabric"],
-              ].map(([label, studio, tantu]) => (
-                <tr key={label} className="border-b border-line-soft last:border-b-0">
-                  <td className="px-6 py-4 font-medium">{label}</td>
-                  <td className="px-6 py-4 text-ink-soft">{studio}</td>
-                  <td className="px-6 py-4 text-ink-soft">{tantu}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="mt-3 text-[13px] text-ink-faint">
-          The last row is there on purpose. A generated image is not a photograph of your saree, it
-          is a rendering of it — which is exactly why the fidelity check exists.
-        </p>
-      </section>
-
-      {/* ── faq ──────────────────────────────────────────────────── */}
-      <section className="mt-20">
-        <h2 className="display text-[30px]">Questions</h2>
-        <div className="mt-6 grid gap-5 md:grid-cols-2">
-          {FAQ.map((item) => (
-            <div key={item.q} className="rounded-2xl border border-line bg-surface p-7">
-              <h3 className="text-[16px] font-medium">{item.q}</h3>
-              <p className="mt-2.5 text-[15px] leading-relaxed text-ink-soft">{item.a}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
+    </>
   );
 }

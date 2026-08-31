@@ -1,8 +1,19 @@
+# Explicit nested globs — bare `node_modules` / `.next` did not match the
+# workspace's nested copies, and the dev server's Turbopack cache under
+# apps/web/.next/dev is a single file well over Vercel's 100 MB limit.
 node_modules
+**/node_modules
 .next
+**/.next
+.turbo
+**/.turbo
+.git
+.vercel
+
 .env
 .env.local
 .env*.local
 .storage
 .devdb
 *.log
+*.tsbuildinfo
