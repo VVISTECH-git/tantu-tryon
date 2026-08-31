@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { ImageSlot } from "@/components/site/art/Ornament";
 import { GALLERY } from "@/content/gallery";
@@ -45,12 +46,12 @@ export default function GalleryPage() {
           <p className="mt-4 max-w-2xl text-[16px] leading-relaxed text-ink-soft">
             Until then, the honest thing to do is to put a saree through it yourself.
           </p>
-            <a
+            <Link
               href="/studio"
               className="mt-7 inline-block rounded-full bg-accent px-6 py-3 text-[15px] font-medium text-white transition hover:bg-accent-hover"
             >
               Open the Studio →
-            </a>
+            </Link>
           </div>
         </>
       ) : (

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { TOOLS } from "@/content/tools";
 
 const COLUMNS = [
@@ -37,12 +38,12 @@ export function SiteFooter() {
           <ul className="space-y-2">
             {TOOLS.filter((tool) => tool.status === "live").map((tool) => (
               <li key={tool.slug}>
-                <a
+                <Link
                   href={`/tools/${tool.slug}`}
                   className="text-[14px] text-ink-soft transition hover:text-ink"
                 >
                   {tool.name}
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
@@ -54,12 +55,12 @@ export function SiteFooter() {
             <ul className="space-y-2">
               {column.links.map((link) => (
                 <li key={link.href}>
-                  <a
+                  <Link
                     href={link.href}
                     className="text-[14px] text-ink-soft transition hover:text-ink"
                   >
                     {link.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>

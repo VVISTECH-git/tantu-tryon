@@ -15,7 +15,7 @@ export interface AccordionItem {
  * which is the one way to ease from nothing to auto height without measuring;
  * the reduced-motion rule in globals.css switches it off for anyone who asked.
  */
-export function Accordion({ items }: { items: AccordionItem[] }) {
+export function FAQAccordion({ items }: { items: AccordionItem[] }) {
   const baseId = useId();
   const [open, setOpen] = useState<number | null>(0);
 

@@ -37,7 +37,7 @@ export const PACKS: Pack[] = [
   {
     id: "trial",
     name: "Trial",
-    audience: "Finding out whether it holds your motif",
+    audience: "For trying Tantu on your first few designs.",
     images: 25,
     inr: 299,
     cta: "Start with Trial",
@@ -52,7 +52,7 @@ export const PACKS: Pack[] = [
   {
     id: "boutique",
     name: "Boutique",
-    audience: "A shop putting up new arrivals",
+    audience: "For shops adding new arrivals regularly.",
     images: 150,
     inr: 1299,
     cta: "Choose Boutique",
@@ -67,7 +67,7 @@ export const PACKS: Pack[] = [
   {
     id: "house",
     name: "House",
-    audience: "A manufacturer running a catalogue",
+    audience: "For manufacturers producing catalogue imagery at scale.",
     images: 600,
     inr: 4199,
     featured: true,
@@ -83,7 +83,7 @@ export const PACKS: Pack[] = [
   {
     id: "mill",
     name: "Mill",
-    audience: "Volume, and wholesale buyers of your own",
+    audience: "For large catalogues and teams.",
     images: 2500,
     inr: 14999,
     cta: "Choose Mill",
@@ -108,26 +108,17 @@ export const inr = (value: number) => `₹${value.toLocaleString("en-IN")}`;
 export const displayedRate = (pack: Pack) => Number(perImage(pack).toFixed(1));
 
 /**
- * Saving against the entry pack — computed from the *displayed* rates, not the
- * raw ones, so anyone who checks the arithmetic on the card arrives at the same
- * number we did.
- */
-export function savingVsTrial(pack: Pack): number {
-  const base = displayedRate(packById("trial"));
-  return Math.round((1 - displayedRate(pack) / base) * 100);
-}
-
-/**
- * The badge above a pack's price. Only two packs get one: the recommendation
- * and the cheapest rate. Putting a saving on every card would flatten the
- * hierarchy the recommendation depends on.
+ * The note under a pack's unit price. Only two packs get one — the
+ * recommendation and the cheapest rate. A badge on every card flattens the
+ * hierarchy the recommendation depends on, and neither line invents a discount
+ * that does not exist: both are plain descriptions of where the pack sits.
  */
 export function valueNote(pack: Pack): string | null {
   const cheapest = PACKS.reduce((best, other) =>
     perImage(other) < perImage(best) ? other : best,
   );
-  if (pack.id === cheapest.id) return "Best cost per image";
-  if (pack.featured) return `Save ${savingVsTrial(pack)}% vs Trial`;
+  if (pack.id === cheapest.id) return "Lowest cost per image";
+  if (pack.featured) return "Best balance of volume + price";
   return null;
 }
 

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { TOOLS } from "@/content/tools";
 
@@ -39,7 +40,7 @@ export default function ToolsPage() {
 
 function ToolCard({ tool }: { tool: (typeof TOOLS)[number] }) {
   return (
-    <a
+    <Link
       href={`/tools/${tool.slug}`}
       className="group flex flex-col rounded-2xl border border-line bg-surface p-7 transition hover:border-accent"
     >
@@ -54,6 +55,6 @@ function ToolCard({ tool }: { tool: (typeof TOOLS)[number] }) {
       <h3 className="display mt-2 text-[22px] group-hover:text-accent">{tool.name}</h3>
       <p className="mt-2.5 text-[15px] leading-relaxed text-ink-soft">{tool.summary}</p>
       <span className="mt-5 text-[14px] text-accent">Read more →</span>
-    </a>
+    </Link>
   );
 }

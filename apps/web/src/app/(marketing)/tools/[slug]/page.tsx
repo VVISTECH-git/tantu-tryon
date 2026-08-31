@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ImageSlot, type Tone } from "@/components/site/art/Ornament";
@@ -29,9 +30,9 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
 
   return (
     <div className="mx-auto max-w-[1280px] px-6 py-16">
-      <a href="/tools" className="text-[14px] text-ink-faint hover:text-ink">
+      <Link href="/tools" className="text-[14px] text-ink-faint hover:text-ink">
         ← All tools
-      </a>
+      </Link>
 
       <div className="mt-6 flex items-center gap-3">
         <span className="label">{tool.kicker}</span>
@@ -57,12 +58,12 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
           </div>
 
           {tool.status === "live" && (
-            <a
+            <Link
               href="/studio"
               className="inline-block rounded-full bg-accent px-6 py-3 text-[15px] font-medium text-white transition hover:bg-accent-hover"
             >
               Try it in the Studio →
-            </a>
+            </Link>
           )}
         </div>
 
@@ -105,14 +106,14 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
       <h2 className="display mt-20 text-[26px]">The rest of it</h2>
       <div className="mt-6 grid gap-5 sm:grid-cols-3">
         {others.map((other) => (
-          <a
+          <Link
             key={other.slug}
             href={`/tools/${other.slug}`}
             className="group rounded-2xl border border-line bg-surface p-6 transition hover:border-accent"
           >
             <span className="label">{other.kicker}</span>
             <h3 className="display mt-1.5 text-[19px] group-hover:text-accent">{other.name}</h3>
-          </a>
+          </Link>
         ))}
       </div>
     </div>

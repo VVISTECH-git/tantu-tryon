@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { TOOLS } from "@/content/tools";
 
@@ -15,6 +17,11 @@ export function SiteHeader() {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const toolsRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+
+  // Home only counts as current on exactly "/"; the rest match their section.
+  const isCurrent = (href: string) =>
+    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 
   useEffect(() => {
     function onPointerDown(event: MouseEvent) {
@@ -37,18 +44,23 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-ground/90 backdrop-blur">
       <div className="mx-auto flex h-18 max-w-[1280px] items-center gap-8 px-6 py-4">
-        <a href="/" className="flex items-baseline gap-2">
+        <Link href="/" className="flex items-baseline gap-2">
           <span className="display text-[26px] text-madder">Tantu</span>
           <span className="text-[13px] text-ink-soft">Try-On</span>
-        </a>
+        </Link>
 
         <nav className="ml-auto hidden items-center gap-1 lg:flex">
           <div ref={toolsRef} className="relative">
             <button
               type="button"
               aria-expanded={toolsOpen}
+              aria-current={isCurrent("/tools") ? "page" : undefined}
+              className={`relative flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[15px] transition hover:bg-surface-2 hover:text-ink ${
+                isCurrent("/tools")
+                  ? "font-medium text-ink after:absolute after:inset-x-3.5 after:-bottom-0.5 after:h-px after:bg-madder"
+                  : "text-ink-soft"
+              }`}
               onClick={() => setToolsOpen((open) => !open)}
-              className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[15px] text-ink-soft transition hover:bg-surface-2 hover:text-ink"
             >
               AI Tools
               <span className={`text-[10px] transition ${toolsOpen ? "rotate-180" : ""}`}>▾</span>
@@ -58,7 +70,7 @@ export function SiteHeader() {
               <div className="absolute left-0 top-full mt-2 w-[560px] rounded-2xl border border-line bg-surface p-3 shadow-lg shadow-ink/5">
                 <div className="grid grid-cols-2 gap-1">
                   {TOOLS.map((tool) => (
-                    <a
+                    <Link
                       key={tool.slug}
                       href={`/tools/${tool.slug}`}
                       onClick={() => setToolsOpen(false)}
@@ -75,37 +87,45 @@ export function SiteHeader() {
                       <span className="mt-0.5 block text-[12px] leading-snug text-ink-faint">
                         {tool.kicker}
                       </span>
-                    </a>
+                    </Link>
                   ))}
                 </div>
-                <a
+                <Link
                   href="/tools"
                   onClick={() => setToolsOpen(false)}
                   className="mt-2 block rounded-xl border-t border-line-soft px-3 pt-3 text-[13px] text-accent hover:underline"
                 >
                   See all tools →
-                </a>
+                </Link>
               </div>
             )}
           </div>
 
-          {LINKS.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="rounded-full px-3.5 py-2 text-[15px] text-ink-soft transition hover:bg-surface-2 hover:text-ink"
-            >
-              {link.label}
-            </a>
-          ))}
+          {LINKS.map((link) => {
+            const current = isCurrent(link.href);
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={current ? "page" : undefined}
+                className={`relative rounded-full px-3.5 py-2 text-[15px] transition hover:bg-surface-2 hover:text-ink ${
+                  current
+                    ? "font-medium text-ink after:absolute after:inset-x-3.5 after:bottom-0.5 after:h-px after:bg-madder"
+                    : "text-ink-soft"
+                }`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </nav>
 
-        <a
+        <Link
           href="/studio"
           className="ml-auto hidden rounded-full bg-accent px-5 py-2.5 text-[15px] font-medium text-white transition hover:bg-accent-hover lg:ml-0 lg:block"
         >
           Open the Studio
-        </a>
+        </Link>
 
         <button
           type="button"
@@ -120,20 +140,36 @@ export function SiteHeader() {
 
       {menuOpen && (
         <div className="border-t border-line bg-surface px-6 py-4 lg:hidden">
-          <a href="/tools" className="block py-2.5 text-[16px] font-medium">
+          <Link
+            href="/tools"
+            aria-current={isCurrent("/tools") ? "page" : undefined}
+            className={`block py-3 text-[16px] font-medium ${
+              isCurrent("/tools") ? "text-madder" : ""
+            }`}
+          >
             AI Tools
-          </a>
-          {LINKS.map((link) => (
-            <a key={link.href} href={link.href} className="block py-2.5 text-[16px] text-ink-soft">
-              {link.label}
-            </a>
-          ))}
-          <a
+          </Link>
+          {LINKS.map((link) => {
+            const current = isCurrent(link.href);
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={current ? "page" : undefined}
+                className={`block py-3 text-[16px] ${
+                  current ? "font-medium text-madder" : "text-ink-soft"
+                }`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
+          <Link
             href="/studio"
             className="mt-3 block rounded-full bg-accent px-5 py-3 text-center text-[16px] font-medium text-white"
           >
             Open the Studio
-          </a>
+          </Link>
         </div>
       )}
     </header>

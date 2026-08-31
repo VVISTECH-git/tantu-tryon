@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BorderRule, ImageSlot } from "@/components/site/art/Ornament";
 import { TOOLS } from "@/content/tools";
 import { PACKS, perImage, STUDIO_COST_INR } from "@/content/pricing";
@@ -57,18 +58,18 @@ export default function HomePage() {
           </p>
 
           <div className="mt-9 flex flex-wrap items-center gap-3">
-            <a
+            <Link
               href="/studio"
               className="rounded-full bg-accent px-7 py-3.5 text-[16px] font-medium text-white transition hover:bg-accent-hover"
             >
               Open the Studio →
-            </a>
-            <a
+            </Link>
+            <Link
               href="/tools"
               className="rounded-full border border-line bg-surface px-7 py-3.5 text-[16px] text-ink-soft transition hover:border-ink-faint hover:text-ink"
             >
               See what it does
-            </a>
+            </Link>
           </div>
 
           <p className="mt-7 max-w-md text-[14px] leading-relaxed text-ink-faint">
@@ -212,14 +213,14 @@ export default function HomePage() {
                 What is actually built
               </h2>
             </div>
-            <a href="/tools" className="ml-auto text-[15px] text-accent hover:underline">
+            <Link href="/tools" className="ml-auto text-[15px] text-accent hover:underline">
               All tools →
-            </a>
+            </Link>
           </div>
 
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {TOOLS.map((tool) => (
-              <a
+              <Link
                 key={tool.slug}
                 href={`/tools/${tool.slug}`}
                 className="group rounded-2xl border border-line bg-ground p-7 transition hover:border-accent"
@@ -234,7 +235,7 @@ export default function HomePage() {
                 </div>
                 <h3 className="display mt-2 text-[20px] group-hover:text-accent">{tool.name}</h3>
                 <p className="mt-2.5 text-[14px] leading-relaxed text-ink-soft">{tool.summary}</p>
-              </a>
+              </Link>
             ))}
           </div>
         </div>
@@ -252,12 +253,12 @@ export default function HomePage() {
             volume and about a minute for a full pose set — but the reason to do it is that you can
             re-shoot a colourway on a Tuesday afternoon without booking anybody.
           </p>
-          <a
+          <Link
             href="/pricing"
             className="mt-8 inline-block rounded-full bg-accent px-7 py-3.5 text-[16px] font-medium text-white transition hover:bg-accent-hover"
           >
             See pricing
-          </a>
+          </Link>
         </div>
 
         <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-3xl border border-line bg-line">
@@ -288,12 +289,12 @@ export default function HomePage() {
               worth asking of any tool in this category, and it is the one nobody else lets you
               answer.
             </p>
-            <a
+            <Link
               href="/studio"
               className="mt-8 inline-block rounded-full bg-accent px-7 py-3.5 text-[16px] font-medium text-white transition hover:bg-accent-hover"
             >
               Open the Studio →
-            </a>
+            </Link>
           </div>
           <div className="hidden overflow-hidden rounded-3xl lg:block">
             <ImageSlot tone="indigo" seed={5} vine ratio={5 / 4} />
