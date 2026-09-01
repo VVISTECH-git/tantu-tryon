@@ -15,15 +15,26 @@ export function Disclosure({
   summary,
   children,
   defaultOpen = false,
+  open: controlledOpen,
+  onToggle,
 }: {
   title: string;
   /** The current value, so the row is useful without being opened. */
   summary: string;
   children: ReactNode;
   defaultOpen?: boolean;
+  /**
+   * Supply these to run several rows as an accordion — opening one minimises
+   * the rest. In a rail this tall that matters: two panels open at once push
+   * the Generate button off the bottom of the screen.
+   */
+  open?: boolean;
+  onToggle?: () => void;
 }) {
   const id = useId();
-  const [open, setOpen] = useState(defaultOpen);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = () => (onToggle ? onToggle() : setUncontrolledOpen((value) => !value));
 
   return (
     <section className="border-b border-line-soft">
@@ -33,7 +44,7 @@ export function Disclosure({
           aria-expanded={open}
           aria-controls={`${id}-panel`}
           id={`${id}-button`}
-          onClick={() => setOpen((value) => !value)}
+          onClick={setOpen}
           // Same geometry as SettingRow — 28-unit label column, same padding,
           // same 44px minimum — so the rail reads as one list of settings.
           className="flex min-h-14 w-full items-center gap-4 px-6 py-3 text-left transition-colors hover:bg-surface-2"

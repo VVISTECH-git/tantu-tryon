@@ -8,7 +8,6 @@ import {
   SLOTS,
   garment as garmentDef,
   posesFor,
-  scene as sceneDef,
   slotsFor,
 } from "@tantu/engine/catalog";
 import type { GarmentId, ModelBrief, RenderMode, SlotId } from "@tantu/engine/catalog";
@@ -29,6 +28,14 @@ const MODES: { value: RenderMode; label: string; hint: string }[] = [
   { value: "person", label: "Try on a person", hint: "Dresses a photograph you supply." },
 ];
 
+type Quality = "standard" | "high";
+
+/** Declared beside MODES rather than inline, because it is the same kind of list. */
+const QUALITIES: { value: Quality; label: string; hint: string }[] = [
+  { value: "standard", label: "Standard", hint: "Fast and cheap." },
+  { value: "high", label: "High", hint: "A hero shot." },
+];
+
 /** References are always sent in this order so the prompt's numbering is stable. */
 const SLOT_ORDER = new Map(SLOTS.map((s, index) => [s.id, index]));
 
@@ -45,7 +52,7 @@ export function Studio() {
   const [sceneId, setSceneId] = useState<string>("courtyard");
   const [customScene, setCustomScene] = useState("");
   const [poses, setPoses] = useState<string[]>(DEFAULT_POSE_IDS);
-  const [quality, setQuality] = useState<"standard" | "high">("standard");
+  const [quality, setQuality] = useState<Quality>("standard");
   const [extraInstruction, setExtraInstruction] = useState("");
 
   const [cards, setCards] = useState<RenderCard[]>([]);
@@ -53,6 +60,8 @@ export function Studio() {
   const [error, setError] = useState<string | null>(null);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [view, setView] = useState<"photos" | "results">("photos");
+  /** One panel at a time — opening one minimises the other. */
+  const [openPanel, setOpenPanel] = useState<"model" | "poses" | null>(null);
 
   const batchRef = useRef<string>("");
   const abortRef = useRef<AbortController | null>(null);
@@ -274,13 +283,12 @@ export function Studio() {
     }
   }
 
-  // ── summaries for the collapsed rows ────────────────────────────
+  // ── summaries for the two collapsible rows ──────────────────────
   const modelSummary = brief.freeform?.trim()
     ? brief.freeform.trim()
     : [brief.age?.trim() || "a woman in her mid-20s", brief.styling?.trim() || "gold jhumkas"].join(
         " · ",
       );
-  const sceneSummary = sceneId === "custom" ? customScene || "Describe it" : sceneDef(sceneId).name;
   const poseSummary =
     poses.length === 0
       ? "None chosen"
@@ -288,10 +296,6 @@ export function Studio() {
           .filter((p) => poses.includes(p.id))
           .map((p) => p.name)
           .join(", ")}`;
-  const qualitySummary = `${quality === "high" ? "High" : "Standard"}${
-    extraInstruction.trim() ? " · with notes" : ""
-  }`;
-
   const finished = cards.filter((c) => c.state !== "pending").length;
   const okCards = cards.filter((c) => c.state === "ok").length;
   const banner = error ? explain(error) : null;
@@ -299,7 +303,7 @@ export function Studio() {
   return (
     <main className="mx-auto grid max-w-[1680px] grid-cols-1 lg:grid-cols-[380px_1fr]">
       {/* ── the shoot ─────────────────────────────────────────────── */}
-      <div className="flex flex-col border-r border-line bg-surface lg:h-[calc(100vh-4rem)]">
+      <div className="flex flex-col border-r border-line bg-surface lg:h-[calc(100vh-3.5rem)]">
         <div className="flex-1 overflow-y-auto">
           <SettingRow label="Garment" htmlFor="setting-garment">
             <Select
@@ -310,6 +314,14 @@ export function Studio() {
             />
           </SettingRow>
 
+          {/*
+            A choice between two or three named things is a select, not a stack
+            of cards. Three card sets — mode, scene, quality — were costing most
+            of the rail's height to hold three values that fit on three lines.
+            The sentence that used to live inside each card sits under the
+            control, where it describes the current choice instead of all of
+            them at once.
+          */}
           <SettingRow label="Worn as" htmlFor="setting-mode">
             <Select
               id="setting-mode"
@@ -317,16 +329,53 @@ export function Studio() {
               onChange={(value) => setMode(value as RenderMode)}
               options={MODES.map((m) => ({ value: m.value, label: m.label }))}
             />
-            {/* The hint sits under the control rather than inside the option:
-                at 380px the combined string truncates mid-word. */}
             <p className="mt-1.5 text-[13px] text-ink-faint">
               {MODES.find((m) => m.value === mode)?.hint}
             </p>
           </SettingRow>
 
-          {/* everything below has a working default */}
+          <SettingRow label="Backdrop" htmlFor="setting-scene">
+            <Select
+              id="setting-scene"
+              value={sceneId}
+              onChange={setSceneId}
+              options={[
+                ...SCENES.map((s) => ({ value: s.id, label: s.name })),
+                { value: "custom", label: "Custom — describe it" },
+              ]}
+            />
+            {sceneId === "custom" && (
+              <div className="mt-2">
+                <TextArea
+                  value={customScene}
+                  onChange={setCustomScene}
+                  rows={2}
+                  placeholder="Describe the backdrop and the light."
+                />
+              </div>
+            )}
+          </SettingRow>
+
+          <SettingRow label="Quality" htmlFor="setting-quality">
+            <Select
+              id="setting-quality"
+              value={quality}
+              onChange={(value) => setQuality(value as Quality)}
+              options={QUALITIES.map((q) => ({ value: q.value, label: q.label }))}
+            />
+            <p className="mt-1.5 text-[13px] text-ink-faint">
+              {QUALITIES.find((q) => q.value === quality)?.hint}
+            </p>
+          </SettingRow>
+
+          {/* Only the two that genuinely need room stay collapsible. */}
           {mode !== "person" && (
-            <Disclosure title="The model" summary={modelSummary}>
+            <Disclosure
+              title="The model"
+              summary={modelSummary}
+              open={openPanel === "model"}
+              onToggle={() => setOpenPanel((current) => (current === "model" ? null : "model"))}
+            >
               <div className="mb-3 flex justify-end">
                 <button
                   type="button"
@@ -382,29 +431,12 @@ export function Studio() {
             </Disclosure>
           )}
 
-          <Disclosure title="Scene" summary={sceneSummary}>
-            <Select
-              id="setting-scene"
-              value={sceneId}
-              onChange={setSceneId}
-              options={[
-                ...SCENES.map((s) => ({ value: s.id, label: s.name })),
-                { value: "custom", label: "Custom — describe it" },
-              ]}
-            />
-            {sceneId === "custom" && (
-              <div className="mt-3">
-                <TextArea
-                  value={customScene}
-                  onChange={setCustomScene}
-                  rows={2}
-                  placeholder="Describe the backdrop and the light."
-                />
-              </div>
-            )}
-          </Disclosure>
-
-          <Disclosure title="Poses" summary={poseSummary}>
+          <Disclosure
+            title="Poses"
+            summary={poseSummary}
+            open={openPanel === "poses"}
+            onToggle={() => setOpenPanel((current) => (current === "poses" ? null : "poses"))}
+          >
             <div className="mb-3 flex gap-3">
               <button
                 type="button"
@@ -421,6 +453,14 @@ export function Studio() {
                 reset
               </button>
             </div>
+            {/*
+              One across, like every other list of options in the rail.
+
+              Two across fits more in, and at 380px it breaks "Front ·
+              symmetrical" over two lines while "Back view" stays on one — so
+              the rows come out at different heights and the column reads as
+              ragged. Nine cards is a longer panel; it is a tidy one.
+            */}
             <CheckList
               options={availablePoses.map((p) => ({ value: p.id, label: p.name }))}
               selected={poses}
@@ -432,39 +472,14 @@ export function Studio() {
             />
           </Disclosure>
 
-          <Disclosure title="Quality" summary={qualitySummary}>
-            <div className="grid grid-cols-2 gap-2">
-              {(
-                [
-                  { value: "standard", label: "Standard", hint: "Fast and cheap" },
-                  { value: "high", label: "High", hint: "A hero shot" },
-                ] as const
-              ).map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  aria-pressed={quality === option.value}
-                  onClick={() => setQuality(option.value)}
-                  className={`rounded-xl border px-3.5 py-3 text-left transition ${
-                    quality === option.value
-                      ? "border-accent bg-accent-wash"
-                      : "border-line bg-surface hover:border-ink-faint"
-                  }`}
-                >
-                  <span className="block text-[14px] font-medium">{option.label}</span>
-                  <span className="mt-0.5 block text-[13px] text-ink-faint">{option.hint}</span>
-                </button>
-              ))}
-            </div>
-            <div className="mt-3">
-              <TextArea
-                value={extraInstruction}
-                onChange={setExtraInstruction}
-                rows={2}
-                placeholder="'the zari is gold, not yellow'"
-              />
-            </div>
-          </Disclosure>
+          <SettingRow label="Notes">
+            <TextArea
+              value={extraInstruction}
+              onChange={setExtraInstruction}
+              rows={2}
+              placeholder="'the zari is gold, not yellow'"
+            />
+          </SettingRow>
         </div>
 
         <div className="border-t border-line bg-surface px-6 py-4">
@@ -510,7 +525,7 @@ export function Studio() {
       </div>
 
       {/* ── the canvas ────────────────────────────────────────────── */}
-      <div className="p-6 lg:h-[calc(100vh-4rem)] lg:overflow-y-auto">
+      <div className="p-6 lg:h-[calc(100vh-3.5rem)] lg:overflow-y-auto">
         {banner && (
           <div className="mb-5 rounded-xl border border-danger/30 bg-danger-wash px-5 py-4">
             <p className="text-[14px] font-medium">{banner.headline}</p>
