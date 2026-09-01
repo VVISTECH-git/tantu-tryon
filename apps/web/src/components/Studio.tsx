@@ -13,10 +13,11 @@ import {
 import type { GarmentId, ModelBrief, RenderMode, SlotId } from "@tantu/engine/catalog";
 import { Lightbox } from "./Lightbox";
 import { Results } from "./Results";
-import { CheckList, Select, SelectField, SettingRow, TextArea, TextInput } from "./ui";
+import { Select, SelectField, SettingRow, TextArea, TextInput } from "./ui";
 import { AGES, BUILDS, COMPLEXIONS, HAIR } from "@/content/model";
 import { Disclosure } from "./studio/Disclosure";
 import { ReferenceBoard, type RefImage } from "./studio/ReferenceBoard";
+import { PosePicker } from "./studio/PosePicker";
 import type { RenderCard } from "./types";
 import { saveRenders, type StoredRender } from "@/lib/library";
 import { thumbnail, type LoadedImage } from "@/lib/image";
@@ -68,7 +69,7 @@ export function Studio() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [view, setView] = useState<"photos" | "results">("photos");
   /** One panel at a time — opening one minimises the other. */
-  const [openPanel, setOpenPanel] = useState<"model" | "poses" | null>(null);
+  const [openPanel, setOpenPanel] = useState<"model" | "poses" | null>("poses");
 
   const batchRef = useRef<string>("");
   const abortRef = useRef<AbortController | null>(null);
@@ -493,8 +494,8 @@ export function Studio() {
               the rows come out at different heights and the column reads as
               ragged. Nine cards is a longer panel; it is a tidy one.
             */}
-            <CheckList
-              options={availablePoses.map((p) => ({ value: p.id, label: p.name }))}
+            <PosePicker
+              poses={availablePoses}
               selected={poses}
               onToggle={(id) =>
                 setPoses((current) =>
