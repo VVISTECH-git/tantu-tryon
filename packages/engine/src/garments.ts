@@ -5,6 +5,15 @@ export interface GarmentDef {
   label: string;
   /** How the garment must sit on the body. The hardest part for a saree. */
   drape: string;
+  /**
+   * How the garment is made up, as opposed to how it hangs.
+   *
+   * This exists because the refactor into fragments lost a line that was in
+   * four of the five prompts proven on real kalamkari — the model kept giving
+   * the blouse long sleeves until it was told not to. Not applied in mannequin
+   * mode, where the real blouse is already in the photograph.
+   */
+  construction?: string;
   /** Slots that materially improve fidelity for this garment. */
   recommendedSlots: string[];
 }
@@ -15,6 +24,8 @@ export const GARMENTS: GarmentDef[] = [
     label: "Saree",
     drape:
       "Drape it as a traditional Indian saree: neat, evenly spaced pleats tucked at the waist, the pleated pallu falling over the left shoulder, and the decorative border running correctly along the hem and down the pallu edge. The pleats must read as pressed fabric folds — straight and evenly spaced, never bunched or crumpled.",
+    construction:
+      "The blouse has short sleeves that end above the elbow, well before the elbow joint, exposing the forearm.",
     recommendedSlots: ["full-drape", "pallu", "body", "border", "blouse"],
   },
   {
@@ -22,6 +33,8 @@ export const GARMENTS: GarmentDef[] = [
     label: "Lehenga",
     drape:
       "Style it as a lehenga: the flared skirt falling in even panels from the waist, the blouse fitted, and the dupatta draped over one shoulder so its border stays visible.",
+    construction:
+      "The blouse has short sleeves that end above the elbow, well before the elbow joint, exposing the forearm.",
     recommendedSlots: ["full-drape", "body", "border", "blouse"],
   },
   {

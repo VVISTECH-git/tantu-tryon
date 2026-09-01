@@ -88,8 +88,12 @@ export function composePrompt(request: RenderRequest, pose: Pose): string {
     FIDELITY,
   ];
 
-  // A mannequin swap must not be told how to drape — the drape is already real.
-  if (request.mode !== "mannequin") parts.push(g.drape);
+  // A mannequin swap must not be told how to drape or how the blouse is cut —
+  // both are already real in the photograph.
+  if (request.mode !== "mannequin") {
+    parts.push(g.drape);
+    if (g.construction) parts.push(g.construction);
+  }
 
   parts.push(pose.body);
   if (pose.drapeNote && hasPallu(request.garment)) parts.push(pose.drapeNote);
