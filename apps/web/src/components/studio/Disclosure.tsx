@@ -40,7 +40,7 @@ export function Disclosure({
           <span className="flex-1 truncate text-[13px] text-ink-faint">{summary}</span>
           <span
             aria-hidden
-            className={`shrink-0 text-[15px] leading-none text-ink-faint transition-transform duration-200 ${
+            className={`shrink-0 text-[14px] leading-none text-ink-faint transition-transform duration-200 ${
               open ? "rotate-45" : ""
             }`}
           >

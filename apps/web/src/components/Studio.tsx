@@ -6,6 +6,7 @@ import {
   GARMENTS,
   SCENES,
   SLOTS,
+  garment as garmentDef,
   posesFor,
   scene as sceneDef,
   slotsFor,
@@ -13,7 +14,7 @@ import {
 import type { GarmentId, ModelBrief, RenderMode, SlotId } from "@tantu/engine/catalog";
 import { Lightbox } from "./Lightbox";
 import { Results } from "./Results";
-import { Chip, TextArea, TextInput } from "./ui";
+import { CheckList, Select, TextArea, TextInput } from "./ui";
 import { Disclosure } from "./studio/Disclosure";
 import { ReferenceBoard, type RefImage } from "./studio/ReferenceBoard";
 import type { RenderCard } from "./types";
@@ -35,7 +36,6 @@ let nextId = 0;
 const makeId = () => `ref-${++nextId}-${Date.now()}`;
 
 export function Studio() {
-  const [title, setTitle] = useState("");
   const [garment, setGarment] = useState<GarmentId>("saree");
   const [mode, setMode] = useState<RenderMode>("describe");
   const [refs, setRefs] = useState<RefImage[]>([]);
@@ -74,10 +74,13 @@ export function Studio() {
     return ordered[0]?.dataUrl;
   }, [refs, ordered]);
 
-  const stem = useMemo(() => {
-    const base = title.trim() ? title.trim().replace(/[^\w-]+/g, "-").toLowerCase() : garment;
-    return base.replace(/^-+|-+$/g, "") || "render";
-  }, [title, garment]);
+  /**
+   * Downloads and library entries are named after the garment and the day.
+   * There is no SKU field: this is a tool for anyone with product photographs,
+   * not only for someone working from a catalogue with codes in it.
+   */
+  const garmentLabel = useMemo(() => garmentDef(garment).label, [garment]);
+  const stem = garment;
 
   const problems = useMemo(() => {
     const list: string[] = [];
@@ -226,7 +229,7 @@ export function Studio() {
                 id: card.id,
                 createdAt: Date.now(),
                 batchId: batchRef.current,
-                title: title.trim() || "Untitled",
+                title: `${garmentLabel} · ${new Date(Date.now()).toLocaleDateString()}`,
                 garment,
                 mode,
                 poseId: card.poseId,
@@ -299,19 +302,12 @@ export function Studio() {
       <div className="flex flex-col border-r border-line bg-surface lg:h-[calc(100vh-4rem)]">
         <div className="flex-1 overflow-y-auto">
           <div className="border-b border-line-soft px-6 py-6">
-            <TextInput
-              label="Design or SKU"
-              value={title}
-              onChange={setTitle}
-              placeholder="SLK-CTN-1774 · Red"
+            <Select
+              label="What are you shooting?"
+              value={garment}
+              onChange={(value) => setGarment(value as GarmentId)}
+              options={GARMENTS.map((g) => ({ value: g.id, label: g.label }))}
             />
-            <div className="mt-4 flex flex-wrap gap-2">
-              {GARMENTS.map((g) => (
-                <Chip key={g.id} active={garment === g.id} onClick={() => setGarment(g.id)}>
-                  {g.label}
-                </Chip>
-              ))}
-            </div>
           </div>
 
           <div className="border-b border-line-soft px-6 py-6">
@@ -336,7 +332,7 @@ export function Studio() {
                   >
                     {option.label}
                   </span>
-                  <span className="mt-0.5 block text-[12px] text-ink-faint">{option.hint}</span>
+                  <span className="mt-0.5 block text-[13px] text-ink-faint">{option.hint}</span>
                 </button>
               ))}
             </div>
@@ -401,16 +397,15 @@ export function Studio() {
           )}
 
           <Disclosure title="Scene" summary={sceneSummary}>
-            <div className="flex flex-wrap gap-2">
-              {SCENES.map((s) => (
-                <Chip key={s.id} active={sceneId === s.id} onClick={() => setSceneId(s.id)}>
-                  {s.name}
-                </Chip>
-              ))}
-              <Chip active={sceneId === "custom"} onClick={() => setSceneId("custom")}>
-                Custom
-              </Chip>
-            </div>
+            <Select
+              label="Backdrop"
+              value={sceneId}
+              onChange={setSceneId}
+              options={[
+                ...SCENES.map((s) => ({ value: s.id, label: s.name })),
+                { value: "custom", label: "Custom — describe it" },
+              ]}
+            />
             {sceneId === "custom" && (
               <div className="mt-3">
                 <TextArea
@@ -440,23 +435,15 @@ export function Studio() {
                 reset
               </button>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {availablePoses.map((p) => (
-                <Chip
-                  key={p.id}
-                  active={poses.includes(p.id)}
-                  onClick={() =>
-                    setPoses((current) =>
-                      current.includes(p.id)
-                        ? current.filter((id) => id !== p.id)
-                        : [...current, p.id],
-                    )
-                  }
-                >
-                  {p.name}
-                </Chip>
-              ))}
-            </div>
+            <CheckList
+              options={availablePoses.map((p) => ({ value: p.id, label: p.name }))}
+              selected={poses}
+              onToggle={(id) =>
+                setPoses((current) =>
+                  current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
+                )
+              }
+            />
           </Disclosure>
 
           <Disclosure title="Quality" summary={qualitySummary}>
@@ -479,7 +466,7 @@ export function Studio() {
                   }`}
                 >
                   <span className="block text-[14px] font-medium">{option.label}</span>
-                  <span className="mt-0.5 block text-[12px] text-ink-faint">{option.hint}</span>
+                  <span className="mt-0.5 block text-[13px] text-ink-faint">{option.hint}</span>
                 </button>
               ))}
             </div>
@@ -500,7 +487,7 @@ export function Studio() {
               <button
                 type="button"
                 onClick={stop}
-                className="rounded-full border border-danger px-5 py-3 text-[15px] font-medium text-danger transition hover:bg-danger-wash"
+                className="rounded-full border border-danger px-5 py-3 text-[14px] font-medium text-danger transition hover:bg-danger-wash"
               >
                 Stop
               </button>
@@ -528,7 +515,7 @@ export function Studio() {
                   </span>
                 )}
               </button>
-              <p className="mt-2 text-center text-[12px] text-ink-faint">
+              <p className="mt-2 text-center text-[13px] text-ink-faint">
                 Estimated engine cost. Nothing is charged by this app.
               </p>
             </>
@@ -540,7 +527,7 @@ export function Studio() {
       <div className="p-6 lg:h-[calc(100vh-4rem)] lg:overflow-y-auto">
         {banner && (
           <div className="mb-5 rounded-xl border border-danger/30 bg-danger-wash px-5 py-4">
-            <p className="text-[15px] font-medium">{banner.headline}</p>
+            <p className="text-[14px] font-medium">{banner.headline}</p>
             {banner.advice && (
               <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">{banner.advice}</p>
             )}
@@ -549,7 +536,7 @@ export function Studio() {
 
         {cards.length > 0 && (
           <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <h1 className="display text-[22px]">{title.trim() || "Untitled design"}</h1>
+            <h1 className="display text-[22px]">{garmentLabel}</h1>
             <div className="flex gap-1 rounded-full border border-line bg-surface p-1">
               {(["photos", "results"] as const).map((tab) => (
                 <button

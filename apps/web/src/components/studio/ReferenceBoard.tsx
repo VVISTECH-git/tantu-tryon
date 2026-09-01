@@ -137,7 +137,7 @@ export function ReferenceBoard({
 
       {mode === "person" && (
         <div className="mt-8 border-t border-line pt-6">
-          <h3 className="text-[15px] font-medium">The person wearing it</h3>
+          <h3 className="text-[14px] font-medium">The person wearing it</h3>
           <p className="mt-1 text-[14px] text-ink-soft">
             Their face, build and skin tone are preserved; only the clothing changes.
           </p>

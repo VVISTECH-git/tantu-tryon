@@ -31,33 +31,67 @@ export function Section({
   );
 }
 
-export function Chip({
-  active,
-  onClick,
-  children,
-  title,
+/**
+ * A single choice from many. Replaces a wrapped grid of pills — nine garment
+ * pills at a 44px touch height cost roughly 150px of a 380px rail to express
+ * one value.
+ */
+export function Select({
+  label,
+  value,
+  onChange,
+  options,
 }: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-  title?: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
 }) {
   return (
-    <button
-      type="button"
-      title={title}
-      aria-pressed={active}
-      onClick={onClick}
-      // min-h-11 so a chip clears the 44px touch target: these are tapped on a
-      // phone on the warehouse floor, not only clicked with a mouse.
-      className={`inline-flex min-h-11 items-center rounded-full border px-4 py-1.5 text-[14px] transition ${
-        active
-          ? "border-accent bg-accent text-white"
-          : "border-line bg-surface text-ink-soft hover:border-ink-faint hover:text-ink"
-      }`}
-    >
-      {children}
-    </button>
+    <label className="block">
+      <span className="label mb-1.5 block">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-h-11 w-full rounded-xl border border-line bg-surface px-3.5 text-[14px] text-ink outline-none transition focus:border-accent"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/** A multiple choice, as a list rather than a field of pills. */
+export function CheckList({
+  options,
+  selected,
+  onToggle,
+}: {
+  options: { value: string; label: string }[];
+  selected: string[];
+  onToggle: (value: string) => void;
+}) {
+  return (
+    <div className="grid">
+      {options.map((option) => (
+        <label
+          key={option.value}
+          className="flex min-h-11 cursor-pointer items-center gap-3 text-[14px] text-ink"
+        >
+          <input
+            type="checkbox"
+            checked={selected.includes(option.value)}
+            onChange={() => onToggle(option.value)}
+            className="h-4 w-4 shrink-0 accent-[var(--color-accent)]"
+          />
+          {option.label}
+        </label>
+      ))}
+    </div>
   );
 }
 

@@ -17,10 +17,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className={`${onest.variable} ${prata.variable} min-h-screen antialiased`}>
-        {children}
-      </body>
+    // The font variables belong on <html>: globals.css declares --font-sans on
+    // :root, and a custom property is substituted on the element that declares
+    // it. With these on <body> instead, var(--font-onest) is undefined up here,
+    // --font-sans becomes invalid at computed-value time, and every page
+    // silently renders in the browser's UI stack.
+    <html lang="en" className={`${onest.variable} ${prata.variable}`}>
+      <body className="min-h-screen antialiased">{children}</body>
     </html>
   );
 }

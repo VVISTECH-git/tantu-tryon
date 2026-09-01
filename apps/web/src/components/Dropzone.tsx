@@ -114,7 +114,7 @@ export function Dropzone({
           type="button"
           onClick={onClear}
           aria-label={`Remove ${label}`}
-          className="absolute right-2 top-2 hidden h-7 w-7 place-items-center rounded-full bg-white/95 text-[15px] leading-none text-ink-soft shadow-sm transition hover:text-danger group-hover:grid"
+          className="absolute right-2 top-2 hidden h-7 w-7 place-items-center rounded-full bg-white/95 text-[14px] leading-none text-ink-soft shadow-sm transition hover:text-danger group-hover:grid"
         >
           ×
         </button>
@@ -122,8 +122,8 @@ export function Dropzone({
 
       {value && footer}
 
-      {hint && !value && <p className="mt-2 text-[12px] leading-snug text-ink-faint">{hint}</p>}
-      {error && <p className="mt-2 text-[12px] text-danger">{error}</p>}
+      {hint && !value && <p className="mt-2 text-[13px] leading-snug text-ink-faint">{hint}</p>}
+      {error && <p className="mt-2 text-[13px] text-danger">{error}</p>}
 
       <input
         ref={inputRef}

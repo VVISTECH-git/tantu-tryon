@@ -29,6 +29,14 @@
   --color-danger: #b3261e;
   --color-danger-wash: #fbeceb;
 
+  /*
+   * next/font's --font-onest / --font-prata must be declared on <html>, not
+   * <body>. A custom property is substituted on the element that DECLARES it,
+   * and these are declared here on :root — so if next/font's variables sat on
+   * <body>, `var(--font-onest)` would be undefined at this point, the whole
+   * value would become invalid at computed-value time, and font-family would
+   * fall back to the browser's UI stack with no error anywhere.
+   */
   --font-sans: var(--font-onest), "Helvetica Neue", Arial, sans-serif;
   --font-display: var(--font-prata), Georgia, "Times New Roman", serif;
 }
