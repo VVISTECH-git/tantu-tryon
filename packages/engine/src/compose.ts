@@ -1,4 +1,5 @@
 import { garment as garmentDef } from "./garments";
+import { PLAYBOOK_PROMPTS } from "./playbook";
 import { hasPallu } from "./poses";
 import { scene as sceneDef } from "./scenes";
 import { slot as slotDef } from "./slots";
@@ -74,8 +75,25 @@ function subjectClause(request: RenderRequest, who: string): string {
   }
 }
 
-/** Builds the full prompt for one pose. Providers receive this ready to send. */
+/**
+ * Builds the full prompt for one pose. Providers receive this ready to send.
+ *
+ * When the request asks for the playbook, the proven text is sent unchanged —
+ * no legend, no scene, no model brief bolted on, because that prompt already
+ * contains its own and mixing the two would test neither.
+ */
 export function composePrompt(request: RenderRequest, pose: Pose): string {
+  if (request.promptSource === "playbook") {
+    const verbatim = PLAYBOOK_PROMPTS[pose.id];
+    if (verbatim) return verbatim;
+    // No playbook text for this pose — fall through and compose one rather
+    // than silently sending nothing.
+  }
+
+  return composeFromFragments(request, pose);
+}
+
+function composeFromFragments(request: RenderRequest, pose: Pose): string {
   const g = garmentDef(request.garment);
   const s = sceneDef(request.scene);
   const { who, styling } = describeModel(request.model);

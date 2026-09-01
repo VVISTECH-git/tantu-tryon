@@ -81,6 +81,16 @@ export interface RenderRequest {
    * spending on a hero shot or a motif that keeps drifting.
    */
   quality?: "standard" | "high";
+  /**
+   * Which prompt to send.
+   *
+   * `composed` builds one from the fragments — garment, pose, scene, model.
+   * `playbook` sends the Saree Generation Playbook's pose prompt unchanged,
+   * ignoring the scene and model settings because that text already carries
+   * its own. It exists so the composed prompt can be judged against the wording
+   * that was actually proven on kalamkari, from the same photographs.
+   */
+  promptSource?: "composed" | "playbook";
 }
 
 export interface Pose {

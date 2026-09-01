@@ -54,6 +54,12 @@ export function Studio() {
   const [customScene, setCustomScene] = useState("");
   const [poses, setPoses] = useState<string[]>(DEFAULT_POSE_IDS);
   const [quality, setQuality] = useState<Quality>("standard");
+  /**
+   * Which wording goes to the engine. The playbook's five prompts are the
+   * control: proven on real kalamkari, sent unchanged, so the composed prompt
+   * can be judged against them from the same photographs.
+   */
+  const [promptSource, setPromptSource] = useState<"composed" | "playbook">("composed");
   const [extraInstruction, setExtraInstruction] = useState("");
 
   const [cards, setCards] = useState<RenderCard[]>([]);
@@ -186,6 +192,7 @@ export function Studio() {
       scene: sceneId === "custom" ? customScene : sceneId,
       poses: poseIds,
       quality,
+      promptSource,
       extraInstruction: extraInstruction.trim() || undefined,
     };
 
@@ -355,6 +362,23 @@ export function Studio() {
                 />
               </div>
             )}
+          </SettingRow>
+
+          <SettingRow label="Prompt" htmlFor="setting-prompt">
+            <Select
+              id="setting-prompt"
+              value={promptSource}
+              onChange={(value) => setPromptSource(value as "composed" | "playbook")}
+              options={[
+                { value: "composed", label: "Tantu composed" },
+                { value: "playbook", label: "Playbook, verbatim" },
+              ]}
+            />
+            <p className="mt-1.5 text-[13px] text-ink-faint">
+              {promptSource === "playbook"
+                ? "The five proven saree prompts, sent unchanged. Backdrop and model settings are ignored — that text carries its own."
+                : "Built from the garment, pose, backdrop and model below."}
+            </p>
           </SettingRow>
 
           <SettingRow label="Quality" htmlFor="setting-quality">

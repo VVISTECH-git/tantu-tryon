@@ -40,6 +40,7 @@ export async function POST(req: Request) {
     poses: body.poses ?? [],
     extraInstruction: body.extraInstruction,
     quality: body.quality,
+    promptSource: body.promptSource,
   };
 
   const problems = validateRequest(request);
