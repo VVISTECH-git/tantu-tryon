@@ -8,11 +8,17 @@ export interface DropzoneProps {
   hint?: string;
   value?: { dataUrl: string; bytes: number; width: number; height: number };
   onPick: (image: LoadedImage) => void;
+  /**
+   * Called instead of onPick when several files arrive at once. Photographs
+   * come off a phone as a batch of five, not one at a time.
+   */
+  onPickMany?: (images: LoadedImage[]) => void;
   onClear?: () => void;
-  /** A slot this garment really wants filled, marked so the eye goes there. */
   recommended?: boolean;
   required?: boolean;
   compact?: boolean;
+  /** Slot re-assignment, shown on a filled tile. */
+  footer?: React.ReactNode;
 }
 
 export function Dropzone({
@@ -20,22 +26,29 @@ export function Dropzone({
   hint,
   value,
   onPick,
+  onPickMany,
   onClear,
   recommended,
   required,
   compact,
+  footer,
 }: DropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [over, setOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function accept(file: File | undefined) {
-    if (!file) return;
+  async function accept(files: FileList | null) {
+    const list = Array.from(files ?? []);
+    if (list.length === 0) return;
     setBusy(true);
     setError(null);
     try {
-      onPick(await loadImageFile(file));
+      if (list.length > 1 && onPickMany) {
+        onPickMany(await Promise.all(list.map((file) => loadImageFile(file))));
+      } else {
+        onPick(await loadImageFile(list[0]!));
+      }
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "Could not read that file.");
     } finally {
@@ -66,9 +79,9 @@ export function Dropzone({
         onDrop={(event) => {
           event.preventDefault();
           setOver(false);
-          void accept(event.dataTransfer.files[0]);
+          void accept(event.dataTransfer.files);
         }}
-        className={`relative flex w-full flex-col overflow-hidden rounded-2xl border text-left transition ${
+        className={`relative flex w-full flex-col overflow-hidden rounded-xl border text-left transition ${
           compact ? "aspect-square" : "aspect-4/5"
         } ${border}`}
       >
@@ -84,7 +97,7 @@ export function Dropzone({
           </span>
         )}
 
-        {value && (
+        {value && !footer && (
           <span className="absolute inset-x-0 bottom-0 flex items-center gap-2 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2 pt-8">
             <span className="truncate text-[13px] font-medium text-white">{label}</span>
             {!compact && (
@@ -107,6 +120,8 @@ export function Dropzone({
         </button>
       )}
 
+      {value && footer}
+
       {hint && !value && <p className="mt-2 text-[12px] leading-snug text-ink-faint">{hint}</p>}
       {error && <p className="mt-2 text-[12px] text-danger">{error}</p>}
 
@@ -114,9 +129,10 @@ export function Dropzone({
         ref={inputRef}
         type="file"
         accept="image/*"
+        multiple={Boolean(onPickMany)}
         className="hidden"
         onChange={(event) => {
-          void accept(event.target.files?.[0]);
+          void accept(event.target.files);
           event.target.value = "";
         }}
       />

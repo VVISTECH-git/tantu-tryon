@@ -48,7 +48,9 @@ export function Chip({
       title={title}
       aria-pressed={active}
       onClick={onClick}
-      className={`rounded-full border px-3.5 py-1.5 text-[14px] transition ${
+      // min-h-11 so a chip clears the 44px touch target: these are tapped on a
+      // phone on the warehouse floor, not only clicked with a mouse.
+      className={`inline-flex min-h-11 items-center rounded-full border px-4 py-1.5 text-[14px] transition ${
         active
           ? "border-accent bg-accent text-white"
           : "border-line bg-surface text-ink-soft hover:border-ink-faint hover:text-ink"
