@@ -13,7 +13,8 @@ import {
 import type { GarmentId, ModelBrief, RenderMode, SlotId } from "@tantu/engine/catalog";
 import { Lightbox } from "./Lightbox";
 import { Results } from "./Results";
-import { CheckList, Select, SettingRow, TextArea, TextInput } from "./ui";
+import { CheckList, Select, SelectField, SettingRow, TextArea, TextInput } from "./ui";
+import { AGES, BUILDS, COMPLEXIONS, HAIR } from "@/content/model";
 import { Disclosure } from "./studio/Disclosure";
 import { ReferenceBoard, type RefImage } from "./studio/ReferenceBoard";
 import type { RenderCard } from "./types";
@@ -393,33 +394,37 @@ export function Studio() {
                   rows={3}
                 />
               ) : (
+                /* Four bounded vocabularies, so four selects. Typing "mid-20s"
+                   into a free field only invites typos into the prompt. */
                 <div className="grid grid-cols-2 gap-3">
-                  <TextInput
+                  <SelectField
                     label="Age"
-                    value={brief.age ?? ""}
+                    value={brief.age ?? AGES[0]!.value}
                     onChange={(value) => setBrief({ ...brief, age: value })}
-                    placeholder="in her mid-20s"
+                    options={AGES}
                   />
-                  <TextInput
+                  <SelectField
                     label="Build"
-                    value={brief.build ?? ""}
+                    value={brief.build ?? BUILDS[0]!.value}
                     onChange={(value) => setBrief({ ...brief, build: value })}
-                    placeholder="average height"
+                    options={BUILDS}
                   />
-                  <TextInput
+                  <SelectField
                     label="Complexion"
-                    value={brief.complexion ?? ""}
+                    value={brief.complexion ?? COMPLEXIONS[0]!.value}
                     onChange={(value) => setBrief({ ...brief, complexion: value })}
-                    placeholder="warm Indian"
+                    options={COMPLEXIONS}
                   />
-                  <TextInput
+                  <SelectField
                     label="Hair"
-                    value={brief.hair ?? ""}
+                    value={brief.hair ?? HAIR[0]!.value}
                     onChange={(value) => setBrief({ ...brief, hair: value })}
-                    placeholder="worn down"
+                    options={HAIR}
                   />
                 </div>
               )}
+              {/* Styling stays typed: the combinations are endless, and this is
+                  the field people actually want to write in. */}
               <div className="mt-3">
                 <TextInput
                   label="Jewellery and styling"
