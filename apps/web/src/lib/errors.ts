@@ -12,17 +12,29 @@ interface Explained {
   detail: string;
 }
 
+/**
+ * Operator problems get operator instructions only where an operator is
+ * reading. On a public deployment, telling a visitor to edit a file in our
+ * repository and restart a server they do not run is both useless and a small
+ * leak of how the thing is built; the raw text is still one click away under
+ * "detail" for whoever needs it.
+ */
+const forOperator = process.env.NODE_ENV === "development";
+
 const RULES: { match: RegExp; headline: string; advice?: string }[] = [
   {
     match: /no free API tier|billing/i,
-    headline: "This key has no billing enabled.",
-    advice:
-      "Image generation has no free tier. Turn on billing for the key's Google Cloud project, then try again.",
+    headline: "The image engine is not accepting requests.",
+    advice: forOperator
+      ? "Image generation has no free tier. Turn on billing for the key's Google Cloud project, then try again."
+      : "Its account needs attention before anything can be generated. Nothing was charged for this.",
   },
   {
     match: /GEMINI_API_KEY is not set/i,
-    headline: "No engine key configured.",
-    advice: "Add GEMINI_API_KEY to apps/web/.env.local and restart the server.",
+    headline: "The image engine is not connected.",
+    advice: forOperator
+      ? "Add GEMINI_API_KEY to apps/web/.env.local and restart the dev server."
+      : "This deployment has no engine key yet, so nothing can be rendered. Nothing was charged.",
   },
   {
     match: /\b429\b|rate.?limit|quota/i,
