@@ -26,7 +26,7 @@ export function Results({
               className="working flex aspect-4/5 flex-col items-center justify-center rounded-2xl border border-line"
             >
               <span className="text-[14px] text-ink-soft">{card.poseName}</span>
-              <span className="label mt-1.5">rendering</span>
+              <span className="mt-1.5 text-[13px] text-ink-faint">Rendering</span>
             </div>
           );
         }
@@ -38,7 +38,7 @@ export function Results({
               className="flex aspect-4/5 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-line bg-surface"
             >
               <span className="text-[14px] text-ink-soft">{card.poseName}</span>
-              <span className="label">stopped</span>
+              <span className="text-[13px] text-ink-faint">Stopped</span>
               <button
                 type="button"
                 onClick={() => onRetry(card.poseId)}
@@ -115,7 +115,7 @@ function FailedCard({
   return (
     <div className="flex aspect-4/5 flex-col rounded-2xl border border-danger/30 bg-danger-wash p-5">
       <span className="text-[14px] font-medium">{card.poseName}</span>
-      <span className="label mt-1 !text-danger">did not render</span>
+      <span className="mt-1 text-[13px] font-medium text-danger">Did not render</span>
 
       <p className="mt-4 text-[14px] font-medium leading-snug text-ink">{problem.headline}</p>
       {problem.advice && (

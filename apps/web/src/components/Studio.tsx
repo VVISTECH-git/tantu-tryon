@@ -14,7 +14,7 @@ import {
 import type { GarmentId, ModelBrief, RenderMode, SlotId } from "@tantu/engine/catalog";
 import { Lightbox } from "./Lightbox";
 import { Results } from "./Results";
-import { CheckList, Select, TextArea, TextInput } from "./ui";
+import { CheckList, Select, SettingRow, TextArea, TextInput } from "./ui";
 import { Disclosure } from "./studio/Disclosure";
 import { ReferenceBoard, type RefImage } from "./studio/ReferenceBoard";
 import type { RenderCard } from "./types";
@@ -24,9 +24,9 @@ import { formatCost } from "@/lib/pricing";
 import { explain } from "@/lib/errors";
 
 const MODES: { value: RenderMode; label: string; hint: string }[] = [
-  { value: "describe", label: "Describe a model", hint: "No model photo needed" },
-  { value: "mannequin", label: "Mannequin → model", hint: "Highest fidelity" },
-  { value: "person", label: "Try on a person", hint: "Dress a real photo" },
+  { value: "describe", label: "Describe a model", hint: "No model photograph needed." },
+  { value: "mannequin", label: "Mannequin to model", hint: "Highest fidelity — the drape is real." },
+  { value: "person", label: "Try on a person", hint: "Dresses a photograph you supply." },
 ];
 
 /** References are always sent in this order so the prompt's numbering is stable. */
@@ -301,42 +301,28 @@ export function Studio() {
       {/* ── the shoot ─────────────────────────────────────────────── */}
       <div className="flex flex-col border-r border-line bg-surface lg:h-[calc(100vh-4rem)]">
         <div className="flex-1 overflow-y-auto">
-          <div className="border-b border-line-soft px-6 py-6">
+          <SettingRow label="Garment" htmlFor="setting-garment">
             <Select
-              label="What are you shooting?"
+              id="setting-garment"
               value={garment}
               onChange={(value) => setGarment(value as GarmentId)}
               options={GARMENTS.map((g) => ({ value: g.id, label: g.label }))}
             />
-          </div>
+          </SettingRow>
 
-          <div className="border-b border-line-soft px-6 py-6">
-            <span className="label mb-3 block">How it should be worn</span>
-            <div className="grid gap-2">
-              {MODES.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  aria-pressed={mode === option.value}
-                  onClick={() => setMode(option.value)}
-                  className={`rounded-xl border px-3.5 py-3 text-left transition ${
-                    mode === option.value
-                      ? "border-accent bg-accent-wash"
-                      : "border-line bg-surface hover:border-ink-faint"
-                  }`}
-                >
-                  <span
-                    className={`block text-[14px] font-medium ${
-                      mode === option.value ? "text-accent" : "text-ink"
-                    }`}
-                  >
-                    {option.label}
-                  </span>
-                  <span className="mt-0.5 block text-[13px] text-ink-faint">{option.hint}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          <SettingRow label="Worn as" htmlFor="setting-mode">
+            <Select
+              id="setting-mode"
+              value={mode}
+              onChange={(value) => setMode(value as RenderMode)}
+              options={MODES.map((m) => ({ value: m.value, label: m.label }))}
+            />
+            {/* The hint sits under the control rather than inside the option:
+                at 380px the combined string truncates mid-word. */}
+            <p className="mt-1.5 text-[13px] text-ink-faint">
+              {MODES.find((m) => m.value === mode)?.hint}
+            </p>
+          </SettingRow>
 
           {/* everything below has a working default */}
           {mode !== "person" && (
@@ -398,7 +384,7 @@ export function Studio() {
 
           <Disclosure title="Scene" summary={sceneSummary}>
             <Select
-              label="Backdrop"
+              id="setting-scene"
               value={sceneId}
               onChange={setSceneId}
               options={[
@@ -552,7 +538,7 @@ export function Studio() {
                 </button>
               ))}
             </div>
-            <span className="label">
+            <span className="text-[13px] text-ink-soft">
               {okCards} of {cards.length} rendered
             </span>
           </div>

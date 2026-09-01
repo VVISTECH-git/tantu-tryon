@@ -92,8 +92,8 @@ export function Dropzone({
           <span className="flex h-full flex-col items-center justify-center gap-1.5 px-3 text-center">
             <span className="text-[20px] leading-none text-ink-faint">{busy ? "···" : "+"}</span>
             <span className="text-[13px] font-medium leading-tight text-ink-soft">{label}</span>
-            {required && <span className="label !text-danger">required</span>}
-            {!required && recommended && <span className="label !text-madder">recommended</span>}
+            {required && <span className="text-[13px] font-medium text-danger">Required</span>}
+            {!required && recommended && <span className="text-[13px] text-madder">Recommended</span>}
           </span>
         )}
 

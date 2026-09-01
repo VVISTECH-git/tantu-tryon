@@ -32,36 +32,60 @@ export function Section({
 }
 
 /**
+ * One row of the settings rail: a label in a fixed column, a control beside it.
+ *
+ * Every setting uses this geometry — the selects here and the collapsible rows
+ * in Disclosure — so the rail reads as one list instead of three different
+ * treatments stacked on each other.
+ */
+export function SettingRow({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-4 border-b border-line-soft px-6 py-3">
+      <label htmlFor={htmlFor} className="w-28 shrink-0 text-[14px] font-medium">
+        {label}
+      </label>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
+
+/**
  * A single choice from many. Replaces a wrapped grid of pills — nine garment
  * pills at a 44px touch height cost roughly 150px of a 380px rail to express
  * one value.
  */
 export function Select({
-  label,
+  id,
   value,
   onChange,
   options,
 }: {
-  label: string;
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   options: { value: string; label: string }[];
 }) {
   return (
-    <label className="block">
-      <span className="label mb-1.5 block">{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="min-h-11 w-full rounded-xl border border-line bg-surface px-3.5 text-[14px] text-ink outline-none transition focus:border-accent"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <select
+      id={id}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="min-h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-accent"
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -108,7 +132,7 @@ export function TextInput({
 }) {
   return (
     <label className="block">
-      {label && <span className="label mb-1.5 block">{label}</span>}
+      {label && <span className="mb-1.5 block text-[13px] text-ink-soft">{label}</span>}
       <input
         value={value}
         placeholder={placeholder}

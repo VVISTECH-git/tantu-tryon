@@ -34,10 +34,12 @@ export function Disclosure({
           aria-controls={`${id}-panel`}
           id={`${id}-button`}
           onClick={() => setOpen((value) => !value)}
-          className="flex w-full items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-surface-2"
+          // Same geometry as SettingRow — 28-unit label column, same padding,
+          // same 44px minimum — so the rail reads as one list of settings.
+          className="flex min-h-14 w-full items-center gap-4 px-6 py-3 text-left transition-colors hover:bg-surface-2"
         >
           <span className="w-28 shrink-0 text-[14px] font-medium">{title}</span>
-          <span className="flex-1 truncate text-[13px] text-ink-faint">{summary}</span>
+          <span className="min-w-0 flex-1 truncate text-[13px] text-ink-soft">{summary}</span>
           <span
             aria-hidden
             className={`shrink-0 text-[14px] leading-none text-ink-faint transition-transform duration-200 ${

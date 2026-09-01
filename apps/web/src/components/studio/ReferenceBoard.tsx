@@ -69,9 +69,9 @@ export function ReferenceBoard({
 
   return (
     <div>
-      <div className="mb-5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+      <div className="mb-5">
         <h2 className="display text-[22px]">Reference photographs</h2>
-        <p className="text-[14px] text-ink-soft">
+        <p className="mt-1 text-[14px] text-ink-soft">
           {refs.length === 0
             ? "Drop all of them at once — you can label them afterwards."
             : `${refs.length} loaded. Change any label below the photograph.`}
