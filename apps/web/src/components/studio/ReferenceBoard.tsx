@@ -1,6 +1,12 @@
 "use client";
 
-import { slotsFor, garment as garmentDef, SLOTS } from "@tantu/engine/catalog";
+import {
+  slotsFor,
+  slotLabel,
+  slotHint,
+  garment as garmentDef,
+  SLOTS,
+} from "@tantu/engine/catalog";
 import type { GarmentId, RenderMode, SlotId } from "@tantu/engine/catalog";
 import { Dropzone } from "@/components/Dropzone";
 import type { LoadedImage } from "@/lib/image";
@@ -60,7 +66,7 @@ export function ReferenceBoard({
       >
         {options.map((option) => (
           <option key={option.id} value={option.id}>
-            {option.label}
+            {slotLabel(option, garment)}
           </option>
         ))}
       </select>
@@ -100,8 +106,8 @@ export function ReferenceBoard({
           return (
             <div key={slot.id}>
               <Dropzone
-                label={slot.label}
-                hint={slot.hint}
+                label={slotLabel(slot, garment)}
+                hint={slotHint(slot, garment)}
                 value={existing}
                 recommended={recommended.has(slot.id) && !existing}
                 onPick={(image) => onSet(slot.id, image)}

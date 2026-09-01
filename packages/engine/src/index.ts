@@ -1,5 +1,5 @@
 export * from "./types";
-export { SLOTS, slot, slotsFor } from "./slots";
+export { SLOTS, slot, slotsFor, slotLabel, slotHint, isDraped } from "./slots";
 export type { SlotDef } from "./slots";
 export { GARMENTS, garment } from "./garments";
 export type { GarmentDef } from "./garments";
