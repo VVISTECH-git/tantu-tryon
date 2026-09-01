@@ -59,7 +59,7 @@ export function Studio() {
    * control: proven on real kalamkari, sent unchanged, so the composed prompt
    * can be judged against them from the same photographs.
    */
-  const [promptSource, setPromptSource] = useState<"composed" | "playbook">("composed");
+  const [promptSource, setPromptSource] = useState<"composed" | "playbook" | "playbook-legend">("composed");
   const [extraInstruction, setExtraInstruction] = useState("");
 
   const [cards, setCards] = useState<RenderCard[]>([]);
@@ -368,16 +368,19 @@ export function Studio() {
             <Select
               id="setting-prompt"
               value={promptSource}
-              onChange={(value) => setPromptSource(value as "composed" | "playbook")}
+              onChange={(value) => setPromptSource(value as typeof promptSource)}
               options={[
                 { value: "composed", label: "Tantu composed" },
                 { value: "playbook", label: "Playbook, verbatim" },
+                { value: "playbook-legend", label: "Playbook + part map" },
               ]}
             />
             <p className="mt-1.5 text-[13px] text-ink-faint">
               {promptSource === "playbook"
                 ? "The five proven saree prompts, sent unchanged. Backdrop and model settings are ignored — that text carries its own."
-                : "Built from the garment, pose, backdrop and model below."}
+                : promptSource === "playbook-legend"
+                  ? "The same five prompts, with the numbered part-to-body map in front of them. Backdrop and model settings are still ignored."
+                  : "Built from the garment, pose, backdrop and model below."}
             </p>
           </SettingRow>
 

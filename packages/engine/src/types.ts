@@ -90,7 +90,7 @@ export interface RenderRequest {
    * its own. It exists so the composed prompt can be judged against the wording
    * that was actually proven on kalamkari, from the same photographs.
    */
-  promptSource?: "composed" | "playbook";
+  promptSource?: "composed" | "playbook" | "playbook-legend";
 }
 
 export interface Pose {

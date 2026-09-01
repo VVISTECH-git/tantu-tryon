@@ -5,7 +5,7 @@ export { GARMENTS, garment } from "./garments";
 export type { GarmentDef } from "./garments";
 export { POSES, pose, posesFor, hasPallu, DEFAULT_POSE_IDS } from "./poses";
 export { SCENES, scene } from "./scenes";
-export { composePrompt, referenceLegend } from "./compose";
+export { composePrompt, referenceLegend, componentLegend } from "./compose";
 export { PLAYBOOK_PROMPTS } from "./playbook";
 export { guessMime, toRawBase64, toDataUrl } from "./mime";
 export { getProvider, configuredProviders, PROVIDER_IDS } from "./providers/index";
