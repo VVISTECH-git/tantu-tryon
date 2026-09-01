@@ -48,8 +48,22 @@ export function SettingRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-4 border-b border-line-soft px-6 py-3">
-      <label htmlFor={htmlFor} className="w-28 shrink-0 text-[14px] font-medium">
+    <div className="flex items-start gap-4 border-b border-line-soft px-6 py-3">
+      {/*
+        Aligned to the control, not to the block.
+
+        Three of these rows put a hint under the select, so the content column
+        is two lines tall while the label is one. Centring the row against
+        that dropped the label into the gap between the select and its hint.
+        The label now carries the control's own height and centres inside it,
+        which lands it level with the select whether or not a hint follows —
+        and level with the first line of the Notes textarea, which is where it
+        belongs there too.
+      */}
+      <label
+        htmlFor={htmlFor}
+        className="flex min-h-11 w-28 shrink-0 items-center text-[14px] font-medium"
+      >
         {label}
       </label>
       <div className="min-w-0 flex-1">{children}</div>
