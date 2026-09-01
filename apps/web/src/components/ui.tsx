@@ -90,79 +90,19 @@ export function Select({
 }
 
 /**
- * The one way an option looks.
+ * A multiple choice, one card each.
  *
- * Three questions in this rail have the same shape — pick from a short list —
- * and they were answered three different ways: a dropdown with the hint
- * stranded underneath it for "Worn as", bare checkboxes for the poses, and
- * hand-built cards for the quality. Three controls for one idea, so choosing a
- * pose taught you nothing about choosing a quality.
+ * The rail used to ask the same question — pick from a short list — three
+ * different ways: a select with its hint stranded underneath for Worn as,
+ * bare checkboxes for the poses, hand-built cards for the quality. The named
+ * one-line choices settled on the select, where the hint can describe the
+ * choice made rather than all of them at once.
  *
- * One card now. What changes between a single choice and a multiple one is the
- * marker, because that is the only thing that genuinely differs: a dot means
- * one of these, a box means as many as you like. The shape, the border, the
- * padding, the accent it takes when chosen are identical, so the two read as
- * the same instrument set differently rather than as two unrelated widgets.
+ * This is the one that did not settle there, because it is the only list you
+ * pick several from and there are nine of them. A select cannot say "these
+ * five", and nine bare checkboxes in a row read as a form rather than as a
+ * choice.
  */
-function optionCard(selected: boolean): string {
-  return `flex w-full items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition ${
-    selected ? "border-accent bg-accent-wash" : "border-line bg-surface hover:border-ink-faint"
-  }`;
-}
-
-/** A dot for one-of, a box for any-of. Drawn rather than native, so the two match. */
-function Marker({ many, selected }: { many?: boolean; selected: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className={`mt-px grid size-[18px] shrink-0 place-items-center border transition ${
-        many ? "rounded-[5px]" : "rounded-full"
-      } ${selected ? "border-accent bg-accent" : "border-line bg-surface"}`}
-    >
-      {selected &&
-        (many ? (
-          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
-            <path
-              d="M2.5 6.3l2.4 2.4 4.6-5"
-              stroke="var(--color-surface)"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        ) : (
-          <span className="size-1.5 rounded-full bg-surface" />
-        ))}
-    </span>
-  );
-}
-
-function OptionBody({
-  label,
-  hint,
-  selected,
-}: {
-  label: string;
-  hint?: string;
-  selected: boolean;
-}) {
-  return (
-    <span className="min-w-0">
-      <span
-        className={`block text-[14px] leading-snug font-medium ${
-          selected ? "text-accent" : "text-ink"
-        }`}
-      >
-        {label}
-      </span>
-      {hint && (
-        <span className="mt-1 block text-[12px] leading-snug text-ink-faint">{hint}</span>
-      )}
-    </span>
-  );
-}
-
-/** A multiple choice. The same card as Segmented, with a box instead of a dot. */
 export function CheckList({
   options,
   selected,
@@ -172,6 +112,7 @@ export function CheckList({
   options: { value: string; label: string; hint?: string }[];
   selected: string[];
   onToggle: (value: string) => void;
+  /** The rail is narrow; two across breaks the longer names over ragged lines. */
   cols?: 1 | 2;
 }) {
   return (
@@ -182,23 +123,80 @@ export function CheckList({
         return (
           <label
             key={option.value}
-            // The real checkbox is hidden rather than removed — it still takes
-            // focus and still answers to the space bar, and the card wears its
-            // focus ring for it.
-            className={`${optionCard(on)} cursor-pointer has-[:focus-visible]:border-accent`}
+            className={`flex w-full cursor-pointer items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition has-[:focus-visible]:border-accent ${
+              on
+                ? "border-accent bg-accent-wash"
+                : "border-line bg-surface hover:border-ink-faint"
+            }`}
           >
+            {/* The real checkbox is hidden rather than removed — it still takes
+                focus and still answers to the space bar, and the card wears the
+                focus ring for it. */}
             <input
               type="checkbox"
               checked={on}
               onChange={() => onToggle(option.value)}
               className="sr-only"
             />
-            <Marker many selected={on} />
-            <OptionBody label={option.label} hint={option.hint} selected={on} />
+
+            {/* Drawn rather than native, so the tick can sit on the accent fill. */}
+            <span
+              aria-hidden
+              className={`mt-px grid size-[18px] shrink-0 place-items-center rounded-[5px] border transition ${
+                on ? "border-accent bg-accent" : "border-line bg-surface"
+              }`}
+            >
+              {on && (
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
+                  <path
+                    d="M2.5 6.3l2.4 2.4 4.6-5"
+                    stroke="var(--color-surface)"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+            </span>
+
+            <span className="min-w-0">
+              <span
+                className={`block text-[14px] leading-snug font-medium ${
+                  on ? "text-accent" : "text-ink"
+                }`}
+              >
+                {option.label}
+              </span>
+              {option.hint && (
+                <span className="mt-1 block text-[12px] leading-snug text-ink-faint">
+                  {option.hint}
+                </span>
+              )}
+            </span>
           </label>
         );
       })}
     </div>
+  );
+}
+
+/** A select with its own caption, for use inside a panel rather than a row. */
+export function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-[13px] text-ink-soft">{label}</span>
+      <Select value={value} onChange={onChange} options={options} />
+    </label>
   );
 }
 
@@ -245,40 +243,6 @@ export function TextArea({
       onChange={(event) => onChange(event.target.value)}
       className="w-full resize-y rounded-xl border border-line bg-surface px-3.5 py-2.5 text-[15px] leading-relaxed text-ink outline-none transition placeholder:text-ink-faint focus:border-accent"
     />
-  );
-}
-
-export function Segmented<T extends string>({
-  options,
-  value,
-  onChange,
-  cols = 1,
-}: {
-  options: { value: T; label: string; hint?: string }[];
-  value: T;
-  onChange: (value: T) => void;
-  /** The rail is narrow; three across turns every label into two ragged lines. */
-  cols?: 1 | 2;
-}) {
-  return (
-    <div className={`grid gap-2 ${cols === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
-      {options.map((option) => {
-        const selected = value === option.value;
-
-        return (
-          <button
-            key={option.value}
-            type="button"
-            aria-pressed={selected}
-            onClick={() => onChange(option.value)}
-            className={optionCard(selected)}
-          >
-            <Marker selected={selected} />
-            <OptionBody label={option.label} hint={option.hint} selected={selected} />
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
