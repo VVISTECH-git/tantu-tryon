@@ -53,7 +53,9 @@ export function AppHeader({ engines }: { engines: string[] }) {
           title={
             ready
               ? `Engine credentials found: ${engines.join(", ")}`
-              : "No engine credential found. Add GEMINI_API_KEY to apps/web/.env.local"
+              : process.env.NODE_ENV === "development"
+                ? "No engine credential found. Add GEMINI_API_KEY to apps/web/.env.local"
+                : "No image engine is connected to this deployment, so nothing can be rendered yet."
           }
         >
           <span className={`h-1.5 w-1.5 rounded-full ${ready ? "bg-good" : "bg-white/60"}`} />
