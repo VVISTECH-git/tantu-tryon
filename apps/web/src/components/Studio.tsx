@@ -482,7 +482,7 @@ export function Studio() {
               value={extraInstruction}
               onChange={setExtraInstruction}
               rows={2}
-              placeholder="'the zari is gold, not yellow'"
+              placeholder="Anything else — the zari is gold, not yellow"
             />
           </SettingRow>
         </div>

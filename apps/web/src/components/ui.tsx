@@ -218,7 +218,7 @@ export function TextInput({
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-[15px] text-ink outline-none transition placeholder:text-ink-faint focus:border-accent"
+        className="w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none transition placeholder:text-ink-faint focus:border-accent"
       />
     </label>
   );
@@ -241,7 +241,7 @@ export function TextArea({
       rows={rows}
       placeholder={placeholder}
       onChange={(event) => onChange(event.target.value)}
-      className="w-full resize-y rounded-xl border border-line bg-surface px-3.5 py-2.5 text-[15px] leading-relaxed text-ink outline-none transition placeholder:text-ink-faint focus:border-accent"
+      className="w-full resize-y rounded-lg border border-line bg-surface px-3.5 py-2.5 text-[14px] leading-relaxed text-ink outline-none transition placeholder:text-ink-faint focus:border-accent"
     />
   );
 }
