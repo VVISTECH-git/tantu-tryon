@@ -1,5 +1,8 @@
-import { renderPoses, toRawBase64, validateRequest } from "@tantu/engine";
+import { POSES, renderPoses, toRawBase64, validateRequest } from "@tantu/engine";
 import type { ProviderId, Reference, RenderRequest } from "@tantu/engine";
+import { poseSpec } from "@/registry/poses";
+
+const ENGINE_POSE_IDS = new Set(POSES.map((p) => p.id));
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -22,12 +25,71 @@ function clean(ref: Reference): Reference {
  * that whole time — which is what every tool in this market does — makes a
  * working render feel broken, and hides which pose was the one that failed.
  */
+/**
+ * Resolves the registry pose ids a job is made of.
+ *
+ * A job records what the customer chose — `SAR-P01` — not the engine pose that
+ * happens to render it today. The registry is what turns one into the other,
+ * and it is the only place that knows the mapping; once poses have their own
+ * recipes, this is where that lookup happens instead.
+ *
+ * Ids the registry does not know are passed through as engine pose ids, which
+ * keeps garments with no registry coverage working — but only if the engine
+ * actually has that pose. `validateRequest` does not check pose ids, so an id
+ * that is neither would otherwise travel all the way into the render loop
+ * before failing.
+ */
+function resolvePoses(requested: string[]) {
+  const enginePoses: string[] = [];
+  /** engine pose id → the registry id to report back under. */
+  const reportAs = new Map<string, string>();
+  const withoutRecipe: string[] = [];
+  const unknown: string[] = [];
+
+  for (const id of requested) {
+    const record = poseSpec(id);
+    if (!record) {
+      if (!ENGINE_POSE_IDS.has(id)) {
+        unknown.push(id);
+        continue;
+      }
+      enginePoses.push(id);
+      reportAs.set(id, id);
+      continue;
+    }
+    if (!record.enginePoseId) {
+      withoutRecipe.push(record.id);
+      continue;
+    }
+    enginePoses.push(record.enginePoseId);
+    reportAs.set(record.enginePoseId, record.id);
+  }
+
+  return { enginePoses, reportAs, withoutRecipe, unknown };
+}
+
 export async function POST(req: Request) {
   let body: Body;
   try {
     body = (await req.json()) as Body;
   } catch {
     return Response.json({ error: "Malformed request body." }, { status: 400 });
+  }
+
+  const { enginePoses, reportAs, withoutRecipe, unknown } = resolvePoses(body.poses ?? []);
+  if (unknown.length) {
+    return Response.json(
+      { error: `Unknown pose: ${unknown.join(", ")}.` },
+      { status: 400 },
+    );
+  }
+  if (withoutRecipe.length) {
+    return Response.json(
+      {
+        error: `${withoutRecipe.join(", ")} cannot be generated yet — no recipe.`,
+      },
+      { status: 400 },
+    );
   }
 
   const request: RenderRequest = {
@@ -37,7 +99,7 @@ export async function POST(req: Request) {
     person: body.person ? clean(body.person) : undefined,
     model: body.model,
     scene: body.scene,
-    poses: body.poses ?? [],
+    poses: enginePoses,
     extraInstruction: body.extraInstruction,
     quality: body.quality,
     promptSource: body.promptSource,
@@ -69,7 +131,13 @@ export async function POST(req: Request) {
           provider: body.provider,
           concurrency: 3,
           signal: aborter.signal,
-          onOutcome: (outcome) => send({ type: "outcome", outcome }),
+          // Reported under the id the customer chose, so the card, the library
+          // entry and the download all carry SAR-P01 rather than "front".
+          onOutcome: (outcome) =>
+            send({
+              type: "outcome",
+              outcome: { ...outcome, poseId: reportAs.get(outcome.poseId) ?? outcome.poseId },
+            }),
         });
         send({
           type: "done",

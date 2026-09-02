@@ -77,15 +77,14 @@ export function Studio() {
   const availablePoses = useMemo(() => selectablePoses(garment), [garment]);
 
   /**
-   * The engine poses behind the selection. A registry pose with no recipe and
-   * no legacy pose behind it cannot be generated, and is filtered out here
-   * rather than sent and failed.
+   * The chosen poses that can actually be rendered, as registry ids.
+   *
+   * Registry ids are what a job is made of — the backend resolves each one
+   * through the registry to whatever renders it. A pose with no recipe behind
+   * it is filtered out here rather than sent and refused.
    */
-  const selectedEngineIds = useMemo(
-    () =>
-      availablePoses
-        .filter((p) => poses.includes(p.id) && p.enginePoseId)
-        .map((p) => p.enginePoseId as string),
+  const runnablePoses = useMemo(
+    () => availablePoses.filter((p) => poses.includes(p.id) && p.enginePoseId).map((p) => p.id),
     [availablePoses, poses],
   );
 
@@ -115,13 +114,13 @@ export function Studio() {
   const problems = useMemo(() => {
     const list: string[] = [];
     if (refs.length === 0) list.push("Add at least one photograph of the garment.");
-    if (selectedEngineIds.length === 0) list.push("Choose at least one pose that can be generated.");
+    if (runnablePoses.length === 0) list.push("Choose at least one pose that can be generated.");
     if (mode === "person" && !person) list.push("Add the photograph of the person.");
     if (mode === "mannequin" && !refs.some((r) => r.slot === "mannequin")) {
       list.push("Add the mannequin photograph.");
     }
     return list;
-  }, [refs, selectedEngineIds, mode, person]);
+  }, [refs, runnablePoses, mode, person]);
 
   // ── reference handling ──────────────────────────────────────────
   const setSlot = (slot: SlotId, image: LoadedImage) =>
@@ -172,7 +171,7 @@ export function Studio() {
     abortRef.current?.abort();
   }
 
-  /** Takes engine pose ids. The registry ids are resolved before this is called. */
+  /** Takes registry pose ids. The backend resolves each through the registry. */
   async function run(poseIds: string[]) {
     if (poseIds.length === 0) return;
     setError(null);
@@ -182,9 +181,8 @@ export function Studio() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    const isRetry = cards.length > 0 && poseIds.length < selectedEngineIds.length;
-    const nameOf = (id: string) =>
-      availablePoses.find((p) => p.enginePoseId === id)?.name ?? id;
+    const isRetry = cards.length > 0 && poseIds.length < runnablePoses.length;
+    const nameOf = (id: string) => availablePoses.find((p) => p.id === id)?.name ?? id;
 
     if (!isRetry) {
       batchRef.current = `batch-${Date.now()}`;
@@ -560,15 +558,15 @@ export function Studio() {
               <button
                 type="button"
                 disabled={problems.length > 0}
-                onClick={() => void run(selectedEngineIds)}
+                onClick={() => void run(runnablePoses)}
                 className="flex w-full items-center justify-center gap-3 rounded-full bg-accent px-5 py-3.5 text-[16px] font-medium text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-soft"
               >
                 <span>
-                  Generate {selectedEngineIds.length} image{selectedEngineIds.length === 1 ? "" : "s"}
+                  Generate {runnablePoses.length} image{runnablePoses.length === 1 ? "" : "s"}
                 </span>
-                {selectedEngineIds.length > 0 && problems.length === 0 && (
+                {runnablePoses.length > 0 && problems.length === 0 && (
                   <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-[13px]">
-                    {formatCost(selectedEngineIds.length, quality)}
+                    {formatCost(runnablePoses.length, quality)}
                   </span>
                 )}
               </button>
@@ -687,4 +685,5 @@ function toCard(outcome: OutcomeWire): RenderCard {
     ms: outcome.ms,
   };
 }
+
 
