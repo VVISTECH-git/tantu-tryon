@@ -1,4 +1,4 @@
-import type { GarmentId, GarmentTypeId, PoseRecord } from "@tantu/engine/catalog";
+﻿import type { GarmentId, GarmentTypeId, PoseRecord } from "@tantu/engine/catalog";
 import { poseById, posesFor, productionPoses, validateAll } from "@tantu/engine/catalog";
 
 import SAR_P01 from "@data/poses/saree/SAR-P01.json";
@@ -14,6 +14,11 @@ import SAR_P10 from "@data/poses/saree/SAR-P10.json";
 import SAR_P11 from "@data/poses/saree/SAR-P11.json";
 import SAR_P12 from "@data/poses/saree/SAR-P12.json";
 import SAR_P13 from "@data/poses/saree/SAR-P13.json";
+import SAR_P14 from "@data/poses/saree/SAR-P14.json";
+import SAR_P15 from "@data/poses/saree/SAR-P15.json";
+import SAR_P16 from "@data/poses/saree/SAR-P16.json";
+import SAR_P17 from "@data/poses/saree/SAR-P17.json";
+import SAR_P24 from "@data/poses/saree/SAR-P24.json";
 import SAR_P30 from "@data/poses/saree/SAR-P30.json";
 import SAR_P31 from "@data/poses/saree/SAR-P31.json";
 import SAR_P32 from "@data/poses/saree/SAR-P32.json";
@@ -35,6 +40,7 @@ import SAR_P35 from "@data/poses/saree/SAR-P35.json";
 export const POSE_RECORDS = [
   SAR_P01, SAR_P02, SAR_P03, SAR_P04, SAR_P05, SAR_P06, SAR_P07,
   SAR_P08, SAR_P09, SAR_P10, SAR_P11, SAR_P12, SAR_P13,
+  SAR_P14, SAR_P15, SAR_P16, SAR_P17, SAR_P24,
   SAR_P30, SAR_P31, SAR_P32, SAR_P33, SAR_P34, SAR_P35,
 ] as unknown as PoseRecord[];
 
@@ -121,3 +127,4 @@ export function poseSpec(id: string): PoseRecord | undefined {
 export function registryProblems(): string[] {
   return validateAll(POSE_RECORDS);
 }
+

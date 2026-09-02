@@ -1,0 +1,61 @@
+{
+  "id": "SAR-P24",
+  "garmentType": "saree",
+  "name": "Elegant Closing Hero",
+  "status": "review",
+  "version": 1,
+  "createdAt": "2026-09-02T00:00:00.000Z",
+  "updatedAt": "2026-09-02T00:00:00.000Z",
+  "assets": {
+    "silhouette": "/poses/saree/SAR-P24/silhouette.png",
+    "masterReference": null,
+    "thumbnail": null
+  },
+  "body": {
+    "orientation": "three-quarter-left",
+    "torsoAngle": -20,
+    "headDirection": "camera",
+    "weightDistribution": "left",
+    "leftLeg": "neutral",
+    "rightLeg": "crossed"
+  },
+  "hands": {
+    "left": {
+      "position": "gathering the pallu at the waist",
+      "interaction": "holding the pallu"
+    },
+    "right": {
+      "position": "relaxed beside body",
+      "interaction": "none"
+    }
+  },
+  "garmentBehaviour": {
+    "pallu": {
+      "position": "over the left shoulder",
+      "displayMode": "carried over the shoulder and falling long behind the arm",
+      "mustRemainVisible": true
+    },
+    "pleats": {
+      "visibility": "full"
+    },
+    "border": {
+      "visibility": "front edge and lower hem"
+    },
+    "blouse": {
+      "visibility": "front"
+    }
+  },
+  "showcasePurpose": [
+    "overall elegance",
+    "pallu length",
+    "full drape"
+  ],
+  "generationConstraints": {
+    "preservePoseGeometry": true,
+    "preserveGarmentConstruction": true,
+    "allowHandRepositioning": false,
+    "allowBodyRotation": false,
+    "allowPalluReinterpretation": false
+  },
+  "recipe": null
+}

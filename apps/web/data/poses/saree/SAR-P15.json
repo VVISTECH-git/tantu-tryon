@@ -1,0 +1,61 @@
+{
+  "id": "SAR-P15",
+  "garmentType": "saree",
+  "name": "Soft Crossed-Ankle Stance",
+  "status": "review",
+  "version": 1,
+  "createdAt": "2026-09-02T00:00:00.000Z",
+  "updatedAt": "2026-09-02T00:00:00.000Z",
+  "assets": {
+    "silhouette": "/poses/saree/SAR-P15/silhouette.png",
+    "masterReference": null,
+    "thumbnail": null
+  },
+  "body": {
+    "orientation": "front",
+    "torsoAngle": 0,
+    "headDirection": "camera",
+    "weightDistribution": "left",
+    "leftLeg": "neutral",
+    "rightLeg": "crossed"
+  },
+  "hands": {
+    "left": {
+      "position": "relaxed beside body",
+      "interaction": "none"
+    },
+    "right": {
+      "position": "relaxed beside body",
+      "interaction": "none"
+    }
+  },
+  "garmentBehaviour": {
+    "pallu": {
+      "position": "over the left shoulder",
+      "displayMode": "natural fall down the front",
+      "mustRemainVisible": true
+    },
+    "pleats": {
+      "visibility": "full"
+    },
+    "border": {
+      "visibility": "front edge and lower hem"
+    },
+    "blouse": {
+      "visibility": "front"
+    }
+  },
+  "showcasePurpose": [
+    "hem line",
+    "lower border",
+    "slim silhouette"
+  ],
+  "generationConstraints": {
+    "preservePoseGeometry": true,
+    "preserveGarmentConstruction": true,
+    "allowHandRepositioning": false,
+    "allowBodyRotation": false,
+    "allowPalluReinterpretation": false
+  },
+  "recipe": null
+}

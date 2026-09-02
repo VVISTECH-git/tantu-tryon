@@ -1,0 +1,61 @@
+{
+  "id": "SAR-P17",
+  "garmentType": "saree",
+  "name": "Gentle Walking Step",
+  "status": "review",
+  "version": 1,
+  "createdAt": "2026-09-02T00:00:00.000Z",
+  "updatedAt": "2026-09-02T00:00:00.000Z",
+  "assets": {
+    "silhouette": "/poses/saree/SAR-P17/silhouette.png",
+    "masterReference": null,
+    "thumbnail": null
+  },
+  "body": {
+    "orientation": "front",
+    "torsoAngle": 0,
+    "headDirection": "camera",
+    "weightDistribution": "balanced",
+    "leftLeg": "forward",
+    "rightLeg": "back"
+  },
+  "hands": {
+    "left": {
+      "position": "relaxed beside body",
+      "interaction": "none"
+    },
+    "right": {
+      "position": "relaxed beside body",
+      "interaction": "none"
+    }
+  },
+  "garmentBehaviour": {
+    "pallu": {
+      "position": "over the left shoulder",
+      "displayMode": "moving gently with the step",
+      "mustRemainVisible": true
+    },
+    "pleats": {
+      "visibility": "full"
+    },
+    "border": {
+      "visibility": "front edge and lower hem"
+    },
+    "blouse": {
+      "visibility": "front"
+    }
+  },
+  "showcasePurpose": [
+    "drape in motion",
+    "hem",
+    "pleat movement"
+  ],
+  "generationConstraints": {
+    "preservePoseGeometry": true,
+    "preserveGarmentConstruction": true,
+    "allowHandRepositioning": false,
+    "allowBodyRotation": false,
+    "allowPalluReinterpretation": false
+  },
+  "recipe": null
+}
