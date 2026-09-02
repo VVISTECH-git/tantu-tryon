@@ -34,25 +34,29 @@ export function PosePicker({
     <div className="grid grid-cols-2 gap-2">
       {poses.map((pose) => {
         const on = selected.includes(pose.id);
+        // Whether a pose can be *rendered* is a separate question from whether
+        // it can be *chosen*. Choosing records the pose id; rendering is gated
+        // later, at the Generate button. Disabling the control here conflated
+        // the two and made a pose without a recipe unselectable, which is not
+        // what "no recipe yet" should mean.
         const generatable = Boolean(pose.enginePoseId);
         return (
           <label
             key={pose.id}
-            className={`flex flex-col overflow-hidden rounded-xl border transition has-[:focus-visible]:border-accent ${
-              generatable ? "cursor-pointer" : "cursor-not-allowed opacity-55"
-            } ${
+            className={`flex cursor-pointer flex-col overflow-hidden rounded-xl border transition has-[:focus-visible]:border-accent ${
               on ? "border-accent bg-accent-wash" : "border-line bg-surface hover:border-ink-faint"
             }`}
           >
             <input
               type="checkbox"
               checked={on}
-              disabled={!generatable}
               onChange={() => onToggle(pose.id)}
               className="sr-only"
             />
             <span className="relative block px-2 pt-2">
-              <span className="relative block aspect-4/3 w-full">
+              <span
+                className={`relative block aspect-4/3 w-full ${generatable ? "" : "opacity-60"}`}
+              >
                 {pose.silhouette ? (
                   <Image
                     src={pose.silhouette}

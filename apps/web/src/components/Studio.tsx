@@ -111,6 +111,19 @@ export function Studio() {
   const garmentLabel = useMemo(() => garmentDef(garment).label, [garment]);
   const stem = garment;
 
+  /**
+   * Chosen, but with nothing to render them. Named rather than silently
+   * dropped: the pose is a real choice that is recorded, it simply cannot be
+   * generated until it has a recipe.
+   */
+  const chosenWithoutRecipe = useMemo(
+    () =>
+      availablePoses
+        .filter((p) => poses.includes(p.id) && !p.enginePoseId)
+        .map((p) => `${p.id} ${p.name}`),
+    [availablePoses, poses],
+  );
+
   const problems = useMemo(() => {
     const list: string[] = [];
     if (refs.length === 0) list.push("Add at least one photograph of the garment.");
@@ -573,6 +586,12 @@ export function Studio() {
               <p className="mt-2 text-center text-[13px] text-ink-faint">
                 Estimated engine cost. Nothing is charged by this app.
               </p>
+              {chosenWithoutRecipe.length > 0 && (
+                <p className="mt-2 text-center text-[13px] text-ink-faint">
+                  Chosen but not generated yet — no recipe:{" "}
+                  <span className="text-ink-soft">{chosenWithoutRecipe.join(", ")}</span>
+                </p>
+              )}
             </>
           )}
         </div>
