@@ -33,6 +33,22 @@ different pose gets a **new id**, never a redefinition of an old one.
 `SAR-P30`–`SAR-P35` are numbered clear of `P14`–`P24`, which the pose plan has
 already assigned.
 
+## Naming
+
+**The icon is the source of truth for a pose's name.** Whatever is printed on
+the generated silhouette is the name — `record.name` follows it, never the
+other way round.
+
+The 24-pose plan is a **backlog**, not a specification. It says roughly what
+still needs drawing; it does not decide what a drawn pose is called. Every one
+of the five poses added after the first batch came back with a different name
+from the plan, and P13 came back as a different *pose* entirely — an over-head
+drape where the plan said "pallu flowing naturally".
+
+So: read the label off the image, then write the record. Never pre-name a code
+from the plan and assume the icon will match it. A code with no icon yet has no
+name yet.
+
 ## Status
 
 | status | meaning | shown to customers |

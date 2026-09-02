@@ -37,11 +37,14 @@ pallu behaviour, hand behaviour, and **what product detail it exists to show**.
 
 A locked pose is never silently changed. If it must change, it gets a new code.
 
-Current home: `apps/web/src/content/poseIcons.ts`. That file holds id, label,
-name, category and generation state today. Orientation, pallu behaviour, hand
-behaviour and the product detail each pose sells are **not yet fields** — they
-are the difference between a folder of images and a specification, and they get
-added when the set is locked.
+**Built.** The pose registry is live: `apps/web/data/poses/saree/`, one record
+per pose, carrying orientation, hand behaviour, garment behaviour, generation
+constraints and showcase purpose — the fields that separate a specification
+from a folder of images. See [`docs/pose-registry.md`](pose-registry.md).
+
+24 saree records, 9 locked. What remains of this stage is review: the body,
+hand and garment-behaviour metadata was derived from the silhouettes, and needs
+a read before the review poses are locked.
 
 ## 2. A photographic master reference per pose
 
@@ -129,7 +132,15 @@ spending a pose, not a click.
   needs one if it is still wanted.
 - **P01 icon vs `front` pose text disagree**: the icon shows arms hanging, the
   engine says "both hands clasped together at her waist".
-- **Labels P13–P24 are unconfirmed proposals**; P01–P12 are read off the icons.
-- **No icon PNGs are committed yet**, so the picker still shows fallback SVG.
+- ~~Labels P13–P24 are unconfirmed proposals~~ — settled: **the icon is the
+  source of truth for a pose's name**. The 24-pose plan is a backlog of what
+  still needs drawing, not a naming decision. A code with no icon has no name.
+- ~~No icon PNGs committed~~ — 18 silhouettes are in, under
+  `public/poses/saree/SAR-Pnn/`. The drawn SVG remains only for the six legacy
+  poses that have no silhouette.
+- **SAR-P14 overlaps SAR-P31, and SAR-P17 overlaps SAR-P32.** The P30s are the
+  legacy poses that generate today; the newer silhouettes are better versions of
+  the same idea. Deprecate the P30s once the newer ones have recipes — do not
+  edit either in place.
 - **Textile fidelity on real kalamkari is untested.** This is the risk the whole
   ordering above exists to retire early.

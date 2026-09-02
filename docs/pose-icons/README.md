@@ -22,9 +22,13 @@ docs/pose-icons/
   README.md            this file
   P01-front-hero.md    the verbatim prompt that produced the accepted P01
   ...
-apps/web/public/pose-icons/
-  P01.png              the accepted output, committed
+apps/web/public/poses/saree/SAR-P01/
+  silhouette.png       the accepted output, committed
 ```
+
+The image and the prompt live apart on purpose: the image is an asset the app
+serves and belongs to a registry record, the prompt is how that image can be
+made again and belongs with the other prompts.
 
 One markdown file per pose, holding the prompt **verbatim**. Do not edit a
 proven prompt to improve it — that destroys the only thing that makes a result
@@ -69,19 +73,21 @@ Both are why P01 came out clean, and both should survive into the render prompts
    also the acceptance test for the icon — a human can grade a result against it
    without re-reading the prompt.
 
-## The 24 poses
+## The poses themselves
 
-The list lives in code, not here: `apps/web/src/content/poseIcons.ts` is the
-single source of truth for codes, labels, groups, which engine pose each icon
-stands for, and how far along each one is.
+Not listed here. **The pose registry is the source of truth** —
+`apps/web/data/poses/saree/` holds one record per pose, and
+[`docs/pose-registry.md`](../pose-registry.md) explains it. This directory holds
+only the prompts that made the pictures.
 
-`status` on each entry:
+Two rules that matter when writing a new prompt:
 
-| status | means |
-| --- | --- |
-| `proven` | prompt stored verbatim **and** image committed — reproducible |
-| `accepted` | image approved, prompt not supplied — cannot be re-run |
-| `planned` | neither written nor generated |
+- **The name comes from the icon, not from the plan.** Whatever the prompt tells
+  the generator to print is what the pose is then called, and the registry
+  record follows the image. The 24-pose plan is a backlog of what still needs
+  drawing, not a naming decision.
+- **A prompt file is only useful if it is verbatim.** A prompt that has been
+  tidied up no longer explains the image sitting next to it.
 
-Only `proven` and `accepted` icons are requested by the picker, so a missing
-file cannot render as a broken image.
+A pose whose prompt was never supplied is still a valid registry record — the
+image is approved, it simply cannot be re-run or varied until the prompt exists.
