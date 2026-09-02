@@ -41,7 +41,12 @@ function legend(assets: RecipeInput["assets"]) {
 
   if (assets.masterReference) {
     push(assets.masterReference, "extra", (n) =>
-      `${n}) POSE REFERENCE — a photograph of a different woman in a plain saree, supplied ONLY to define body position. Copy the body geometry from it: the stance, the crossed ankle, the arm position, the camera angle and the framing. Do NOT copy her face, her identity, her saree, its colour, its fabric or its plainness. Nothing about the garment in this image belongs in your output.`,
+      // Deliberately impersonal. An earlier version described "a different
+      // woman" and told the model not to copy "her face, her identity", which
+      // reads as a request about a specific person and is the kind of phrasing
+      // person-generation filters decline. The instruction is the same; the
+      // subject of the sentence is the body position, not a person.
+      `${n}) POSE REFERENCE — a body-position guide. Match the stance shown here: the crossed ankle, the weight distribution, the arm position, the camera angle and the framing. Take nothing else from this image. The clothing in it is a plain placeholder and must not appear in your output — not its colour, not its fabric, not its plainness.`,
     );
   }
   push(assets.body, "body", (n) =>

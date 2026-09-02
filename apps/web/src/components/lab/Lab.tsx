@@ -37,6 +37,8 @@ export function Lab({ pose }: { pose: PoseRecord }) {
   const [modelId, setModelId] = useState(LAB_MODELS[0]!.id);
   const [uploads, setUploads] = useState<Uploads>({});
   const [quality, setQuality] = useState<"standard" | "high">("standard");
+  /** Bench control: run with the pose reference, or without it. */
+  const [useMasterReference, setUseMasterReference] = useState(true);
 
   const [running, setRunning] = useState(false);
   const [run, setRun] = useState<LabRun | null>(null);
@@ -95,6 +97,7 @@ export function Lab({ pose }: { pose: PoseRecord }) {
           quality,
           assets,
           dryRun,
+          useMasterReference,
         }),
       });
 
@@ -226,6 +229,16 @@ export function Lab({ pose }: { pose: PoseRecord }) {
           <span className="text-[13px] text-ink-soft">
             Recipe <span className="numeral text-ink">{pose.recipe ?? "none"}</span>
           </span>
+          <label className="flex items-center gap-2 text-[13px]">
+            <input
+              type="checkbox"
+              checked={useMasterReference}
+              onChange={(e) => setUseMasterReference(e.target.checked)}
+              disabled={!pose.assets.masterReference}
+              className="size-4 accent-[var(--color-accent)]"
+            />
+            <span className="text-ink-soft">Send pose reference</span>
+          </label>
           <label className="flex items-center gap-2 text-[13px]">
             <span className="text-ink-soft">Quality</span>
             <Select

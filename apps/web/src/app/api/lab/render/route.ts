@@ -28,6 +28,14 @@ interface Body {
    * expensive one.
    */
   dryRun?: boolean;
+  /**
+   * Send the pose reference, or leave it out.
+   *
+   * The bench control for the one question that cannot be answered by reading:
+   * whether supplying a photograph of a person is itself what a refusal is
+   * about. Two runs, one variable.
+   */
+  useMasterReference?: boolean;
 }
 
 const REQUIRED: (keyof RecipeAssets)[] = ["body", "pallu", "border", "blouse"];
@@ -83,9 +91,10 @@ export async function POST(req: Request) {
     blouse: image(body.assets.blouse)!,
     fullDrape: image(body.assets.fullDrape),
     weave: image(body.assets.weave),
-    masterReference: pose.assets.masterReference
-      ? await loadMasterReference(pose.assets.masterReference)
-      : undefined,
+    masterReference:
+      pose.assets.masterReference && body.useMasterReference !== false
+        ? await loadMasterReference(pose.assets.masterReference)
+        : undefined,
   };
 
   const built = buildRecipe(pose.id, { model: body.model ?? {}, assets });
