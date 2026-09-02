@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { buildRecipe, recipeForPose, runRecipe, toRawBase64 } from "@tantu/engine";
-import type { ModelBrief, RecipeAssets, RecipeImage } from "@tantu/engine";
+import { buildPoseOnly, buildRecipe, recipeForPose, runRecipe, toRawBase64 } from "@tantu/engine";
+import type { ModelBrief, RecipeAssets, RecipeBuild, RecipeImage } from "@tantu/engine";
 import { poseSpec } from "@/registry/poses";
 
 export const runtime = "nodejs";
@@ -38,6 +38,14 @@ interface Body {
   useMasterReference?: boolean;
   /** Which pose reference to send: the photo, the flat silhouette, or none. */
   poseReference?: "master" | "silhouette" | "none";
+  /**
+   * Diagnostic: send the stance and nothing else, no garment photographs.
+   *
+   * Answers whether four dense textile references are crowding out the pose
+   * instruction, or the model will not produce this stance at all. The garment
+   * in the output is meaningless and the run is labelled as such.
+   */
+  poseOnly?: boolean;
 }
 
 const REQUIRED: (keyof RecipeAssets)[] = ["body", "pallu", "border", "blouse"];
@@ -99,6 +107,13 @@ export async function POST(req: Request) {
     );
   }
 
+  const poseRef = await resolvePoseReference(pose, body);
+
+  if (body.poseOnly) {
+    const built = buildPoseOnly({ model: body.model ?? {}, ...poseRef });
+    return finish(built, body, req);
+  }
+
   const missing = REQUIRED.filter((k) => !body.assets?.[k]);
   if (missing.length) {
     return Response.json(
@@ -117,11 +132,15 @@ export async function POST(req: Request) {
     blouse: image(body.assets.blouse)!,
     fullDrape: image(body.assets.fullDrape),
     weave: image(body.assets.weave),
-    ...(await resolvePoseReference(pose, body)),
+    ...poseRef,
   };
 
   const built = buildRecipe(pose.id, { model: body.model ?? {}, assets });
+  return finish(built, body, req);
+}
 
+/** Dry run, or run it. Shared by the full recipe and the pose-only diagnostic. */
+async function finish(built: RecipeBuild, body: Body, req: Request) {
   if (body.dryRun) {
     return Response.json(
       {

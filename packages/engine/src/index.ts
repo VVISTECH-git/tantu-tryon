@@ -18,6 +18,7 @@ export {
   recipeById,
   runRecipe,
   SAR_P15_RECIPE,
+  buildPoseOnly,
 } from "./recipes/index";
 export type {
   PoseRecipe,

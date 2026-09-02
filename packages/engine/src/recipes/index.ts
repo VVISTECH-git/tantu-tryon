@@ -5,6 +5,7 @@ import type { PoseRecipe, RecipeBuild, RecipeInput } from "./types";
 
 export * from "./types";
 export { SAR_P15_RECIPE };
+export { buildPoseOnly } from "./sar-p15";
 
 /**
  * Recipes, by pose.

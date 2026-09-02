@@ -24,6 +24,85 @@ import type { PoseRecipe, RecipeBuild, RecipeImage, RecipeInput } from "./types"
 
 const RECIPE_ID = "SAR-P15/v2";
 
+/**
+ * The stance, in one place.
+ *
+ * Shared by the full recipe and the pose-only diagnostic, so the diagnostic
+ * tests the exact words the real recipe sends. Two copies would drift, and the
+ * whole point of the diagnostic is that the wording is the constant.
+ */
+export const POSE_BLOCK: string[] = [
+  `POSE — SAR-P15, SOFT CROSSED-ANKLE STANCE`,
+  ``,
+  `She stands facing the camera directly. Torso upright, zero rotation, shoulders square and level, hips square, head facing forward with her eyes to the camera.`,
+  `Her weight is carried entirely on her LEFT leg, which is straight and vertical. Her RIGHT leg crosses OVER it: the right foot is placed across the front of the left foot so that the two ankles overlap and touch, and the right toe rests on the floor beyond the outer edge of the left foot. The legs are in contact. This crossing is the defining feature of the pose and must be obvious at a glance — a relaxed standing rest, not a dancer's pose.`,
+  `Both arms hang relaxed beside her body with a slight natural bend at the elbows. Both hands are visible beside her upper thighs.`,
+  `Neither hand touches, holds, lifts or gathers the saree at any point.`,
+  `Both feet are visible below the hem and clearly readable.`,
+  ``,
+  // The first list was written from imagination. These are the failures
+  // actually observed on this pose: the model put the feet side by side
+  // and called it done.
+  `Do not produce: feet placed side by side; feet parallel; both feet flat on the floor; a gap between the ankles; one foot merely a little forward of the other; crossed knees instead of crossed ankles; the weight on the right leg; a wide or theatrical leg cross; a walking or mid-step position; a torso twist or lean; a hand on the hip or waist; a hand holding the pallu; feet cropped out of frame.`,
+];
+
+/**
+ * Diagnostic: the stance and nothing else.
+ *
+ * Sends no garment photographs and asks for a plain saree, to answer one
+ * question — whether four dense textile references are crowding out the pose
+ * instruction, or the model simply will not produce this stance.
+ */
+export function buildPoseOnly(input: {
+  model: ModelBrief;
+  masterReference?: RecipeImage;
+  poseReferenceKind?: "photo" | "silhouette";
+}): RecipeBuild {
+  const refs: Reference[] = [];
+  const lines: string[] = [];
+  if (input.masterReference) {
+    refs.push({ slot: "extra", data: input.masterReference.data, mime: input.masterReference.mime });
+    lines.push(
+      input.poseReferenceKind === "silhouette"
+        ? `1) POSE DIAGRAM — a flat drawing of the required body position. Match the stance it defines. It is a diagram, not clothing.`
+        : `1) POSE REFERENCE — a body-position guide. Match the stance shown here. Take nothing else from this image.`,
+    );
+  }
+
+  const prompt = [
+    `You are a professional Indian fashion-catalogue photographer.`,
+    ...(lines.length ? [``, `I am giving you 1 image:`, ``, ...lines] : []),
+    ``,
+    `TASK`,
+    ``,
+    `Generate one photorealistic fashion-catalogue photograph of ${describeModel(input.model)}, wearing a plain, unpatterned saree in a single mid-tone colour, in the exact pose defined below. The garment does not matter here. The pose is the whole point.`,
+    ``,
+    ...POSE_BLOCK,
+    ``,
+    `FRAMING AND LIGHT`,
+    ``,
+    `Full body, head to feet, nothing cropped. Figure centred, occupying about 85% of the image height. Straight-on eye-level camera. Plain seamless studio background in a light neutral tone. Even, soft, diffused light.`,
+    ``,
+    `BEFORE YOU FINISH, VERIFY`,
+    ``,
+    `1. Full body visible, nothing cropped`,
+    `2. Facing camera, torso not rotated`,
+    `3. Weight on the LEFT leg`,
+    `4. Right foot crossed OVER the left, ankles overlapping and touching, right toe on the floor — NOT feet side by side`,
+    `5. Both arms relaxed at her sides, neither hand touching the saree`,
+    `6. Both feet visible below the hem`,
+  ].join("\n");
+
+  return {
+    recipeId: `${RECIPE_ID}#pose-only`,
+    poseId: "SAR-P15",
+    version: 2,
+    prompt,
+    references: refs,
+    warnings: ["Diagnostic run: no garment references sent, garment output is meaningless."],
+  };
+}
+
 function describeModel(brief: ModelBrief): string {
   if (brief.freeform?.trim()) return brief.freeform.trim();
   return [
@@ -116,18 +195,7 @@ export const SAR_P15_RECIPE: PoseRecipe = {
       ``,
       `Generate one photorealistic fashion-catalogue photograph of ${who}, wearing that saree, in the exact pose defined below.`,
       ``,
-      `POSE — SAR-P15, SOFT CROSSED-ANKLE STANCE`,
-      ``,
-      `She stands facing the camera directly. Torso upright, zero rotation, shoulders square and level, hips square, head facing forward with her eyes to the camera.`,
-      `Her weight is carried entirely on her LEFT leg, which is straight and vertical. Her RIGHT leg crosses OVER it: the right foot is placed across the front of the left foot so that the two ankles overlap and touch, and the right toe rests on the floor beyond the outer edge of the left foot. The legs are in contact. This crossing is the defining feature of the pose and must be obvious at a glance — a relaxed standing rest, not a dancer's pose.`,
-      `Both arms hang relaxed beside her body with a slight natural bend at the elbows. Both hands are visible beside her upper thighs.`,
-      `Neither hand touches, holds, lifts or gathers the saree at any point.`,
-      `Both feet are visible below the hem and clearly readable.`,
-      ``,
-      // The first list was written from imagination. These are the failures
-      // actually observed on this pose: the model put the feet side by side
-      // and called it done.
-      `Do not produce: feet placed side by side; feet parallel; both feet flat on the floor; a gap between the ankles; one foot merely a little forward of the other; crossed knees instead of crossed ankles; the weight on the right leg; a wide or theatrical leg cross; a walking or mid-step position; a torso twist or lean; a hand on the hip or waist; a hand holding the pallu; feet cropped out of frame.`,
+      ...POSE_BLOCK,
       ``,
       `GARMENT CONSTRUCTION`,
       ``,
