@@ -42,7 +42,12 @@ export function Lab({ pose }: { pose: PoseRecord }) {
   const [run, setRun] = useState<LabRun | null>(null);
   const [qc, setQc] = useState<QcSheet>(EMPTY_SHEET);
   const [notes, setNotes] = useState("");
-  const [history, setHistory] = useState<LabRun[]>(() => (typeof window === "undefined" ? [] : loadRuns()));
+  /**
+   * Starts empty on both server and client. Reading localStorage during render
+   * makes the server emit an empty log and the client a populated one, which is
+   * a hydration mismatch — earlier runs are fetched on request instead.
+   */
+  const [history, setHistory] = useState<LabRun[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
   const missing = INPUTS.filter((i) => i.required && !uploads[i.slot]).map((i) => i.label);
@@ -367,8 +372,15 @@ export function Lab({ pose }: { pose: PoseRecord }) {
         </div>
       </Block>
 
-      {history.length > 0 && (
-        <Block title="Run log" note={`${history.length} in this browser`}>
+      <Block title="Run log" note={history.length ? `${history.length} shown` : "kept in this browser"}>
+        <button
+          type="button"
+          onClick={() => setHistory(loadRuns())}
+          className="mb-3 text-[13px] text-ink-faint underline underline-offset-2 hover:text-ink"
+        >
+          Load earlier runs
+        </button>
+        {history.length > 0 && (
           <ul className="divide-y divide-line-soft border-y border-line-soft text-[13px]">
             {history.map((r) => (
               <li key={r.id} className="flex items-center gap-3 py-2">
@@ -388,8 +400,8 @@ export function Lab({ pose }: { pose: PoseRecord }) {
               </li>
             ))}
           </ul>
-        </Block>
-      )}
+        )}
+      </Block>
     </div>
   );
 }

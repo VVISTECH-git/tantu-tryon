@@ -5,10 +5,10 @@
   "status": "locked",
   "version": 2,
   "createdAt": "2026-09-02T00:00:00.000Z",
-  "updatedAt": "2026-09-02T14:00:00.000Z",
+  "updatedAt": "2026-09-02T15:05:00.000Z",
   "assets": {
     "silhouette": "/poses/saree/SAR-P15/silhouette.png",
-    "masterReference": null,
+    "masterReference": "/poses/saree/SAR-P15/master-reference.png",
     "thumbnail": "/poses/saree/SAR-P15/thumbnail.png"
   },
   "body": {
