@@ -2,7 +2,13 @@ import type { ModelBrief, Reference } from "../types";
 import type { PoseRecipe, RecipeBuild, RecipeImage, RecipeInput } from "./types";
 
 /**
- * SAR-P15 · Soft Crossed-Ankle Stance — recipe v1.
+ * SAR-P15 · Soft Crossed-Ankle Stance — recipe v2.
+ *
+ * v2 rewrites the stance instruction. v1 said the right leg "crosses gently"
+ * and the ankle "rests near" the left; gemini-3-pro-image read that as feet
+ * side by side. The cross is now described mechanically — which foot goes
+ * where, what touches what — and the negative list names the failure that
+ * actually happened rather than ones imagined in advance.
  *
  * Specific to this pose on purpose. Its whole reason to exist is
  * `showcasePurpose: ["hem line", "lower border", "slim silhouette"]`, so the
@@ -16,7 +22,7 @@ import type { PoseRecipe, RecipeBuild, RecipeImage, RecipeInput } from "./types"
  * list that doubles as the QC sheet.
  */
 
-const RECIPE_ID = "SAR-P15/v1";
+const RECIPE_ID = "SAR-P15/v2";
 
 function describeModel(brief: ModelBrief): string {
   if (brief.freeform?.trim()) return brief.freeform.trim();
@@ -81,7 +87,7 @@ function legend(assets: RecipeInput["assets"]) {
 export const SAR_P15_RECIPE: PoseRecipe = {
   id: RECIPE_ID,
   poseId: "SAR-P15",
-  version: 1,
+  version: 2,
 
   build(input: RecipeInput): RecipeBuild {
     const { refs, lines } = legend(input.assets);
@@ -113,12 +119,15 @@ export const SAR_P15_RECIPE: PoseRecipe = {
       `POSE — SAR-P15, SOFT CROSSED-ANKLE STANCE`,
       ``,
       `She stands facing the camera directly. Torso upright, zero rotation, shoulders square and level, hips square, head facing forward with her eyes to the camera.`,
-      `Her weight is carried on her LEFT leg, which is straight and supporting. Her RIGHT leg crosses gently in front so that the right ankle rests near the left — a relaxed standing rest, not a dancer's pose.`,
+      `Her weight is carried entirely on her LEFT leg, which is straight and vertical. Her RIGHT leg crosses OVER it: the right foot is placed across the front of the left foot so that the two ankles overlap and touch, and the right toe rests on the floor beyond the outer edge of the left foot. The legs are in contact. This crossing is the defining feature of the pose and must be obvious at a glance — a relaxed standing rest, not a dancer's pose.`,
       `Both arms hang relaxed beside her body with a slight natural bend at the elbows. Both hands are visible beside her upper thighs.`,
       `Neither hand touches, holds, lifts or gathers the saree at any point.`,
       `Both feet are visible below the hem and clearly readable.`,
       ``,
-      `Do not produce: crossed knees instead of crossed ankles; the weight on the right leg; a wide or theatrical leg cross; a walking or mid-step position; a torso twist or lean; a hand on the hip or waist; a hand holding the pallu; feet cropped out of frame.`,
+      // The first list was written from imagination. These are the failures
+      // actually observed on this pose: the model put the feet side by side
+      // and called it done.
+      `Do not produce: feet placed side by side; feet parallel; both feet flat on the floor; a gap between the ankles; one foot merely a little forward of the other; crossed knees instead of crossed ankles; the weight on the right leg; a wide or theatrical leg cross; a walking or mid-step position; a torso twist or lean; a hand on the hip or waist; a hand holding the pallu; feet cropped out of frame.`,
       ``,
       `GARMENT CONSTRUCTION`,
       ``,
@@ -147,7 +156,7 @@ export const SAR_P15_RECIPE: PoseRecipe = {
       `1. One woman, photorealistic, full body, nothing cropped`,
       `2. Facing camera, torso not rotated, shoulders level`,
       `3. Weight on the LEFT leg`,
-      `4. Right ANKLE crossed in front, not the knees`,
+      `4. Right foot crossed OVER the left, ankles overlapping and touching, right toe on the floor — NOT feet side by side`,
       `5. Both arms relaxed at her sides`,
       `6. Neither hand touching the saree`,
       `7. Both feet visible below the hem`,
@@ -164,6 +173,6 @@ export const SAR_P15_RECIPE: PoseRecipe = {
       .join("\n")
       .replace(/\n{3,}/g, "\n\n");
 
-    return { recipeId: RECIPE_ID, poseId: "SAR-P15", version: 1, prompt, references: refs, warnings };
+    return { recipeId: RECIPE_ID, poseId: "SAR-P15", version: 2, prompt, references: refs, warnings };
   },
 };
