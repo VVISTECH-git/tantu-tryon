@@ -36,7 +36,6 @@ type Uploads = Partial<Record<SlotId, LoadedImage>>;
 export function Lab({ pose }: { pose: PoseRecord }) {
   const [modelId, setModelId] = useState(LAB_MODELS[0]!.id);
   const [uploads, setUploads] = useState<Uploads>({});
-  const [promptSource, setPromptSource] = useState<"composed" | "playbook-legend">("composed");
   const [quality, setQuality] = useState<"standard" | "high">("standard");
 
   const [running, setRunning] = useState(false);
@@ -49,16 +48,20 @@ export function Lab({ pose }: { pose: PoseRecord }) {
   const missing = INPUTS.filter((i) => i.required && !uploads[i.slot]).map((i) => i.label);
   const canRun = missing.length === 0 && !running;
 
-  const references = useMemo(
-    () =>
-      INPUTS.filter((i) => uploads[i.slot]).map((i) => ({
-        slot: i.slot,
-        data: uploads[i.slot]!.dataUrl,
-      })),
+  /** Named by role, not by slot — the recipe decides the order images go in. */
+  const assets = useMemo(
+    () => ({
+      body: uploads.body?.dataUrl,
+      pallu: uploads.pallu?.dataUrl,
+      border: uploads.border?.dataUrl,
+      blouse: uploads.blouse?.dataUrl,
+      fullDrape: uploads["full-drape"]?.dataUrl,
+      weave: uploads.weave?.dataUrl,
+    }),
     [uploads],
   );
 
-  async function generate() {
+  async function generate(dryRun = false) {
     setRunning(true);
     setQc(EMPTY_SHEET);
     setNotes("");
@@ -70,59 +73,47 @@ export function Lab({ pose }: { pose: PoseRecord }) {
       at: new Date().toISOString(),
       poseId: pose.id,
       modelId,
-      promptSource,
+      recipeId: pose.recipe ?? undefined,
       qc: EMPTY_SHEET,
       notes: "",
       decision: null,
     };
 
     try {
-      const response = await fetch("/api/render", {
+      const response = await fetch("/api/lab/render", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
-          garment: "saree",
-          mode: "describe",
-          references,
+          poseId: pose.id,
           model: labModel(modelId).brief,
-          scene: "studio",
-          poses: [pose.id],
           quality,
-          promptSource,
+          assets,
+          dryRun,
         }),
       });
 
-      if (!response.ok || !response.body) {
-        const problem = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(problem?.error ?? `The render service returned ${response.status}.`);
-      }
+      const payload = (await response.json()) as {
+        image?: string;
+        error?: string;
+        prompt?: string;
+        recipeId?: string;
+        warnings?: string[];
+        model?: string;
+        ms?: number;
+      };
 
-      // One NDJSON line per event. The lab only ever asks for a single pose.
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const event = JSON.parse(line) as {
-            type: string;
-            outcome?: { image?: string; error?: string };
-            message?: string;
-          };
-          if (event.type === "outcome") {
-            if (event.outcome?.image) entry.image = event.outcome.image;
-            if (event.outcome?.error) entry.error = event.outcome.error;
-          }
-          if (event.type === "error") entry.error = event.message;
-        }
+      entry.prompt = payload.prompt;
+      entry.recipeId = payload.recipeId;
+      entry.warnings = payload.warnings;
+      entry.engineModel = payload.model;
+      entry.ms = payload.ms;
+
+      if (dryRun) return;
+      if (!response.ok || !payload.image) {
+        throw new Error(payload.error ?? `The lab endpoint returned ${response.status}.`);
       }
-      if (!entry.image && !entry.error) entry.error = "The engine returned no image and no error.";
+      entry.image = payload.image;
     } catch (problem) {
       entry.error = problem instanceof Error ? problem.message : "The run failed.";
     } finally {
@@ -226,19 +217,10 @@ export function Lab({ pose }: { pose: PoseRecord }) {
       </Block>
 
       <Block title="Generation" note="Technical controls, deliberately exposed">
-        <div className="flex flex-wrap gap-3">
-          <label className="flex items-center gap-2 text-[13px]">
-            <span className="text-ink-soft">Prompt</span>
-            <Select
-              id="lab-prompt"
-              value={promptSource}
-              onChange={(v) => setPromptSource(v as typeof promptSource)}
-              options={[
-                { value: "composed", label: "Tantu composed" },
-                { value: "playbook-legend", label: "Playbook + component legend" },
-              ]}
-            />
-          </label>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-[13px] text-ink-soft">
+            Recipe <span className="numeral text-ink">{pose.recipe ?? "none"}</span>
+          </span>
           <label className="flex items-center gap-2 text-[13px]">
             <span className="text-ink-soft">Quality</span>
             <Select
@@ -253,14 +235,24 @@ export function Lab({ pose }: { pose: PoseRecord }) {
           </label>
         </div>
 
+        <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
           type="button"
           disabled={!canRun}
-          onClick={() => void generate()}
-          className="mt-4 rounded-full bg-accent px-6 py-3 text-[15px] font-medium text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-soft"
+          onClick={() => void generate(true)}
+          className="rounded-full border border-line px-5 py-3 text-[15px] text-ink transition hover:border-ink-faint"
         >
-          {running ? "Generating…" : "Generate test image"}
+          Preview prompt — free
         </button>
+        <button
+          type="button"
+          disabled={!canRun}
+          onClick={() => void generate(false)}
+          className="rounded-full bg-accent px-6 py-3 text-[15px] font-medium text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-soft"
+        >
+          {running ? "Working…" : "Generate test image"}
+        </button>
+        </div>
         {missing.length > 0 && (
           <p className="mt-2 text-[13px] text-ink-faint">Still needed: {missing.join(", ")}.</p>
         )}
@@ -282,6 +274,31 @@ export function Lab({ pose }: { pose: PoseRecord }) {
             alt="Generated test image"
             className="w-full max-w-md rounded-xl border border-line"
           />
+        )}
+
+        {run && (
+          <div className="mt-3 space-y-2 text-[12px] text-ink-faint">
+            <p>
+              {[run.recipeId, run.engineModel, run.ms ? `${(run.ms / 1000).toFixed(1)}s` : null]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+            {run.warnings?.map((w) => (
+              <p key={w} className="text-madder">
+                {w}
+              </p>
+            ))}
+            {run.prompt && (
+              <details>
+                <summary className="cursor-pointer text-ink-soft">
+                  Prompt sent ({run.prompt.length} characters)
+                </summary>
+                <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-line bg-surface-2 p-3 text-[12px] leading-relaxed text-ink-soft">
+                  {run.prompt}
+                </pre>
+              </details>
+            )}
+          </div>
         )}
       </Block>
 
@@ -360,7 +377,7 @@ export function Lab({ pose }: { pose: PoseRecord }) {
                 </span>
                 <span>{r.poseId}</span>
                 <span className="text-ink-faint">{r.modelId}</span>
-                <span className="text-ink-faint">{r.promptSource}</span>
+                <span className="text-ink-faint">{r.recipeId ?? "no recipe"}</span>
                 <span className="ml-auto">
                   {r.error ? (
                     <span className="text-danger">failed</span>

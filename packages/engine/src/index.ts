@@ -11,3 +11,19 @@ export { guessMime, toRawBase64, toDataUrl } from "./mime";
 export { getProvider, configuredProviders, PROVIDER_IDS } from "./providers/index";
 export { renderPoses, validateRequest } from "./render";
 export type { RenderOptions } from "./render";
+// Per-pose generation recipes. Server-only: running one calls a provider.
+export {
+  buildRecipe,
+  recipeForPose,
+  recipeById,
+  runRecipe,
+  SAR_P15_RECIPE,
+} from "./recipes/index";
+export type {
+  PoseRecipe,
+  RecipeAssets,
+  RecipeBuild,
+  RecipeImage,
+  RecipeInput,
+  RecipeRunResult,
+} from "./recipes/index";

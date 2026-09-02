@@ -34,10 +34,15 @@ export interface LabRun {
   at: string;
   poseId: string;
   modelId: string;
-  /** Which prompt wording produced it. */
-  promptSource: string;
   image?: string;
   error?: string;
+  /** Which recipe produced it. An image that cannot be traced is not evidence. */
+  recipeId?: string;
+  /** The exact text sent. This is the thing that gets iterated on. */
+  prompt?: string;
+  warnings?: string[];
+  engineModel?: string;
+  ms?: number;
   qc: QcSheet;
   notes: string;
   decision: "approved" | "rejected" | null;
@@ -60,8 +65,11 @@ export function loadRuns(): LabRun[] {
 
 export function saveRuns(runs: LabRun[]) {
   try {
-    // Images are large; keep the log short rather than blowing the quota.
-    localStorage.setItem(KEY, JSON.stringify(runs.slice(0, 12)));
+    // The image is megabytes of base64 and would blow the quota within a few
+    // runs. The log keeps what makes a run interpretable — recipe, verdict,
+    // notes, prompt — and lets the picture go.
+    const light = runs.slice(0, 12).map((run) => ({ ...run, image: undefined }));
+    localStorage.setItem(KEY, JSON.stringify(light));
   } catch {
     // Storage full or blocked. The run is still on screen.
   }
