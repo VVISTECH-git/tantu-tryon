@@ -138,6 +138,15 @@ function legend(assets: RecipeInput["assets"]) {
       `${n}) POSE REFERENCE — a body-position guide. Match the stance shown here: the crossed ankle, the weight distribution, the arm position, the camera angle and the framing. Take nothing else from this image. The clothing in it is a plain placeholder and must not appear in your output — not its colour, not its fabric, not its plainness.`,
     );
   }
+  if (assets.sheet) {
+    // One sheet instead of four photographs. Five inputs crowded out the pose;
+    // this is the same information carried in two images.
+    push(assets.sheet, "body", (n) =>
+      `${n}) GARMENT SHEET — the parts of ONE saree, laid out on a single labelled sheet: ${assets.sheetLayout ?? "each panel labelled"}. Each panel is a real photograph of that part; read the label above it to know which. The panels keep their own proportions — the BORDER panel shows a narrow strip, and the border on the finished saree must stay narrow in the same way, not widened to fill space.`,
+    );
+    return { refs, lines };
+  }
+
   push(assets.body, "body", (n) =>
     `${n}) SAREE BODY — the main field of the saree. It wraps the lower body and is pleated at the waist, falling to the ankles. Its motif, motif scale, motif spacing and colour define the whole lower garment.`,
   );

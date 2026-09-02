@@ -3,6 +3,7 @@ import path from "node:path";
 import { buildPoseOnly, buildRecipe, recipeForPose, runRecipe, toRawBase64 } from "@tantu/engine";
 import type { ModelBrief, ProviderId, RecipeAssets, RecipeBuild, RecipeImage } from "@tantu/engine";
 import { poseSpec } from "@/registry/poses";
+import { buildContactSheet } from "@/lib/contactSheet";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -46,6 +47,13 @@ interface Body {
    * in the output is meaningless and the run is labelled as such.
    */
   poseOnly?: boolean;
+  /**
+   * Composite the four garment parts into one labelled sheet before sending.
+   *
+   * Five separate images crowd out the pose instruction, and a border sent as
+   * its own full photograph loses its proportion. One sheet addresses both.
+   */
+  contactSheet?: boolean;
   /** Which engine runs it. Defaults to Gemini. */
   provider?: ProviderId;
 }
@@ -137,12 +145,25 @@ export async function POST(req: Request) {
     ...poseRef,
   };
 
+  if (body.contactSheet) {
+    const sheet = await buildContactSheet([
+      { key: "body", label: "1. SAREE BODY", data: assets.body.data },
+      { key: "pallu", label: "2. PALLU", data: assets.pallu.data },
+      { key: "border", label: "3. BORDER", data: assets.border.data },
+      { key: "blouse", label: "4. BLOUSE", data: assets.blouse.data },
+    ]);
+    assets.sheet = { data: sheet.data, mime: "image/png" };
+    assets.sheetLayout = sheet.layout;
+  }
+
   const built = buildRecipe(pose.id, { model: body.model ?? {}, assets });
-  return finish(built, body, req);
+  // On a dry run, hand back the composited sheet too. Checking what is about
+  // to be sent is the whole point of a preview.
+  return finish(built, body, req, assets.sheet?.data);
 }
 
 /** Dry run, or run it. Shared by the full recipe and the pose-only diagnostic. */
-async function finish(built: RecipeBuild, body: Body, req: Request) {
+async function finish(built: RecipeBuild, body: Body, req: Request, sheet?: string) {
   if (body.dryRun) {
     return Response.json(
       {
@@ -152,6 +173,7 @@ async function finish(built: RecipeBuild, body: Body, req: Request) {
         prompt: built.prompt,
         imageCount: built.references.length,
         warnings: built.warnings,
+        sheet: sheet ? `data:image/png;base64,${sheet}` : undefined,
       },
       { headers: { "Cache-Control": "no-store" } },
     );

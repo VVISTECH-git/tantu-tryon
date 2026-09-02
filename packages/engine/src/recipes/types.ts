@@ -19,6 +19,14 @@ export interface RecipeImage {
 
 export interface RecipeAssets {
   /**
+   * All four garment parts composited into one labelled sheet.
+   *
+   * When present it replaces the four separate images. `sheetLayout` says which
+   * panel holds which part, so the prompt can point at them.
+   */
+  sheet?: RecipeImage;
+  sheetLayout?: string;
+  /**
    * The approved photorealistic master reference for the pose.
    *
    * Pose control only. It is NOT part of the garment, and the prompt must say
