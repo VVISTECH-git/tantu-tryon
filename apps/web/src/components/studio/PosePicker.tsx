@@ -1,6 +1,7 @@
 "use client";
 
-import type { Pose } from "@tantu/engine/catalog";
+import Image from "next/image";
+import type { PickablePose } from "@/registry/poses";
 import { PoseFigure } from "./PoseFigure";
 
 /**
@@ -8,36 +9,62 @@ import { PoseFigure } from "./PoseFigure";
  *
  * Reading "Relaxed three-quarter" and guessing what comes back is how someone
  * ends up paying for five images they did not want. Each option carries a
- * diagram of the stance, where the pallu falls and how tight the crop is.
+ * picture of the stance, where the pallu falls and how tight the crop is.
+ *
+ * This component knows nothing about what a pose means. It shows a name and a
+ * picture, and hands the pose id back — the definition lives in the registry.
+ *
+ * Silhouettes are large source files (up to 5MB) so they go through next/image:
+ * the browser gets a resized WebP a few kilobytes wide, and the master stays in
+ * the repo at full resolution. Poses with no silhouette yet fall back to the
+ * drawn figure.
  */
 export function PosePicker({
   poses,
   selected,
   onToggle,
 }: {
-  poses: Pose[];
+  poses: PickablePose[];
   selected: string[];
   onToggle: (id: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-2">
+    // Two across, not three: the silhouettes carry real anatomy now, and at a
+    // third of the rail's width the hands and feet stop being readable.
+    <div className="grid grid-cols-2 gap-2">
       {poses.map((pose) => {
         const on = selected.includes(pose.id);
+        const generatable = Boolean(pose.enginePoseId);
         return (
           <label
             key={pose.id}
-            className={`flex cursor-pointer flex-col overflow-hidden rounded-xl border transition has-[:focus-visible]:border-accent ${
+            className={`flex flex-col overflow-hidden rounded-xl border transition has-[:focus-visible]:border-accent ${
+              generatable ? "cursor-pointer" : "cursor-not-allowed opacity-55"
+            } ${
               on ? "border-accent bg-accent-wash" : "border-line bg-surface hover:border-ink-faint"
             }`}
           >
             <input
               type="checkbox"
               checked={on}
+              disabled={!generatable}
               onChange={() => onToggle(pose.id)}
               className="sr-only"
             />
             <span className="relative block px-2 pt-2">
-              <PoseFigure poseId={pose.id} />
+              <span className="relative block aspect-4/3 w-full">
+                {pose.silhouette ? (
+                  <Image
+                    src={pose.silhouette}
+                    alt=""
+                    fill
+                    sizes="200px"
+                    className="object-contain mix-blend-multiply"
+                  />
+                ) : (
+                  <PoseFigure poseId={pose.drawnAs ?? pose.id} />
+                )}
+              </span>
               <span
                 aria-hidden
                 className={`absolute right-2 top-2 grid size-[15px] place-items-center rounded-[4px] border ${
@@ -63,6 +90,9 @@ export function PosePicker({
               }`}
             >
               {pose.name}
+              {!generatable && (
+                <span className="mt-0.5 block text-[10px] text-ink-faint">No recipe yet</span>
+              )}
             </span>
           </label>
         );

@@ -1,0 +1,62 @@
+{
+  "id": "SAR-P31",
+  "garmentType": "saree",
+  "name": "Relaxed Three-Quarter",
+  "status": "locked",
+  "version": 1,
+  "createdAt": "2026-09-02T00:00:00.000Z",
+  "updatedAt": "2026-09-02T00:00:00.000Z",
+  "assets": {
+    "silhouette": null,
+    "masterReference": null,
+    "thumbnail": null
+  },
+  "body": {
+    "orientation": "three-quarter-left",
+    "torsoAngle": -30,
+    "headDirection": "camera",
+    "weightDistribution": "left",
+    "leftLeg": "neutral",
+    "rightLeg": "neutral"
+  },
+  "hands": {
+    "left": {
+      "position": "resting lightly on the hip",
+      "interaction": "none"
+    },
+    "right": {
+      "position": "relaxed beside body",
+      "interaction": "none"
+    }
+  },
+  "garmentBehaviour": {
+    "pallu": {
+      "position": "over the left shoulder",
+      "displayMode": "natural fall down the front",
+      "mustRemainVisible": true
+    },
+    "pleats": {
+      "visibility": "full"
+    },
+    "border": {
+      "visibility": "front edge and lower hem"
+    },
+    "blouse": {
+      "visibility": "front"
+    }
+  },
+  "showcasePurpose": [
+    "natural drape",
+    "full saree body",
+    "border"
+  ],
+  "generationConstraints": {
+    "preservePoseGeometry": true,
+    "preserveGarmentConstruction": true,
+    "allowHandRepositioning": false,
+    "allowBodyRotation": false,
+    "allowPalluReinterpretation": false
+  },
+  "recipe": null,
+  "enginePoseId": "relaxed"
+}

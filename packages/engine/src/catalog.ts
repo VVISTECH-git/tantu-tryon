@@ -8,3 +8,5 @@ export type { GarmentDef } from "./garments";
 export { POSES, pose, posesFor, hasPallu, DEFAULT_POSE_IDS } from "./poses";
 export { SCENES, scene } from "./scenes";
 export { guessMime, toRawBase64, toDataUrl } from "./mime";
+// The pose registry: schema and queries. No file access, so it is safe here.
+export * from "./registry";

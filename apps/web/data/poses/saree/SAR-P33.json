@@ -1,0 +1,62 @@
+{
+  "id": "SAR-P33",
+  "garmentType": "saree",
+  "name": "Seated",
+  "status": "locked",
+  "version": 1,
+  "createdAt": "2026-09-02T00:00:00.000Z",
+  "updatedAt": "2026-09-02T00:00:00.000Z",
+  "assets": {
+    "silhouette": null,
+    "masterReference": null,
+    "thumbnail": null
+  },
+  "body": {
+    "orientation": "three-quarter-right",
+    "torsoAngle": 20,
+    "headDirection": "camera",
+    "weightDistribution": "balanced",
+    "leftLeg": "neutral",
+    "rightLeg": "neutral"
+  },
+  "hands": {
+    "left": {
+      "position": "resting in the lap",
+      "interaction": "none"
+    },
+    "right": {
+      "position": "resting in the lap",
+      "interaction": "none"
+    }
+  },
+  "garmentBehaviour": {
+    "pallu": {
+      "position": "over the left shoulder",
+      "displayMode": "falling down the front over the knees",
+      "mustRemainVisible": true
+    },
+    "pleats": {
+      "visibility": "full"
+    },
+    "border": {
+      "visibility": "front edge and lower hem"
+    },
+    "blouse": {
+      "visibility": "front"
+    }
+  },
+  "showcasePurpose": [
+    "drape when seated",
+    "border over the knees",
+    "lifestyle context"
+  ],
+  "generationConstraints": {
+    "preservePoseGeometry": true,
+    "preserveGarmentConstruction": true,
+    "allowHandRepositioning": false,
+    "allowBodyRotation": false,
+    "allowPalluReinterpretation": false
+  },
+  "recipe": null,
+  "enginePoseId": "seated"
+}

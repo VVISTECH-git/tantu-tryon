@@ -1,0 +1,62 @@
+{
+  "id": "SAR-P32",
+  "garmentType": "saree",
+  "name": "Walking",
+  "status": "locked",
+  "version": 1,
+  "createdAt": "2026-09-02T00:00:00.000Z",
+  "updatedAt": "2026-09-02T00:00:00.000Z",
+  "assets": {
+    "silhouette": null,
+    "masterReference": null,
+    "thumbnail": null
+  },
+  "body": {
+    "orientation": "front",
+    "torsoAngle": 0,
+    "headDirection": "camera",
+    "weightDistribution": "balanced",
+    "leftLeg": "forward",
+    "rightLeg": "back"
+  },
+  "hands": {
+    "left": {
+      "position": "swinging naturally",
+      "interaction": "none"
+    },
+    "right": {
+      "position": "swinging naturally",
+      "interaction": "none"
+    }
+  },
+  "garmentBehaviour": {
+    "pallu": {
+      "position": "over the left shoulder",
+      "displayMode": "lifting slightly with the movement",
+      "mustRemainVisible": true
+    },
+    "pleats": {
+      "visibility": "full"
+    },
+    "border": {
+      "visibility": "front edge and lower hem"
+    },
+    "blouse": {
+      "visibility": "front"
+    }
+  },
+  "showcasePurpose": [
+    "drape in motion",
+    "hem",
+    "border edge"
+  ],
+  "generationConstraints": {
+    "preservePoseGeometry": true,
+    "preserveGarmentConstruction": true,
+    "allowHandRepositioning": false,
+    "allowBodyRotation": false,
+    "allowPalluReinterpretation": false
+  },
+  "recipe": null,
+  "enginePoseId": "walking"
+}

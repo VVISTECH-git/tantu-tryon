@@ -1,0 +1,61 @@
+{
+  "id": "SAR-P09",
+  "garmentType": "saree",
+  "name": "Pallu Over Shoulder",
+  "status": "review",
+  "version": 1,
+  "createdAt": "2026-09-02T00:00:00.000Z",
+  "updatedAt": "2026-09-02T00:00:00.000Z",
+  "assets": {
+    "silhouette": "/poses/saree/SAR-P09/silhouette.png",
+    "masterReference": null,
+    "thumbnail": null
+  },
+  "body": {
+    "orientation": "front",
+    "torsoAngle": 0,
+    "headDirection": "camera",
+    "weightDistribution": "balanced",
+    "leftLeg": "neutral",
+    "rightLeg": "neutral"
+  },
+  "hands": {
+    "left": {
+      "position": "relaxed beside body",
+      "interaction": "none"
+    },
+    "right": {
+      "position": "relaxed beside body",
+      "interaction": "none"
+    }
+  },
+  "garmentBehaviour": {
+    "pallu": {
+      "position": "over the left shoulder",
+      "displayMode": "carried over the left shoulder, full length hanging free at the side",
+      "mustRemainVisible": true
+    },
+    "pleats": {
+      "visibility": "full"
+    },
+    "border": {
+      "visibility": "front edge and lower hem"
+    },
+    "blouse": {
+      "visibility": "front"
+    }
+  },
+  "showcasePurpose": [
+    "pallu design",
+    "pallu length",
+    "shoulder drape"
+  ],
+  "generationConstraints": {
+    "preservePoseGeometry": true,
+    "preserveGarmentConstruction": true,
+    "allowHandRepositioning": false,
+    "allowBodyRotation": false,
+    "allowPalluReinterpretation": false
+  },
+  "recipe": null
+}

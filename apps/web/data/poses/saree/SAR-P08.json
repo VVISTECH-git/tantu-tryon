@@ -1,0 +1,62 @@
+{
+  "id": "SAR-P08",
+  "garmentType": "saree",
+  "name": "Back View",
+  "status": "locked",
+  "version": 1,
+  "createdAt": "2026-09-02T00:00:00.000Z",
+  "updatedAt": "2026-09-02T00:00:00.000Z",
+  "assets": {
+    "silhouette": "/poses/saree/SAR-P08/silhouette.png",
+    "masterReference": null,
+    "thumbnail": null
+  },
+  "body": {
+    "orientation": "back",
+    "torsoAngle": 180,
+    "headDirection": "away",
+    "weightDistribution": "balanced",
+    "leftLeg": "neutral",
+    "rightLeg": "neutral"
+  },
+  "hands": {
+    "left": {
+      "position": "relaxed beside body",
+      "interaction": "none"
+    },
+    "right": {
+      "position": "relaxed beside body",
+      "interaction": "none"
+    }
+  },
+  "garmentBehaviour": {
+    "pallu": {
+      "position": "over the left shoulder",
+      "displayMode": "pleats falling down the back",
+      "mustRemainVisible": true
+    },
+    "pleats": {
+      "visibility": "full"
+    },
+    "border": {
+      "visibility": "pallu edge and lower hem"
+    },
+    "blouse": {
+      "visibility": "back"
+    }
+  },
+  "showcasePurpose": [
+    "blouse back",
+    "pallu pleats",
+    "back drape"
+  ],
+  "generationConstraints": {
+    "preservePoseGeometry": true,
+    "preserveGarmentConstruction": true,
+    "allowHandRepositioning": false,
+    "allowBodyRotation": false,
+    "allowPalluReinterpretation": false
+  },
+  "recipe": null,
+  "enginePoseId": "back"
+}

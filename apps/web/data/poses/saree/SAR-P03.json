@@ -1,0 +1,61 @@
+{
+  "id": "SAR-P03",
+  "garmentType": "saree",
+  "name": "Front, Hand on Waist",
+  "status": "review",
+  "version": 1,
+  "createdAt": "2026-09-02T00:00:00.000Z",
+  "updatedAt": "2026-09-02T00:00:00.000Z",
+  "assets": {
+    "silhouette": "/poses/saree/SAR-P03/silhouette.png",
+    "masterReference": null,
+    "thumbnail": null
+  },
+  "body": {
+    "orientation": "front",
+    "torsoAngle": 0,
+    "headDirection": "camera",
+    "weightDistribution": "balanced",
+    "leftLeg": "neutral",
+    "rightLeg": "neutral"
+  },
+  "hands": {
+    "left": {
+      "position": "on the waist, elbow out",
+      "interaction": "none"
+    },
+    "right": {
+      "position": "relaxed beside body",
+      "interaction": "none"
+    }
+  },
+  "garmentBehaviour": {
+    "pallu": {
+      "position": "over the left shoulder",
+      "displayMode": "natural fall down the front",
+      "mustRemainVisible": true
+    },
+    "pleats": {
+      "visibility": "full"
+    },
+    "border": {
+      "visibility": "front edge and lower hem"
+    },
+    "blouse": {
+      "visibility": "front"
+    }
+  },
+  "showcasePurpose": [
+    "waist pleats",
+    "front drape",
+    "silhouette shape"
+  ],
+  "generationConstraints": {
+    "preservePoseGeometry": true,
+    "preserveGarmentConstruction": true,
+    "allowHandRepositioning": false,
+    "allowBodyRotation": false,
+    "allowPalluReinterpretation": false
+  },
+  "recipe": null
+}

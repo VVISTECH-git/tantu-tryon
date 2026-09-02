@@ -1,0 +1,62 @@
+{
+  "id": "SAR-P34",
+  "garmentType": "saree",
+  "name": "Border Macro",
+  "status": "locked",
+  "version": 1,
+  "createdAt": "2026-09-02T00:00:00.000Z",
+  "updatedAt": "2026-09-02T00:00:00.000Z",
+  "assets": {
+    "silhouette": null,
+    "masterReference": null,
+    "thumbnail": null
+  },
+  "body": {
+    "orientation": "front",
+    "torsoAngle": 0,
+    "headDirection": "away",
+    "weightDistribution": "balanced",
+    "leftLeg": "neutral",
+    "rightLeg": "neutral"
+  },
+  "hands": {
+    "left": {
+      "position": "relaxed beside body",
+      "interaction": "none"
+    },
+    "right": {
+      "position": "relaxed beside body",
+      "interaction": "none"
+    }
+  },
+  "garmentBehaviour": {
+    "pallu": {
+      "position": "over the left shoulder",
+      "displayMode": "natural fall down the front",
+      "mustRemainVisible": true
+    },
+    "pleats": {
+      "visibility": "partial"
+    },
+    "border": {
+      "visibility": "filling the frame"
+    },
+    "blouse": {
+      "visibility": "hidden"
+    }
+  },
+  "showcasePurpose": [
+    "border motif",
+    "border repeat",
+    "weave character"
+  ],
+  "generationConstraints": {
+    "preservePoseGeometry": true,
+    "preserveGarmentConstruction": true,
+    "allowHandRepositioning": false,
+    "allowBodyRotation": false,
+    "allowPalluReinterpretation": false
+  },
+  "recipe": null,
+  "enginePoseId": "border-detail"
+}

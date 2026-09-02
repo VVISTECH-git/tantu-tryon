@@ -1,0 +1,62 @@
+{
+  "id": "SAR-P30",
+  "garmentType": "saree",
+  "name": "Waist-Up",
+  "status": "locked",
+  "version": 1,
+  "createdAt": "2026-09-02T00:00:00.000Z",
+  "updatedAt": "2026-09-02T00:00:00.000Z",
+  "assets": {
+    "silhouette": null,
+    "masterReference": null,
+    "thumbnail": null
+  },
+  "body": {
+    "orientation": "three-quarter-left",
+    "torsoAngle": -20,
+    "headDirection": "camera",
+    "weightDistribution": "balanced",
+    "leftLeg": "neutral",
+    "rightLeg": "neutral"
+  },
+  "hands": {
+    "left": {
+      "position": "resting together just below the waist",
+      "interaction": "none"
+    },
+    "right": {
+      "position": "resting together just below the waist",
+      "interaction": "none"
+    }
+  },
+  "garmentBehaviour": {
+    "pallu": {
+      "position": "over the left shoulder",
+      "displayMode": "across the chest and shoulder, in tight detail",
+      "mustRemainVisible": true
+    },
+    "pleats": {
+      "visibility": "hidden"
+    },
+    "border": {
+      "visibility": "pallu edge only"
+    },
+    "blouse": {
+      "visibility": "front"
+    }
+  },
+  "showcasePurpose": [
+    "pallu detail",
+    "blouse neckline",
+    "border at the shoulder"
+  ],
+  "generationConstraints": {
+    "preservePoseGeometry": true,
+    "preserveGarmentConstruction": true,
+    "allowHandRepositioning": false,
+    "allowBodyRotation": false,
+    "allowPalluReinterpretation": false
+  },
+  "recipe": null,
+  "enginePoseId": "waist-up"
+}

@@ -1,15 +1,14 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useRef, useState } from "react";
 import {
-  DEFAULT_POSE_IDS,
   GARMENTS,
   SCENES,
   SLOTS,
   garment as garmentDef,
-  posesFor,
   slotsFor,
 } from "@tantu/engine/catalog";
+import { defaultPoseIds, selectablePoses } from "@/registry/poses";
 import type { GarmentId, ModelBrief, RenderMode, SlotId } from "@tantu/engine/catalog";
 import { Lightbox } from "./Lightbox";
 import { Results } from "./Results";
@@ -53,7 +52,8 @@ export function Studio() {
   const [freeformModel, setFreeformModel] = useState(false);
   const [sceneId, setSceneId] = useState<string>("courtyard");
   const [customScene, setCustomScene] = useState("");
-  const [poses, setPoses] = useState<string[]>(DEFAULT_POSE_IDS);
+  /** Registry pose ids — `SAR-P01`, not `front`. What a job records. */
+  const [poses, setPoses] = useState<string[]>(() => defaultPoseIds("saree"));
   const [quality, setQuality] = useState<Quality>("standard");
   /**
    * Which wording goes to the engine. The playbook's five prompts are the
@@ -74,7 +74,20 @@ export function Studio() {
   const batchRef = useRef<string>("");
   const abortRef = useRef<AbortController | null>(null);
 
-  const availablePoses = useMemo(() => posesFor(garment), [garment]);
+  const availablePoses = useMemo(() => selectablePoses(garment), [garment]);
+
+  /**
+   * The engine poses behind the selection. A registry pose with no recipe and
+   * no legacy pose behind it cannot be generated, and is filtered out here
+   * rather than sent and failed.
+   */
+  const selectedEngineIds = useMemo(
+    () =>
+      availablePoses
+        .filter((p) => poses.includes(p.id) && p.enginePoseId)
+        .map((p) => p.enginePoseId as string),
+    [availablePoses, poses],
+  );
 
   const ordered = useMemo(
     () => [...refs].sort((a, b) => (SLOT_ORDER.get(a.slot) ?? 99) - (SLOT_ORDER.get(b.slot) ?? 99)),
@@ -102,13 +115,13 @@ export function Studio() {
   const problems = useMemo(() => {
     const list: string[] = [];
     if (refs.length === 0) list.push("Add at least one photograph of the garment.");
-    if (poses.length === 0) list.push("Choose at least one pose.");
+    if (selectedEngineIds.length === 0) list.push("Choose at least one pose that can be generated.");
     if (mode === "person" && !person) list.push("Add the photograph of the person.");
     if (mode === "mannequin" && !refs.some((r) => r.slot === "mannequin")) {
       list.push("Add the mannequin photograph.");
     }
     return list;
-  }, [refs, poses, mode, person]);
+  }, [refs, selectedEngineIds, mode, person]);
 
   // ── reference handling ──────────────────────────────────────────
   const setSlot = (slot: SlotId, image: LoadedImage) =>
@@ -159,6 +172,7 @@ export function Studio() {
     abortRef.current?.abort();
   }
 
+  /** Takes engine pose ids. The registry ids are resolved before this is called. */
   async function run(poseIds: string[]) {
     if (poseIds.length === 0) return;
     setError(null);
@@ -168,8 +182,9 @@ export function Studio() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    const isRetry = cards.length > 0 && poseIds.length < poses.length;
-    const nameOf = (id: string) => availablePoses.find((p) => p.id === id)?.name ?? id;
+    const isRetry = cards.length > 0 && poseIds.length < selectedEngineIds.length;
+    const nameOf = (id: string) =>
+      availablePoses.find((p) => p.enginePoseId === id)?.name ?? id;
 
     if (!isRetry) {
       batchRef.current = `batch-${Date.now()}`;
@@ -318,7 +333,15 @@ export function Studio() {
             <Select
               id="setting-garment"
               value={garment}
-              onChange={(value) => setGarment(value as GarmentId)}
+              onChange={(value) => {
+                // Pose ids are garment-namespaced, so a saree selection cannot
+                // survive a switch to a kurti — reset it with the garment
+                // rather than leave ids selected that the registry has never
+                // heard of.
+                const next = value as GarmentId;
+                setGarment(next);
+                setPoses(defaultPoseIds(next));
+              }}
               options={GARMENTS.map((g) => ({ value: g.id, label: g.label }))}
             />
           </SettingRow>
@@ -473,14 +496,14 @@ export function Studio() {
             <div className="mb-3 flex gap-3">
               <button
                 type="button"
-                onClick={() => setPoses(availablePoses.map((p) => p.id))}
+                onClick={() => setPoses(availablePoses.filter((p) => p.enginePoseId).map((p) => p.id))}
                 className="text-[13px] text-ink-faint underline underline-offset-2 hover:text-ink"
               >
                 all
               </button>
               <button
                 type="button"
-                onClick={() => setPoses(DEFAULT_POSE_IDS)}
+                onClick={() => setPoses(defaultPoseIds(garment))}
                 className="text-[13px] text-ink-faint underline underline-offset-2 hover:text-ink"
               >
                 reset
@@ -537,15 +560,15 @@ export function Studio() {
               <button
                 type="button"
                 disabled={problems.length > 0}
-                onClick={() => void run(poses)}
+                onClick={() => void run(selectedEngineIds)}
                 className="flex w-full items-center justify-center gap-3 rounded-full bg-accent px-5 py-3.5 text-[16px] font-medium text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-soft"
               >
                 <span>
-                  Generate {poses.length} image{poses.length === 1 ? "" : "s"}
+                  Generate {selectedEngineIds.length} image{selectedEngineIds.length === 1 ? "" : "s"}
                 </span>
-                {poses.length > 0 && problems.length === 0 && (
+                {selectedEngineIds.length > 0 && problems.length === 0 && (
                   <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-[13px]">
-                    {formatCost(poses.length, quality)}
+                    {formatCost(selectedEngineIds.length, quality)}
                   </span>
                 )}
               </button>
@@ -664,3 +687,4 @@ function toCard(outcome: OutcomeWire): RenderCard {
     ms: outcome.ms,
   };
 }
+
