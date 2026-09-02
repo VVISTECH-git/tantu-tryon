@@ -36,6 +36,8 @@ interface Body {
    * about. Two runs, one variable.
    */
   useMasterReference?: boolean;
+  /** Which pose reference to send: the photo, the flat silhouette, or none. */
+  poseReference?: "master" | "silhouette" | "none";
 }
 
 const REQUIRED: (keyof RecipeAssets)[] = ["body", "pallu", "border", "blouse"];
@@ -50,6 +52,30 @@ async function loadMasterReference(url: string): Promise<RecipeImage | undefined
     // Recorded on the pose but not readable. The recipe warns; it does not fail.
     return undefined;
   }
+}
+
+/**
+ * Which image steers the pose, if any.
+ *
+ * Gemini declines the photographic master reference outright, so the flat
+ * silhouette is a live alternative rather than a curiosity — it carries the
+ * same geometry with none of the person.
+ */
+async function resolvePoseReference(
+  pose: NonNullable<ReturnType<typeof poseSpec>>,
+  body: Body,
+): Promise<Pick<RecipeAssets, "masterReference" | "poseReferenceKind">> {
+  const choice =
+    body.poseReference ?? (body.useMasterReference === false ? "none" : "master");
+  if (choice === "none") return {};
+
+  const url =
+    choice === "silhouette" ? pose.assets.silhouette : pose.assets.masterReference;
+  if (!url) return {};
+
+  const image = await loadMasterReference(url);
+  if (!image) return {};
+  return { masterReference: image, poseReferenceKind: choice === "silhouette" ? "silhouette" : "photo" };
 }
 
 export async function POST(req: Request) {
@@ -91,10 +117,7 @@ export async function POST(req: Request) {
     blouse: image(body.assets.blouse)!,
     fullDrape: image(body.assets.fullDrape),
     weave: image(body.assets.weave),
-    masterReference:
-      pose.assets.masterReference && body.useMasterReference !== false
-        ? await loadMasterReference(pose.assets.masterReference)
-        : undefined,
+    ...(await resolvePoseReference(pose, body)),
   };
 
   const built = buildRecipe(pose.id, { model: body.model ?? {}, assets });

@@ -39,7 +39,11 @@ function legend(assets: RecipeInput["assets"]) {
     lines.push(line(refs.length));
   };
 
-  if (assets.masterReference) {
+  if (assets.masterReference && assets.poseReferenceKind === "silhouette") {
+    push(assets.masterReference, "extra", (n) =>
+      `${n}) POSE DIAGRAM — a flat drawing of the required body position. Match the stance it defines: the crossed ankle, the weight distribution, the arm position and the framing. It is a diagram, not a photograph and not clothing. Take no colour, no fabric, no texture and no garment information from it whatsoever.`,
+    );
+  } else if (assets.masterReference) {
     push(assets.masterReference, "extra", (n) =>
       // Deliberately impersonal. An earlier version described "a different
       // woman" and told the model not to copy "her face, her identity", which

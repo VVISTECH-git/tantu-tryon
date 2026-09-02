@@ -25,6 +25,14 @@ export interface RecipeAssets {
    * so explicitly or the model reads its plain fabric as the saree's texture.
    */
   masterReference?: RecipeImage;
+  /**
+   * What that pose reference actually is.
+   *
+   * A photograph and a flat silhouette need different instructions: one has a
+   * person and a garment to be told to ignore, the other has neither and must
+   * not be read as clothing at all.
+   */
+  poseReferenceKind?: "photo" | "silhouette";
   body: RecipeImage;
   pallu: RecipeImage;
   border: RecipeImage;
