@@ -122,14 +122,15 @@ export class GeminiProvider implements TryOnProvider {
         ? `Gemini returned no image (finishReason: ${reason}).`
         : "Gemini returned no image — it may have declined this combination of photographs.";
 
-      // A refusal is a decision, not a hiccup. The call succeeded and was
-      // billed, so retrying a declined request twice more buys nothing and
-      // charges three times for it.
-      if (reason && FINAL_REFUSALS.has(reason)) {
-        throw new Error(
-          `${lastError} This is a refusal, not a transient failure — the same request will be refused again, so it was not retried.`,
-        );
-      }
+      // Any 200 without an image is a decision, not a hiccup: the call
+      // succeeded and was billed. Observed behaviour is that the same request
+      // gets the same answer, so a retry here buys nothing and charges again.
+      // Retrying is left to the operator, who can see what came back.
+      throw new Error(
+        reason && FINAL_REFUSALS.has(reason)
+          ? `${lastError} That is a refusal — the same request will be refused again, so it was not retried.`
+          : `${lastError} The request was billed and not retried, because repeating it usually returns the same answer. Change something before trying again.`,
+      );
     }
 
     throw new Error(lastError || "Gemini returned no image.");
