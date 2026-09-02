@@ -1,4 +1,4 @@
-﻿import type { GarmentId, GarmentTypeId, PoseRecord } from "@tantu/engine/catalog";
+import type { GarmentId, GarmentTypeId, PoseRecord } from "@tantu/engine/catalog";
 import { poseById, posesFor, productionPoses, validateAll } from "@tantu/engine/catalog";
 
 import SAR_P01 from "@data/poses/saree/SAR-P01.json";
