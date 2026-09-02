@@ -1,9 +1,10 @@
 import { FalProvider } from "./fal";
 import { FashnProvider } from "./fashn";
 import { GeminiProvider } from "./gemini";
+import { OpenAIProvider } from "./openai";
 import type { ProviderId, TryOnProvider } from "../types";
 
-export { GeminiProvider, FalProvider, FashnProvider };
+export { GeminiProvider, OpenAIProvider, FalProvider, FashnProvider };
 
 /**
  * Adding a self-hosted, saree-fine-tuned model later means adding one class
@@ -17,6 +18,8 @@ export function getProvider(id?: string): TryOnProvider {
       return new FalProvider();
     case "fashn":
       return new FashnProvider();
+    case "openai":
+      return new OpenAIProvider();
     case "gemini":
       return new GeminiProvider();
     default:
@@ -24,12 +27,13 @@ export function getProvider(id?: string): TryOnProvider {
   }
 }
 
-export const PROVIDER_IDS: ProviderId[] = ["gemini", "fal", "fashn"];
+export const PROVIDER_IDS: ProviderId[] = ["gemini", "openai", "fal", "fashn"];
 
 /** Which engines have a usable credential right now. Drives the header dot. */
 export function configuredProviders(): ProviderId[] {
   const out: ProviderId[] = [];
   if (process.env.GEMINI_API_KEY) out.push("gemini");
+  if (process.env.OPENAI_API_KEY) out.push("openai");
   if (process.env.FAL_KEY) out.push("fal");
   if (process.env.FASHN_API_KEY) out.push("fashn");
   return out;

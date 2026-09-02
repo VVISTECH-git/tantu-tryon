@@ -47,7 +47,7 @@ export type GarmentId =
  */
 export type RenderMode = "describe" | "mannequin" | "person";
 
-export type ProviderId = "gemini" | "fal" | "fashn";
+export type ProviderId = "gemini" | "openai" | "fal" | "fashn";
 
 /** Who the invented model is. Every field optional — defaults are sensible. */
 export interface ModelBrief {

@@ -37,6 +37,7 @@ export function Lab({ pose }: { pose: PoseRecord }) {
   const [modelId, setModelId] = useState(LAB_MODELS[0]!.id);
   const [uploads, setUploads] = useState<Uploads>({});
   const [quality, setQuality] = useState<"standard" | "high">("standard");
+  const [provider, setProvider] = useState<"gemini" | "openai">("gemini");
   /** Bench control: run with the pose reference, or without it. */
   const [useMasterReference, setUseMasterReference] = useState(true);
 
@@ -95,6 +96,7 @@ export function Lab({ pose }: { pose: PoseRecord }) {
           poseId: pose.id,
           model: labModel(modelId).brief,
           quality,
+          provider,
           assets,
           dryRun,
           useMasterReference,
@@ -238,6 +240,18 @@ export function Lab({ pose }: { pose: PoseRecord }) {
               className="size-4 accent-[var(--color-accent)]"
             />
             <span className="text-ink-soft">Send pose reference</span>
+          </label>
+          <label className="flex items-center gap-2 text-[13px]">
+            <span className="text-ink-soft">Engine</span>
+            <Select
+              id="lab-provider"
+              value={provider}
+              onChange={(v) => setProvider(v as typeof provider)}
+              options={[
+                { value: "gemini", label: "Gemini" },
+                { value: "openai", label: "OpenAI · gpt-image-2" },
+              ]}
+            />
           </label>
           <label className="flex items-center gap-2 text-[13px]">
             <span className="text-ink-soft">Model</span>

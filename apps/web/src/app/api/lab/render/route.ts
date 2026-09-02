@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { buildPoseOnly, buildRecipe, recipeForPose, runRecipe, toRawBase64 } from "@tantu/engine";
-import type { ModelBrief, RecipeAssets, RecipeBuild, RecipeImage } from "@tantu/engine";
+import type { ModelBrief, ProviderId, RecipeAssets, RecipeBuild, RecipeImage } from "@tantu/engine";
 import { poseSpec } from "@/registry/poses";
 
 export const runtime = "nodejs";
@@ -46,6 +46,8 @@ interface Body {
    * in the output is meaningless and the run is labelled as such.
    */
   poseOnly?: boolean;
+  /** Which engine runs it. Defaults to Gemini. */
+  provider?: ProviderId;
 }
 
 const REQUIRED: (keyof RecipeAssets)[] = ["body", "pallu", "border", "blouse"];
@@ -162,6 +164,7 @@ async function finish(built: RecipeBuild, body: Body, req: Request) {
 
   try {
     const result = await runRecipe(built, {
+      provider: body.provider,
       quality: body.quality,
       signal: aborter.signal,
     });
