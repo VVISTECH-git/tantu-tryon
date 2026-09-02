@@ -5,11 +5,11 @@
   "status": "locked",
   "version": 1,
   "createdAt": "2026-09-02T00:00:00.000Z",
-  "updatedAt": "2026-09-02T12:00:00.000Z",
+  "updatedAt": "2026-09-02T12:30:00.000Z",
   "assets": {
     "silhouette": "/poses/saree/SAR-P15/silhouette.png",
     "masterReference": null,
-    "thumbnail": null
+    "thumbnail": "/poses/saree/SAR-P15/thumbnail.png"
   },
   "body": {
     "orientation": "front",
@@ -59,4 +59,3 @@
   },
   "recipe": null
 }
-
