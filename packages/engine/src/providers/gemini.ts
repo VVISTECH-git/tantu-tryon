@@ -21,6 +21,23 @@ const HIGH_MODEL = "gemini-3-pro-image";
 /** Transient failures worth one more try before the pose is written off. */
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
 
+/**
+ * Finish reasons that mean the model decided not to produce an image.
+ *
+ * Each of these comes back on a successful, billed call. Retrying one spends
+ * the money again for the same answer.
+ */
+const FINAL_REFUSALS = new Set([
+  "SAFETY",
+  "IMAGE_SAFETY",
+  "PROHIBITED_CONTENT",
+  "IMAGE_PROHIBITED_CONTENT",
+  "RECITATION",
+  "IMAGE_RECITATION",
+  "BLOCKLIST",
+  "SPII",
+]);
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class GeminiProvider implements TryOnProvider {
@@ -100,9 +117,19 @@ export class GeminiProvider implements TryOnProvider {
         }
       }
 
-      lastError = candidate?.finishReason
-        ? `Gemini returned no image (finishReason: ${candidate.finishReason}).`
+      const reason = candidate?.finishReason;
+      lastError = reason
+        ? `Gemini returned no image (finishReason: ${reason}).`
         : "Gemini returned no image — it may have declined this combination of photographs.";
+
+      // A refusal is a decision, not a hiccup. The call succeeded and was
+      // billed, so retrying a declined request twice more buys nothing and
+      // charges three times for it.
+      if (reason && FINAL_REFUSALS.has(reason)) {
+        throw new Error(
+          `${lastError} This is a refusal, not a transient failure — the same request will be refused again, so it was not retried.`,
+        );
+      }
     }
 
     throw new Error(lastError || "Gemini returned no image.");
