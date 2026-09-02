@@ -240,14 +240,19 @@ export function Lab({ pose }: { pose: PoseRecord }) {
             <span className="text-ink-soft">Send pose reference</span>
           </label>
           <label className="flex items-center gap-2 text-[13px]">
-            <span className="text-ink-soft">Quality</span>
+            <span className="text-ink-soft">Model</span>
+            {/*
+              Named by the model rather than "standard / high". On a bench the
+              variable under test has to be legible, and "High" does not say
+              which model ran or what it cost.
+            */}
             <Select
               id="lab-quality"
               value={quality}
               onChange={(v) => setQuality(v as typeof quality)}
               options={[
-                { value: "standard", label: "Standard" },
-                { value: "high", label: "High" },
+                { value: "standard", label: "gemini-2.5-flash-image · ~$0.039" },
+                { value: "high", label: "gemini-3-pro-image · ~$0.134" },
               ]}
             />
           </label>
