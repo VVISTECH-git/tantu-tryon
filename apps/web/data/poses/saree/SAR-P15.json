@@ -3,9 +3,9 @@
   "garmentType": "saree",
   "name": "Soft Crossed-Ankle Stance",
   "status": "locked",
-  "version": 1,
+  "version": 2,
   "createdAt": "2026-09-02T00:00:00.000Z",
-  "updatedAt": "2026-09-02T13:00:00.000Z",
+  "updatedAt": "2026-09-02T14:00:00.000Z",
   "assets": {
     "silhouette": "/poses/saree/SAR-P15/silhouette.png",
     "masterReference": null,
@@ -32,7 +32,7 @@
   "garmentBehaviour": {
     "pallu": {
       "position": "over the left shoulder",
-      "displayMode": "natural fall down the front",
+      "displayMode": "carried over the left shoulder and falling down her left side, clear of the arm",
       "mustRemainVisible": true
     },
     "pleats": {

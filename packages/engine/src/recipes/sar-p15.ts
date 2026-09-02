@@ -48,7 +48,7 @@ function legend(assets: RecipeInput["assets"]) {
     `${n}) SAREE BODY — the main field of the saree. It wraps the lower body and is pleated at the waist, falling to the ankles. Its motif, motif scale, motif spacing and colour define the whole lower garment.`,
   );
   push(assets.pallu, "pallu", (n) =>
-    `${n}) PALLU — the decorated end. It is pleated and draped over the LEFT shoulder and falls from that shoulder. Its design is usually different from the body; keep that difference.`,
+    `${n}) PALLU — the decorated end. It is pleated and draped over the LEFT shoulder, its loose length hanging down her left side. Its design is usually different from the body; keep that difference.`,
   );
   push(assets.border, "border", (n) =>
     `${n}) BORDER — the narrow decorated strip. It runs along BOTH long edges of the saree and across the bottom hem. Keep its width in correct proportion to the saree.`,
@@ -113,7 +113,7 @@ export const SAR_P15_RECIPE: PoseRecipe = {
       ``,
       `GARMENT CONSTRUCTION`,
       ``,
-      `The saree is draped in the standard Nivi style. The body of the saree wraps the lower body and is pleated at the waist, the pleats falling straight and evenly to the ankles. The pallu is pleated and worn over the LEFT shoulder, falling naturally down the front. The border runs along both long edges and across the bottom hem. The blouse is fitted with short sleeves that end above the elbow, well before the elbow joint, exposing the forearm.`,
+      `The saree is draped in the standard Nivi style. The body of the saree wraps the lower body and is pleated at the waist, the pleats falling straight and evenly to the ankles. The pallu is pleated and worn over the LEFT shoulder, and its loose length falls down her LEFT SIDE, hanging clear of the arm rather than across the front of the body. The border runs along both long edges and across the bottom hem. The blouse is fitted with short sleeves that end above the elbow, well before the elbow joint, exposing the forearm.`,
       ``,
       `TEXTILE FIDELITY — THE THING THAT MATTERS MOST`,
       ``,
@@ -142,7 +142,7 @@ export const SAR_P15_RECIPE: PoseRecipe = {
       `5. Both arms relaxed at her sides`,
       `6. Neither hand touching the saree`,
       `7. Both feet visible below the hem`,
-      `8. Pallu over the LEFT shoulder, falling down the front`,
+      `8. Pallu over the LEFT shoulder, its length falling down her left side`,
       `9. Waist pleats straight and even`,
       `10. Border on both long edges and across the hem, correct width`,
       `11. Blouse sleeves ending above the elbow`,
