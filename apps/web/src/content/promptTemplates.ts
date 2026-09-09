@@ -229,7 +229,7 @@ export const TEMPLATES: PromptTemplate[] = [
     blouse:
       "The blouse has short sleeves that end above the elbow, well before the elbow joint, exposing the forearm.",
     pose:
-      "{She} stands at a slight three-quarter angle to the camera, shoulders and hips turned about 30 degrees away from straight-on, with {her} face turned back toward the camera. One hand rests lightly on {her} hip; the other arm hangs naturally at {her} side. The pallu is pleated neatly and draped over the left shoulder, falling forward along the front of {her} body so the full length of the pleats, pattern, and border are visible down to the hem. The pleats are clean, straight, and evenly spaced.",
+      "{She} stands at a slight three-quarter angle to the camera, shoulders and hips turned about 30 degrees away from straight-on, with {her} face turned back toward the camera. One hand rests lightly on {her} hip; the other arm hangs naturally at {her} side. The pallu is pleated neatly and draped over the left shoulder, falling forward along the front of {her} body so the full length of the pleats, pattern, and border are visible down to the hem. The pleats are clean, straight, and evenly spaced. The whole figure, from the top of {her} head to {her} feet, with the hem of the saree and the ground beneath {her} feet, is inside the frame.",
   },
   {
     id: "P3",

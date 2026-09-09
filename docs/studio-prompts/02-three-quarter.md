@@ -2,6 +2,14 @@
 
 Stored verbatim. Do not edit to improve it.
 
+## Test 1 — 2026-09-09, 300021, sheet mode
+
+Fabric correct in all four parts, pose correct, but cropped at the thigh
+instead of full length. The Studio's Prompt 2 now ends with one added
+sentence: "The whole figure, from the top of her head to her feet, with the
+hem of the saree and the ground beneath her feet, is inside the frame."
+Awaiting the retest. The received wording below is unchanged.
+
 Note for later: this one opens with the fidelity clause ("without altering,
 redesigning, or reinterpreting the fabric pattern, print, or colors in any
 way") and carries the blouse-sleeve line. Prompt 1 has neither. Whether that
