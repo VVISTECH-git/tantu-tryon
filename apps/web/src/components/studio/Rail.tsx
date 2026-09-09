@@ -74,47 +74,41 @@ export function Rail({
       </section>
 
       <fieldset className={`space-y-7 border-0 p-0 ${hasProduct ? "" : "opacity-50"}`} disabled={!hasProduct}>
+        {/*
+          Dropdowns, not button grids. Four model types and three backgrounds
+          as tiles took most of the rail's height for a choice made once; as
+          selects they take one line each and leave room for the rules.
+        */}
         <section>
           <Label>Model type</Label>
-          <div className="mt-2.5 grid grid-cols-2 gap-1.5">
-            {MODEL_TYPES.map((m) => (
-              <Choice
-                key={m.id}
-                on={selections.modelType === m.id}
-                onClick={() =>
-                  onChange({ ...selections, modelType: m.id, age: defaultAge(m.id) })
-                }
-              >
-                {m.label}
-              </Choice>
-            ))}
+          <div className="mt-2.5 grid grid-cols-2 gap-2">
+            <Select
+              label="Model type"
+              value={selections.modelType}
+              onChange={(v) => {
+                const modelType = v as Selections["modelType"];
+                onChange({ ...selections, modelType, age: defaultAge(modelType) });
+              }}
+              options={MODEL_TYPES.map((m) => ({ value: m.id, label: m.label }))}
+            />
+            <Select
+              label="Age"
+              value={selections.age}
+              onChange={(age) => onChange({ ...selections, age })}
+              options={ages.map((a) => ({ value: a, label: a }))}
+            />
           </div>
-          <select
-            value={selections.age}
-            onChange={(e) => onChange({ ...selections, age: e.target.value })}
-            aria-label="Age"
-            className="mt-2 w-full rounded-lg border border-line bg-surface px-3 py-2 text-[14px] outline-none focus:border-accent"
-          >
-            {ages.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
         </section>
 
         <section>
           <Label>Background</Label>
-          <div className="mt-2.5 grid gap-1.5">
-            {BACKGROUNDS.map((b) => (
-              <Choice
-                key={b.id}
-                on={selections.background === b.id}
-                onClick={() => onChange({ ...selections, background: b.id })}
-              >
-                {b.label}
-              </Choice>
-            ))}
+          <div className="mt-2.5">
+            <Select
+              label="Background"
+              value={selections.background}
+              onChange={(v) => onChange({ ...selections, background: v as Selections["background"] })}
+              options={BACKGROUNDS.map((b) => ({ value: b.id, label: b.label }))}
+            />
           </div>
         </section>
 
@@ -155,27 +149,29 @@ function Label({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Choice({
-  on,
-  onClick,
-  children,
+function Select({
+  label,
+  value,
+  onChange,
+  options,
 }: {
-  on: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
-      className={`rounded-lg border px-3 py-2 text-left text-[14px] transition ${
-        on
-          ? "border-accent bg-accent-wash text-accent"
-          : "border-line bg-surface text-ink-soft hover:border-ink-faint hover:text-ink"
-      }`}
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label={label}
+      className="w-full min-w-0 rounded-lg border border-line bg-surface px-3 py-2 text-[14px] text-ink outline-none focus:border-accent"
     >
-      {children}
-    </button>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
   );
 }
