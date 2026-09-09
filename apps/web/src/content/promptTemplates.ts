@@ -167,6 +167,13 @@ export interface PromptTemplate {
   /** Written and ready to offer. A template exists before it is trusted. */
   live: boolean;
   /**
+   * Set once the composed prompt has produced an approved image. From then
+   * on the wording of this template, and of every slot it draws on, is not
+   * edited — a change is a new version, proven again. The record of what was
+   * approved lives in docs/studio-prompts.
+   */
+  frozen?: { version: number; on: string; proof: string };
+  /**
    * The order the sentences go in. Each proven prompt has its own — Prompt 2
    * puts the pose last — and that order is part of what was proven.
    */
@@ -179,6 +186,15 @@ export interface PromptTemplate {
   opening: (g: GarmentWords, p: Pronouns, subject: string, refs: string) => string;
   pose: string;
   blouse?: string;
+  /**
+   * A prompt's own wording for a shared slot, where the received text differs
+   * from the common sentence. Prompt 5 says "shot at eye level" without
+   * "straight-on", and "framed by a stone arch behind her" without the
+   * symmetry — that is the wording that was given, so that is what goes out.
+   * A scene override applies to one background only; the others keep theirs.
+   */
+  framing?: string;
+  scene?: Partial<Record<BackgroundId, string>>;
 }
 
 const EXPRESSION = "{She} has a direct, confident gaze and a neutral-to-soft expression.";
@@ -191,6 +207,11 @@ export const TEMPLATES: PromptTemplate[] = [
     title: "Front, symmetrical",
     summary: "Hands clasped at the waist, pallu peaked over the left shoulder and away behind.",
     live: true,
+    // FROZEN. Approved on 300021 with the labelled sheet attached: the body,
+    // pallu, border and blouse prints all came through as photographed. Do
+    // not edit this template's wording, the sheet legend, or the slots it
+    // uses without bumping the version and proving it again.
+    frozen: { version: 1, on: "2026-09-09", proof: "300021, sheet mode, defaults" },
     order: ["opening", "pose", "expression", "framing", "background", "styling", "lighting"],
     opening: (g, _p, subject, refs) =>
       `A professional fashion catalog photo of ${subject} wearing the ${garmentWords(g)} shown in the attached ${refs}.`,
@@ -212,21 +233,52 @@ export const TEMPLATES: PromptTemplate[] = [
   },
   {
     id: "P3",
-    title: "Prompt 3",
-    summary: "Not written yet.",
-    live: false,
-    order: [],
-    opening: () => "",
-    pose: "",
+    title: "Back view, head in profile",
+    summary: "Back to the camera, pallu falling down the back, lower drape and hem seen from behind.",
+    live: true,
+    order: ["opening", "blouse", "expression", "framing", "background", "styling", "lighting", "pose"],
+    opening: (g, _p, subject, refs) =>
+      `Using the exact ${g.type} fabric and print shown in the attached ${refs}, generate a professional fashion catalog photo of ${subject} wearing this ${g.type} exactly as shown, without altering, redesigning, or reinterpreting the fabric pattern, print, or colors in any way.`,
+    blouse:
+      "The blouse has short sleeves that end above the elbow, well before the elbow joint, exposing the forearm.",
+    pose:
+      "{She} stands with {her} back to the camera, head turned gently to one side in profile, hair worn down over one shoulder so the blouse back and neckline are visible. The pallu is pleated neatly and draped over one shoulder from behind, with the pleats falling down {her} back and visible against the saree body. The lower drape, pleats at the waist, and hem are fully visible from behind. The pleats are clean, straight, and evenly spaced.",
   },
   {
     id: "P4",
-    title: "Prompt 4",
-    summary: "Not written yet.",
-    live: false,
-    order: [],
-    opening: () => "",
-    pose: "",
+    title: "Waist up, pallu detail",
+    summary: "Cropped from the waist up, slight three-quarter turn, pallu and border sharp across the chest.",
+    live: true,
+    // No framing slot: this prompt's own framing is inside the pose, and the
+    // full-length sentence would contradict it.
+    order: ["opening", "blouse", "expression", "background", "styling", "lighting", "pose"],
+    opening: (g, _p, subject, refs) =>
+      `Using the exact ${g.type} fabric and print shown in the attached ${refs}, generate a professional fashion catalog photo of ${subject} wearing this ${g.type} exactly as shown, without altering, redesigning, or reinterpreting the fabric pattern, print, or colors in any way.`,
+    blouse:
+      "The blouse has short sleeves that end above the elbow, well before the elbow joint, exposing the forearm.",
+    pose:
+      "Tightly cropped from the waist up, facing the camera directly with a slight three-quarter turn of the shoulders. Both hands rest together just below the waist, at the bottom edge of the frame. The pallu is pleated neatly and draped over the left shoulder, with the pleats, border pattern, and pallu drape clearly visible in sharp detail across the chest and shoulder. The pleats are clean, straight, and evenly spaced. Framing shows head, shoulders, and torso down to the waist only.",
+  },
+  {
+    id: "P5",
+    title: "Relaxed three-quarter, weight on one leg",
+    summary: "Hip angled to the camera, hand on hip, pallu forward down the front to the hem.",
+    live: true,
+    // Expression is not a slot here: it closes the pose, as a fragment, the
+    // way it was given.
+    order: ["opening", "blouse", "framing", "background", "styling", "lighting", "pose"],
+    opening: (g, _p, subject, refs) =>
+      `Using the exact ${g.type} fabric and print shown in the attached ${refs}, generate a professional fashion catalog photo of ${subject} wearing this ${g.type} exactly as shown, without altering, redesigning, or reinterpreting the fabric pattern, print, or colors in any way.`,
+    blouse:
+      "The blouse has short sleeves that end above the elbow, well before the elbow joint, exposing the forearm.",
+    framing:
+      "Full-length portrait, tightly framed so {her} figure fills most of the vertical frame from head to feet, shot at eye level with minimal headroom and minimal space around {her}.",
+    scene: {
+      courtyard:
+        "{She} is positioned in a sunlit traditional Indian courtyard, framed by a stone arch behind {her}, with pillars on either side, background softly blurred.",
+    },
+    pose:
+      "{She} stands in a relaxed, natural three-quarter pose, with {her} weight shifted onto one leg and {her} hip gently angled toward the camera, the way a person naturally stands when resting on one side. One hand rests lightly on {her} hip; the other arm hangs naturally at {her} side. {Her} head and neck follow the natural line of {her} shoulders, with a soft, easy turn of the face toward the camera — no strain or awkward angle between head and body. The pallu is pleated neatly and draped over the shoulder, falling forward along the front of {her} body so the full length of the pleats, pattern, and border are visible down to the hem. The pleats are clean, straight, and evenly spaced. Direct, confident gaze, neutral-to-soft expression.",
   },
 ];
 
@@ -239,6 +291,7 @@ function fill(text: string, p: Pronouns): string {
   return text
     .replaceAll("{She}", p.She)
     .replaceAll("{she}", p.she)
+    .replaceAll("{Her}", p.her.charAt(0).toUpperCase() + p.her.slice(1))
     .replaceAll("{her}", p.her);
 }
 
@@ -308,8 +361,8 @@ export function composePrompt(
     pose: fill(template.pose, p),
     blouse: template.blouse ?? "",
     expression: fill(EXPRESSION, p),
-    framing: fill(FRAMING, p),
-    background: fill(bg.scene, p),
+    framing: fill(template.framing ?? FRAMING, p),
+    background: fill(template.scene?.[bg.id] ?? bg.scene, p),
     styling: styling(s.modelType),
     lighting: bg.lighting,
   };

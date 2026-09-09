@@ -228,6 +228,14 @@ export function Result({
               {template.id}
             </span>
             <h2 className="text-[15px] font-semibold text-ink">{template.title}</h2>
+            {template.frozen && (
+              <span
+                title={`Approved ${template.frozen.on} on ${template.frozen.proof}. Wording does not change without a new version.`}
+                className="rounded-full border border-line px-2 py-0.5 text-[11.5px] font-medium tabular-nums text-ink-soft"
+              >
+                Frozen · v{template.frozen.version}
+              </span>
+            )}
             <CopyButton text={prompt} className="ml-auto" />
           </div>
           <p className="mt-1.5 text-[13px] text-ink-faint">{template.summary}</p>
