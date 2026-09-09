@@ -31,13 +31,62 @@ export interface SheetOptions {
   cell?: number;
 }
 
+/*
+  The letters are drawn, not typeset. A serverless image has no fonts, and an
+  SVG <text> with no font rasterises as empty boxes — which is exactly what
+  the first production sheet showed. A 5×7 bitmap face needs nothing from the
+  host and reads clearly at any size, which is all a label has to do.
+*/
+const GLYPHS: Record<string, string[]> = {
+  A: [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+  B: ["####.", "#...#", "#...#", "####.", "#...#", "#...#", "####."],
+  C: [".####", "#....", "#....", "#....", "#....", "#....", ".####"],
+  D: ["####.", "#...#", "#...#", "#...#", "#...#", "#...#", "####."],
+  E: ["#####", "#....", "#....", "####.", "#....", "#....", "#####"],
+  F: ["#####", "#....", "#....", "####.", "#....", "#....", "#...."],
+  G: [".####", "#....", "#....", "#.###", "#...#", "#...#", ".####"],
+  H: ["#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+  I: ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "#####"],
+  K: ["#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#"],
+  L: ["#....", "#....", "#....", "#....", "#....", "#....", "#####"],
+  M: ["#...#", "##.##", "#.#.#", "#...#", "#...#", "#...#", "#...#"],
+  N: ["#...#", "##..#", "#.#.#", "#..##", "#...#", "#...#", "#...#"],
+  O: [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+  P: ["####.", "#...#", "#...#", "####.", "#....", "#....", "#...."],
+  R: ["####.", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#"],
+  S: [".####", "#....", "#....", ".###.", "....#", "....#", "####."],
+  T: ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.."],
+  U: ["#...#", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+  V: ["#...#", "#...#", "#...#", "#...#", "#...#", ".#.#.", "..#.."],
+  W: ["#...#", "#...#", "#...#", "#.#.#", "#.#.#", "##.##", "#...#"],
+  Y: ["#...#", "#...#", ".#.#.", "..#..", "..#..", "..#..", "..#.."],
+  " ": [".....", ".....", ".....", ".....", ".....", ".....", "....."],
+};
+
 function labelSvg(text: string, width: number, height: number, size: number): Buffer {
+  const px = Math.max(2, Math.round(size / 7));
+  const glyphW = 5 * px;
+  const gap = px;
+  const top = Math.round((height - 7 * px) / 2);
+  let x = Math.round(size * 0.6);
+  const rects: string[] = [];
+
+  for (const ch of text.toUpperCase()) {
+    const rows = GLYPHS[ch] ?? GLYPHS[" "]!;
+    rows.forEach((row, r) => {
+      for (let c = 0; c < 5; c++) {
+        if (row[c] === "#") {
+          rects.push(`<rect x="${x + c * px}" y="${top + r * px}" width="${px}" height="${px}"/>`);
+        }
+      }
+    });
+    x += glyphW + gap;
+  }
+
   return Buffer.from(
     `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
        <rect width="100%" height="100%" fill="#111111"/>
-       <text x="${Math.round(size * 0.6)}" y="${Math.round(height / 2 + size * 0.36)}"
-             font-family="Arial, Helvetica, sans-serif"
-             font-size="${size}" font-weight="bold" fill="#ffffff">${text}</text>
+       <g fill="#ffffff">${rects.join("")}</g>
      </svg>`,
   );
 }
@@ -53,7 +102,7 @@ export async function buildContactSheet(
   const rows = Math.ceil(parts.length / cols);
   const labelH = Math.round(cell * 0.075);
   const pad = Math.round(cell * 0.022);
-  const fontSize = Math.round(cell * 0.042);
+  const fontSize = Math.round(cell * 0.05);
   const cellW = cell;
   const cellH = cell + labelH;
   const width = cols * cellW;
