@@ -1,185 +1,133 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { LAB_MODELS } from "@/components/lab/models";
-import { defaultPoseIds, selectablePoses } from "@/registry/poses";
-import { formatCost } from "@/lib/pricing";
-import { StepModel } from "./StepModel";
-import { StepPose } from "./StepPose";
+import Image from "next/image";
+import { useState } from "react";
+import { EXPECTED_PROMPTS, STUDIO_PROMPTS } from "@/content/studioPrompts";
+import { CopyButton } from "./CopyButton";
 import { StepProduct } from "./StepProduct";
-import { Stepper } from "./Stepper";
-import { STEPS, missingSlots, type StepId, type StudioDraft } from "./types";
+import { REQUIRED_SLOTS, type ChosenProduct } from "./types";
 
 /**
- * The Studio, rebuilt around the order the work actually happens in.
+ * One screen: find the saree, take the prompts.
  *
- * The previous one put every control on a single screen — garment, mode,
- * backdrop, prompt wording, quality, model, poses, uploads — and left a
- * first-time visitor to work out which of those mattered before anything could
- * happen. It also predated the pose registry and the product lookup, so it
- * asked for four uploads that, for SLK's own stock, already exist.
+ * Tantu does not generate here and does not spend anything. It composes the
+ * four prompts and hands over the photograph links, and the generation happens
+ * wherever the operator chooses to paste them.
  *
- * This asks one question per screen, in the order a person answers them:
- * which saree, who wears it, doing what, is that right, here it is.
+ * There is no pose picker. The four poses are a decision made once, not a
+ * question asked of whoever is holding the saree — and every product gets all
+ * four, so the set stays comparable across the catalogue.
  */
-
-/** Poses with a recipe written and tested for them. Marked, not gated. */
-const RECIPE_BACKED = new Set(["SAR-P15"]);
-
 export function Studio() {
-  const [step, setStep] = useState<StepId>("product");
-  const [furthest, setFurthest] = useState(0);
+  const [product, setProduct] = useState<ChosenProduct | null>(null);
 
-  const [draft, setDraft] = useState<StudioDraft>(() => ({
-    product: null,
-    modelId: LAB_MODELS[0]!.id,
-    modelBrief: LAB_MODELS[0]!.brief,
-    poseIds: defaultPoseIds("saree").slice(0, 1),
-    backdrop: "studio",
-  }));
-
-  const poses = useMemo(() => selectablePoses("saree"), []);
-  const index = STEPS.findIndex((s) => s.id === step);
-  const gaps = missingSlots(draft.product);
-
-  /** Why the next button is disabled, said rather than implied. */
-  const blocker = useMemo(() => {
-    if (step === "product") {
-      if (!draft.product) return "Find a product, or upload its photographs.";
-      if (gaps.length > 0) return `Still missing ${gaps.join(", ")}.`;
-    }
-    if (step === "pose" && draft.poseIds.length === 0) return "Choose at least one pose.";
-    return null;
-  }, [step, draft, gaps]);
-
-  function go(id: StepId) {
-    const to = STEPS.findIndex((s) => s.id === id);
-    setStep(id);
-    setFurthest((f) => Math.max(f, to));
-  }
-
-  function next() {
-    if (blocker) return;
-    const to = STEPS[Math.min(index + 1, STEPS.length - 1)]!;
-    go(to.id);
-  }
+  const links = product
+    ? REQUIRED_SLOTS.map((slot) => {
+        const part = product.parts.find((p) => p.slot === slot);
+        return part ? `${slot}: ${part.src}` : null;
+      })
+        .filter((line): line is string => line !== null)
+        .join("\n")
+    : "";
 
   return (
-    <div className="min-h-[calc(100vh-56px)] bg-surface-2">
-      <Stepper current={step} furthest={furthest} onGo={go} />
+    <div className="mx-auto max-w-4xl px-6 py-9">
+      <header>
+        <p className="label !text-madder">Prompts, not renders</p>
+        <h1 className="display mt-1 text-[28px]">Studio</h1>
+        <p className="mt-2 max-w-prose text-[15px] leading-relaxed text-ink-soft">
+          Find the saree, then take the four prompts and its photograph links.
+          Paste them wherever you generate. Nothing is generated or charged
+          here.
+        </p>
+      </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-8">
-        <header className="mb-6">
-          <h1 className="display text-[26px]">{STEPS[index]!.title}</h1>
-          <p className="mt-1 text-[15px] text-ink-soft">{STEPS[index]!.hint}</p>
-        </header>
+      <section className="mt-8">
+        <StepProduct product={product} onChange={setProduct} />
+      </section>
 
-        {step === "product" && (
-          <StepProduct
-            product={draft.product}
-            onChange={(product) => setDraft((d) => ({ ...d, product }))}
-          />
-        )}
+      {product && (
+        <>
+          {product.parts.some((p) => p.src.startsWith("http")) && (
+            <section className="mt-10 border-t border-line pt-8">
+              <div className="flex flex-wrap items-baseline gap-3">
+                <h2 className="display text-[20px]">Photograph links</h2>
+                <CopyButton text={links} label="Copy all links" className="ml-auto" />
+              </div>
+              <p className="mt-1 text-[13px] text-ink-faint">
+                Open each one and save it, then attach the files where you
+                generate.
+              </p>
 
-        {step === "model" && (
-          <StepModel
-            modelId={draft.modelId}
-            onChange={(modelId, modelBrief) => setDraft((d) => ({ ...d, modelId, modelBrief }))}
-          />
-        )}
-
-        {step === "pose" && (
-          <StepPose
-            poses={poses}
-            selected={draft.poseIds}
-            recipeBacked={RECIPE_BACKED}
-            onToggle={(id) =>
-              setDraft((d) => ({
-                ...d,
-                poseIds: d.poseIds.includes(id)
-                  ? d.poseIds.filter((p) => p !== id)
-                  : [...d.poseIds, id],
-              }))
-            }
-          />
-        )}
-
-        {step === "review" && <Review draft={draft} />}
-
-        {step === "result" && (
-          <p className="rounded-xl border border-dashed border-line px-4 py-10 text-center text-[14px] text-ink-faint">
-            Generation is not wired into the Studio yet.
-          </p>
-        )}
-
-        {step !== "result" && (
-          <div className="mt-10 flex items-center gap-4 border-t border-line pt-6">
-            <button
-              type="button"
-              disabled={index === 0}
-              onClick={() => go(STEPS[Math.max(index - 1, 0)]!.id)}
-              className="rounded-full border border-line px-5 py-2.5 text-[15px] text-ink transition hover:border-ink-faint disabled:opacity-40"
-            >
-              Back
-            </button>
-            <button
-              type="button"
-              disabled={blocker !== null}
-              onClick={next}
-              className="rounded-full bg-accent px-6 py-2.5 text-[15px] font-medium text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-soft"
-            >
-              Continue
-            </button>
-            {blocker && <span className="text-[13px] text-ink-faint">{blocker}</span>}
-          </div>
-        )}
-      </main>
-    </div>
-  );
-}
-
-/** What is about to be made, and what it costs, before anything is spent. */
-function Review({ draft }: { draft: StudioDraft }) {
-  const poses = selectablePoses("saree");
-  const chosen = poses.filter((p) => draft.poseIds.includes(p.id));
-  const model = LAB_MODELS.find((m) => m.id === draft.modelId);
-
-  return (
-    <div className="space-y-6">
-      <dl className="divide-y divide-line-soft border-y border-line-soft">
-        <Row k="Product">
-          {draft.product?.title ?? "—"}
-          {draft.product?.code && (
-            <span className="numeral ml-2 text-ink-faint">{draft.product.code}</span>
+              <ul className="mt-4 divide-y divide-line-soft border-y border-line-soft">
+                {REQUIRED_SLOTS.map((slot) => {
+                  const part = product.parts.find((p) => p.slot === slot);
+                  if (!part) return null;
+                  return (
+                    <li key={slot} className="flex items-center gap-3 py-2.5">
+                      <span className="relative size-11 shrink-0 overflow-hidden rounded-lg border border-line">
+                        <Image src={part.src} alt={part.alt} fill sizes="44px" className="object-cover" />
+                      </span>
+                      <span className="w-16 shrink-0 text-[13px] capitalize text-ink">{slot}</span>
+                      <a
+                        href={part.src}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="min-w-0 flex-1 truncate text-[12px] text-ink-faint underline underline-offset-2 hover:text-accent"
+                      >
+                        {part.src}
+                      </a>
+                      <CopyButton text={part.src} />
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           )}
-        </Row>
-        <Row k="Parts">{draft.product?.parts.length ?? 0} photographs</Row>
-        <Row k="Model">
-          <span className="numeral">{draft.modelId}</span>
-          <span className="ml-2 text-ink-soft">{model?.brief.age}</span>
-        </Row>
-        <Row k="Poses">
-          {chosen.length === 0 ? "none" : chosen.map((p) => p.name).join(", ")}
-        </Row>
-        <Row k="Images">{chosen.length}</Row>
-      </dl>
 
-      <p className="text-[15px]">
-        Estimated engine cost{" "}
-        <span className="numeral">{formatCost(chosen.length, "standard")}</span>
-        <span className="ml-2 text-[13px] text-ink-faint">
-          Nothing is charged by this app.
-        </span>
-      </p>
-    </div>
-  );
-}
+          <section className="mt-10 border-t border-line pt-8">
+            <div className="flex flex-wrap items-baseline gap-3">
+              <h2 className="display text-[20px]">Prompts</h2>
+              <span className="text-[13px] text-ink-faint">
+                {STUDIO_PROMPTS.length} of {EXPECTED_PROMPTS}
+              </span>
+              <CopyButton
+                text={STUDIO_PROMPTS.map((p) => `${p.id} — ${p.title}\n\n${p.text}`).join("\n\n———\n\n")}
+                label="Copy all prompts"
+                className="ml-auto"
+              />
+            </div>
 
-function Row({ k, children }: { k: string; children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-[120px_1fr] gap-4 py-3 text-[14px]">
-      <dt className="text-ink-faint">{k}</dt>
-      <dd className="m-0 text-ink">{children}</dd>
+            <div className="mt-5 space-y-5">
+              {STUDIO_PROMPTS.map((prompt) => (
+                <article key={prompt.id} className="rounded-xl border border-line bg-surface p-5">
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="numeral text-[12px] text-madder">{prompt.id}</span>
+                    <h3 className="text-[16px] font-medium">{prompt.title}</h3>
+                    <CopyButton text={prompt.text} className="ml-auto" />
+                  </div>
+                  <p className="mt-1 text-[13px] text-ink-faint">{prompt.summary}</p>
+                  <p className="mt-3 whitespace-pre-wrap text-[13.5px] leading-relaxed text-ink-soft">
+                    {prompt.text}
+                  </p>
+                </article>
+              ))}
+            </div>
+
+            {STUDIO_PROMPTS.length < EXPECTED_PROMPTS && (
+              /*
+                Said rather than left short. Four is the intended set, and a
+                page quietly showing two looks finished when it is not.
+              */
+              <p className="mt-5 rounded-xl border border-madder/35 bg-madder/5 px-4 py-3 text-[14px] text-madder">
+                {EXPECTED_PROMPTS - STUDIO_PROMPTS.length} more prompt
+                {EXPECTED_PROMPTS - STUDIO_PROMPTS.length === 1 ? "" : "s"} still
+                to be written. This is not the full set yet.
+              </p>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }

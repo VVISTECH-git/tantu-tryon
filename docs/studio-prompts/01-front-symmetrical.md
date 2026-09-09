@@ -1,0 +1,7 @@
+# Prompt 1 — front, symmetrical, pallu over the left shoulder
+
+Stored verbatim. Do not edit to improve it.
+
+---
+
+A professional fashion catalog photo of a woman in her mid-20s wearing a cotton saree as per the reference image. She stands facing the camera directly in a symmetrical, centered pose, with both hands clasped together at her waist. The saree pallu is pleated neatly and thrown up and over the left shoulder from front to back, forming a distinct peaked, pointed shape of fabric rising at the shoulder edge before going over and down her back. Only the front portion of the pallu near the collarbone and shoulder point is visible; the majority of the pallu length falls behind her shoulder and down her back, out of view from the front. The pleats must be clean, straight, and evenly spaced — like neatly pressed fabric folds, not bunched or crumpled. She has a direct, confident gaze and a neutral-to-soft expression. Full-length portrait, tightly framed so her figure fills most of the vertical frame from head to feet, shot straight-on at eye level with minimal headroom and minimal space around her. She is positioned in a sunlit traditional Indian courtyard, framed symmetrically by a single stone arch directly behind her head, with pillars on either side, background softly blurred. Styled with gold jhumka earrings, a gold choker-style necklace, and bangles. Warm, golden directional lighting.
