@@ -35,8 +35,20 @@ export function Result({
     type: d?.productType?.toLowerCase() ?? "saree",
   };
 
+  /*
+    The files the prompt will be pasted alongside, named exactly as the
+    download names them. Listed in the order a person reads a saree — body,
+    pallu, border, blouse — not the order SLK happened to return them.
+  */
+  const files = product.code
+    ? REQUIRED_SLOTS.filter((slot) => product.parts.some((p) => p.slot === slot)).map((slot) => ({
+        slot,
+        file: `${product.code}-${slot}.png`,
+      }))
+    : [];
+
   const template = TEMPLATES.find((t) => t.id === active) ?? TEMPLATES[0]!;
-  const prompt = template.live ? composePrompt(template, garment, selections) : "";
+  const prompt = template.live ? composePrompt(template, garment, selections, files) : "";
   const gaps = missingSlots(product);
 
   function save(slot: string) {

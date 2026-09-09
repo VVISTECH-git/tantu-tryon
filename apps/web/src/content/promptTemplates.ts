@@ -225,11 +225,47 @@ function fill(text: string, p: Pronouns): string {
     .replaceAll("{her}", p.her);
 }
 
-/** The prompt for one template, given the product and the choices. */
+/** One attached file and which part of the garment it shows. */
+export interface Attachment {
+  slot: string;
+  /** The filename the download gave it — `300021-body.png`. */
+  file: string;
+}
+
+const PART_WORDS: Record<string, (type: string) => string> = {
+  body: (t) => `the ${t} body — the main field and its repeating motif`,
+  pallu: () => "the pallu — the decorated end that is draped over the shoulder",
+  border: () => "the border — the narrow decorated strip that runs along the long edges and the hem",
+  blouse: () => "the blouse piece — the fabric for the fitted top",
+  "full-drape": (t) => `the whole ${t} laid out`,
+  weave: () => "a close-up of the weave",
+};
+
+/**
+ * Which file is which.
+ *
+ * The proven prompts say "the reference image", singular. With four files
+ * attached, the model has no way to know that one of them is the border and
+ * another the blouse, and it guesses — which is where a border motif ends up on
+ * the body. Naming each file by what it shows is the same fix the generation
+ * recipe used, and it works here because the download already named the files
+ * this way: the prompt and the files on disk cannot disagree.
+ */
+function legend(files: Attachment[], g: GarmentWords): string {
+  if (files.length === 0) return "";
+  const items = files.map((f) => `${f.file} is ${(PART_WORDS[f.slot] ?? (() => f.slot))(g.type)}`);
+  return `The attached reference images are named by what they show: ${items.join("; ")}. They are photographs of ONE ${g.type}. Use them together, and take the design of each part from its own image.`;
+}
+
+/**
+ * The prompt for one template, given the product, the choices, and the files
+ * that will be attached alongside it.
+ */
 export function composePrompt(
   template: PromptTemplate,
   garment: GarmentWords,
   s: Selections,
+  files: Attachment[] = [],
 ): string {
   const p = PRONOUNS[s.modelType];
   const subject = `a ${p.noun} ${s.modelType === "girl" || s.modelType === "boy" ? s.age : `in ${p.her} ${s.age}`}`;
@@ -249,5 +285,7 @@ export function composePrompt(
   const body = template.order.map((slot) => parts[slot]).filter(Boolean).join(" ");
   const rules = SAFETY_RULES.filter((r) => s.rules[r.id]).map((r) => r.clause);
 
-  return rules.length ? `${body} ${rules.join(" ")}` : body;
+  // Legend first, so the model knows what it is looking at before it is told
+  // what to do with it; rules last, as the standing constraints on the whole.
+  return [legend(files, garment), body, ...rules].filter(Boolean).join(" ");
 }
