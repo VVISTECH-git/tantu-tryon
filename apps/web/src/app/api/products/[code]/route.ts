@@ -119,6 +119,26 @@ export async function GET(
         (needed) => !parts.some((p) => p.slot === needed),
       ),
     },
-    { headers: { "Cache-Control": "no-store" } },
+    { headers: CORS },
   );
+}
+
+/**
+ * Readable from anywhere.
+ *
+ * A standalone HTML page — opened from a file, or served from somewhere other
+ * than this app — is the fastest way to try a change, and the browser blocks
+ * it from reading this route without these headers. What is behind the route
+ * is already public and read-only: a product's title and the addresses of
+ * photographs that R2 serves openly. The credential that reaches SLK stays on
+ * this side and is not exposed by opening this up.
+ */
+const CORS = {
+  "Cache-Control": "no-store",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+} as const;
+
+export function OPTIONS() {
+  return new Response(null, { status: 204, headers: CORS });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { EXPECTED_PROMPTS, STUDIO_PROMPTS } from "@/content/studioPrompts";
+import { EXPECTED_PROMPTS, LIVE_PROMPTS, STUDIO_PROMPTS } from "@/content/studioPrompts";
 import { CopyButton } from "./CopyButton";
 import { ProductRail } from "./ProductRail";
 import type { ChosenProduct } from "./types";
@@ -25,7 +25,7 @@ import type { ChosenProduct } from "./types";
 export function Studio() {
   const [product, setProduct] = useState<ChosenProduct | null>(null);
 
-  const allPrompts = STUDIO_PROMPTS.map((p) => `${p.id} — ${p.title}\n\n${p.text}`).join(
+  const allPrompts = LIVE_PROMPTS.map((p) => `${p.id} — ${p.title}\n\n${p.text}`).join(
     "\n\n———\n\n",
   );
 
@@ -46,22 +46,20 @@ export function Studio() {
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <span className="text-[13px] text-ink-faint">
-            {STUDIO_PROMPTS.length} of {EXPECTED_PROMPTS} written
+            Testing {LIVE_PROMPTS.length} of {EXPECTED_PROMPTS}
           </span>
           <CopyButton text={allPrompts} label="Copy all" className="ml-auto" />
         </div>
 
         <div className="mt-4 space-y-4">
-          {STUDIO_PROMPTS.map((prompt, i) => (
+          {LIVE_PROMPTS.map((prompt) => (
             <article key={prompt.id} className="rounded-xl border border-line bg-surface p-5">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span className="rounded-full bg-accent-wash px-2 py-0.5 text-[12px] font-semibold tabular-nums text-accent">
                   {prompt.id}
                 </span>
                 <h2 className="text-[15px] font-semibold text-ink">{prompt.title}</h2>
-                {i === 0 && (
-                  <span className="text-[12px] text-ink-faint">start here</span>
-                )}
+
                 <CopyButton text={prompt.text} className="ml-auto" />
               </div>
               <p className="mt-1.5 text-[13px] leading-relaxed text-ink-faint">{prompt.summary}</p>
@@ -72,14 +70,18 @@ export function Studio() {
           ))}
         </div>
 
-        {STUDIO_PROMPTS.length < EXPECTED_PROMPTS && (
+        {LIVE_PROMPTS.length < EXPECTED_PROMPTS && (
           /*
             Said rather than left short. Four is the intended set, and a page
             quietly showing two looks finished when it is not.
           */
           <p className="mt-5 rounded-xl border border-madder/35 bg-madder/5 px-4 py-3 text-[13.5px] text-madder">
-            {EXPECTED_PROMPTS - STUDIO_PROMPTS.length} more still to be written.
-            This is not the full set yet.
+            One pose at a time, on purpose — this one gets proven before the
+            next is offered.{" "}
+            {STUDIO_PROMPTS.length > LIVE_PROMPTS.length &&
+              `${STUDIO_PROMPTS.length - LIVE_PROMPTS.length} written and waiting. `}
+            {EXPECTED_PROMPTS - STUDIO_PROMPTS.length > 0 &&
+              `${EXPECTED_PROMPTS - STUDIO_PROMPTS.length} still to be written.`}
           </p>
         )}
       </main>
