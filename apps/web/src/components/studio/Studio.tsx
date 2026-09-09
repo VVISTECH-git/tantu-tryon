@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 import { EXPECTED_PROMPTS, STUDIO_PROMPTS } from "@/content/studioPrompts";
 import { CopyButton } from "./CopyButton";
+import { DownloadParts } from "./DownloadParts";
 import { StepProduct } from "./StepProduct";
-import { REQUIRED_SLOTS, type ChosenProduct } from "./types";
+import type { ChosenProduct } from "./types";
 
 /**
  * One screen: find the saree, take the prompts.
@@ -21,22 +21,13 @@ import { REQUIRED_SLOTS, type ChosenProduct } from "./types";
 export function Studio() {
   const [product, setProduct] = useState<ChosenProduct | null>(null);
 
-  const links = product
-    ? REQUIRED_SLOTS.map((slot) => {
-        const part = product.parts.find((p) => p.slot === slot);
-        return part ? `${slot}: ${part.src}` : null;
-      })
-        .filter((line): line is string => line !== null)
-        .join("\n")
-    : "";
-
   return (
     <div className="mx-auto max-w-4xl px-6 py-9">
       <header>
         <p className="label !text-madder">Prompts, not renders</p>
         <h1 className="display mt-1 text-[28px]">Studio</h1>
         <p className="mt-2 max-w-prose text-[15px] leading-relaxed text-ink-soft">
-          Find the saree, then take the four prompts and its photograph links.
+          Find the saree, download its photographs, and take the four prompts.
           Paste them wherever you generate. Nothing is generated or charged
           here.
         </p>
@@ -48,42 +39,7 @@ export function Studio() {
 
       {product && (
         <>
-          {product.parts.some((p) => p.src.startsWith("http")) && (
-            <section className="mt-10 border-t border-line pt-8">
-              <div className="flex flex-wrap items-baseline gap-3">
-                <h2 className="display text-[20px]">Photograph links</h2>
-                <CopyButton text={links} label="Copy all links" className="ml-auto" />
-              </div>
-              <p className="mt-1 text-[13px] text-ink-faint">
-                Open each one and save it, then attach the files where you
-                generate.
-              </p>
-
-              <ul className="mt-4 divide-y divide-line-soft border-y border-line-soft">
-                {REQUIRED_SLOTS.map((slot) => {
-                  const part = product.parts.find((p) => p.slot === slot);
-                  if (!part) return null;
-                  return (
-                    <li key={slot} className="flex items-center gap-3 py-2.5">
-                      <span className="relative size-11 shrink-0 overflow-hidden rounded-lg border border-line">
-                        <Image src={part.src} alt={part.alt} fill sizes="44px" className="object-cover" />
-                      </span>
-                      <span className="w-16 shrink-0 text-[13px] capitalize text-ink">{slot}</span>
-                      <a
-                        href={part.src}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="min-w-0 flex-1 truncate text-[12px] text-ink-faint underline underline-offset-2 hover:text-accent"
-                      >
-                        {part.src}
-                      </a>
-                      <CopyButton text={part.src} />
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
+          <DownloadParts product={product} />
 
           <section className="mt-10 border-t border-line pt-8">
             <div className="flex flex-wrap items-baseline gap-3">
