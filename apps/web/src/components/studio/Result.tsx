@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   TEMPLATES,
   composePrompt,
@@ -9,6 +9,8 @@ import {
   type Selections,
 } from "@/content/promptTemplates";
 import { CopyButton } from "./CopyButton";
+import { GeminiButton } from "./GeminiButton";
+import { Outputs, type Output } from "./Outputs";
 import { REQUIRED_SLOTS, missingSlots, type ChosenProduct } from "./types";
 
 /**
@@ -28,6 +30,72 @@ export function Result({
 }) {
   const [active, setActive] = useState(TEMPLATES.find((t) => t.live)?.id ?? "P1");
   const [saving, setSaving] = useState(false);
+
+  /*
+    The sheet, fetched once per product and held as a blob. The Gemini button
+    needs it in hand — a clipboard write has to happen inside the click — and
+    Download sheet can then serve it without a second build on the server.
+  */
+  const [fetched, setFetched] = useState<{ code: string; blob: Blob } | null>(null);
+  const sheet = fetched && fetched.code === product.code ? fetched.blob : null;
+  useEffect(() => {
+    const code = product.code;
+    if (!code) return;
+    const controller = new AbortController();
+    fetch(`/api/products/${code}/sheet`, { signal: controller.signal })
+      .then((r) => (r.ok ? r.blob() : null))
+      .then((blob) => {
+        if (blob && !controller.signal.aborted) setFetched({ code, blob });
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [product.code]);
+
+  // Gemini's answers, per prompt, for this visit. Object URLs are revoked on
+  // removal and when the product changes; nothing is stored anywhere.
+  const [outputs, setOutputs] = useState<Record<string, Output[]>>({});
+  const nextId = useRef(1);
+  useEffect(() => {
+    return () => {
+      Object.values(outputs)
+        .flat()
+        .forEach((o) => URL.revokeObjectURL(o.url));
+    };
+    // Only on unmount / product change: revoking on every add would kill live previews.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.code]);
+
+  const addOutput = useCallback(
+    (file: File) => {
+      setOutputs((prev) => {
+        const list = prev[active] ?? [];
+        const id = nextId.current++;
+        const ext = file.type === "image/jpeg" ? "jpg" : file.type === "image/webp" ? "webp" : "png";
+        return {
+          ...prev,
+          [active]: [
+            ...list,
+            {
+              id,
+              url: URL.createObjectURL(file),
+              name: `${product.code}-${active}-${list.length + 1}.${ext}`,
+              at: new Date(),
+            },
+          ],
+        };
+      });
+    },
+    [active, product.code],
+  );
+
+  function removeOutput(id: number) {
+    setOutputs((prev) => {
+      const list = prev[active] ?? [];
+      const gone = list.find((o) => o.id === id);
+      if (gone) URL.revokeObjectURL(gone.url);
+      return { ...prev, [active]: list.filter((o) => o.id !== id) };
+    });
+  }
 
   const d = product.design;
   const garment: GarmentWords = {
@@ -68,7 +136,13 @@ export function Result({
 
   function saveSheet() {
     if (!product.code) return;
-    download(`/api/products/${product.code}/sheet`, `${product.code}-sheet.png`);
+    if (sheet) {
+      const url = URL.createObjectURL(sheet);
+      download(url, `${product.code}-sheet.png`);
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } else {
+      download(`/api/products/${product.code}/sheet`, `${product.code}-sheet.png`);
+    }
   }
 
   async function saveAll() {
@@ -244,7 +318,30 @@ export function Result({
           </div>
           <p className="mt-1.5 text-[13px] text-ink-faint">{template.summary}</p>
           <p className="mt-3 whitespace-pre-wrap text-[13.5px] leading-[1.75] text-ink-soft">{prompt}</p>
+
+          {template.live && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
+              <GeminiButton prompt={prompt} sheet={sheetMode ? sheet : null} />
+              <span className="text-[12.5px] leading-relaxed text-ink-faint">
+                {sheetMode
+                  ? selections.modelSource === "photo"
+                    ? "In Gemini: Ctrl+V pastes the sheet and the prompt. Attach your photo, then send."
+                    : "In Gemini: Ctrl+V pastes the sheet and the prompt together. Then send."
+                  : "In Gemini: attach the four files, Ctrl+V for the prompt, then send."}
+              </span>
+            </div>
+          )}
         </article>
+
+        <div className="mt-4">
+          <Outputs
+            code={product.code ?? ""}
+            promptId={template.id}
+            outputs={outputs[template.id] ?? []}
+            onAdd={addOutput}
+            onRemove={removeOutput}
+          />
+        </div>
       </section>
     </div>
   );
