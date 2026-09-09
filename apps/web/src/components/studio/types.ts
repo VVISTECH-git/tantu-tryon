@@ -26,14 +26,12 @@ export interface ChosenProduct {
   code: string | null;
   title: string;
   description: string | null;
-  design: {
-    code: string;
-    name: string;
-    colour: string | null;
-    productType: string | null;
-    motif: string | null;
-    motifCategory: string | null;
-  } | null;
+  /**
+   * Everything SLK holds on the design, by name — fibreType, audienceType,
+   * palluMotif and the rest. Open-ended: SLK resolves whatever lookups the
+   * design carries, and the template reads the ones it needs.
+   */
+  design: ({ code: string; name: string } & Record<string, string | null>) | null;
   parts: GarmentPart[];
 }
 
