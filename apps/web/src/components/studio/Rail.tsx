@@ -113,6 +113,24 @@ export function Rail({
         </section>
 
         <section>
+          <Label>Reference images</Label>
+          <div className="mt-2.5">
+            <Select
+              label="Reference images"
+              value={selections.attachMode}
+              onChange={(v) => onChange({ ...selections, attachMode: v as Selections["attachMode"] })}
+              options={[
+                { value: "sheet", label: "One labelled sheet" },
+                { value: "files", label: "Four separate files" },
+              ]}
+            />
+          </div>
+          <p className="mt-1.5 text-[12px] leading-relaxed text-ink-faint">
+            What you will attach beside the prompt. The prompt describes it accordingly.
+          </p>
+        </section>
+
+        <section>
           <Label>Design safety rules</Label>
           <p className="mt-1 text-[12px] leading-relaxed text-ink-faint">
             Each one adds a sentence to the prompt.

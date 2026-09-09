@@ -18,10 +18,21 @@
 export type ModelType = "woman" | "man" | "girl" | "boy";
 export type BackgroundId = "courtyard" | "studio" | "outdoor";
 
+/**
+ * How the photographs reach the model.
+ *
+ * `files`: four separate attachments, told apart by position — "image 1 is
+ * the body". Works only if they are attached in that order.
+ * `sheet`: one composited image with BODY / PALLU / BORDER / BLOUSE printed
+ * above each panel. Told apart by reading. Nothing to get in the wrong order.
+ */
+export type AttachMode = "files" | "sheet";
+
 export interface Selections {
   modelType: ModelType;
   age: string;
   background: BackgroundId;
+  attachMode: AttachMode;
   /** Safety rule id → on. */
   rules: Record<string, boolean>;
 }
@@ -160,7 +171,12 @@ export interface PromptTemplate {
    * puts the pose last — and that order is part of what was proven.
    */
   order: Slot[];
-  opening: (g: GarmentWords, p: Pronouns, subject: string) => string;
+  /**
+   * @param refs — "reference images" or "reference sheet", to match what is
+   *   actually attached. The proven wording said "the reference image",
+   *   singular, which read wrongly after a legend listing four.
+   */
+  opening: (g: GarmentWords, p: Pronouns, subject: string, refs: string) => string;
   pose: string;
   blouse?: string;
 }
@@ -176,8 +192,8 @@ export const TEMPLATES: PromptTemplate[] = [
     summary: "Hands clasped at the waist, pallu peaked over the left shoulder and away behind.",
     live: true,
     order: ["opening", "pose", "expression", "framing", "background", "styling", "lighting"],
-    opening: (g, _p, subject) =>
-      `A professional fashion catalog photo of ${subject} wearing ${garmentPhrase(g)} as per the reference image.`,
+    opening: (g, _p, subject, refs) =>
+      `A professional fashion catalog photo of ${subject} wearing the ${garmentWords(g)} shown in the attached ${refs}.`,
     pose:
       "{She} stands facing the camera directly in a symmetrical, centered pose, with both hands clasped together at {her} waist. The saree pallu is pleated neatly and thrown up and over the left shoulder from front to back, forming a distinct peaked, pointed shape of fabric rising at the shoulder edge before going over and down {her} back. Only the front portion of the pallu near the collarbone and shoulder point is visible; the majority of the pallu length falls behind {her} shoulder and down {her} back, out of view from the front. The pleats must be clean, straight, and evenly spaced — like neatly pressed fabric folds, not bunched or crumpled.",
   },
@@ -187,8 +203,8 @@ export const TEMPLATES: PromptTemplate[] = [
     summary: "Turned 30 degrees, pallu forward down the front so the full pattern reads.",
     live: true,
     order: ["opening", "blouse", "expression", "framing", "background", "styling", "lighting", "pose"],
-    opening: (g, _p, subject) =>
-      `Using the exact ${g.type} fabric and print shown in the reference image, generate a professional fashion catalog photo of ${subject} wearing this ${g.type} exactly as shown, without altering, redesigning, or reinterpreting the fabric pattern, print, or colors in any way.`,
+    opening: (g, _p, subject, refs) =>
+      `Using the exact ${g.type} fabric and print shown in the attached ${refs}, generate a professional fashion catalog photo of ${subject} wearing this ${g.type} exactly as shown, without altering, redesigning, or reinterpreting the fabric pattern, print, or colors in any way.`,
     blouse:
       "The blouse has short sleeves that end above the elbow, well before the elbow joint, exposing the forearm.",
     pose:
@@ -214,8 +230,9 @@ export const TEMPLATES: PromptTemplate[] = [
   },
 ];
 
-function garmentPhrase(g: GarmentWords): string {
-  return `a ${[g.fibre, g.type].filter(Boolean).join(" ")}`;
+/** "cotton saree" — no article, so the caller can say "a" or "the". */
+function garmentWords(g: GarmentWords): string {
+  return [g.fibre, g.type].filter(Boolean).join(" ");
 }
 
 function fill(text: string, p: Pronouns): string {
@@ -242,19 +259,33 @@ const PART_WORDS: Record<string, (type: string) => string> = {
 };
 
 /**
- * Which file is which.
+ * Which image is which — and what to do about it.
  *
- * The proven prompts say "the reference image", singular. With four files
- * attached, the model has no way to know that one of them is the border and
- * another the blouse, and it guesses — which is where a border motif ends up on
- * the body. Naming each file by what it shows is the same fix the generation
- * recipe used, and it works here because the download already named the files
- * this way: the prompt and the files on disk cannot disagree.
+ * The first version named each file: "300021-body.png is the body". A chat
+ * model is not shown filenames, so that told it nothing, and the first real
+ * test came back with the style copied and every print invented. Two things
+ * changed. The parts are now told apart by something the model can actually
+ * see — position for separate files, a printed label for the sheet. And the
+ * order to copy exactly comes before the instruction to make a photograph,
+ * because a model does what it is told first.
  */
-function legend(files: Attachment[], g: GarmentWords): string {
+function legend(files: Attachment[], g: GarmentWords, mode: AttachMode): string {
   if (files.length === 0) return "";
-  const items = files.map((f) => `${f.file} is ${(PART_WORDS[f.slot] ?? (() => f.slot))(g.type)}`);
-  return `The attached reference images are named by what they show: ${items.join("; ")}. They are photographs of ONE ${g.type}. Use them together, and take the design of each part from its own image.`;
+  const describe = (slot: string) => (PART_WORDS[slot] ?? (() => slot))(g.type);
+
+  const which =
+    mode === "sheet"
+      ? `The attached image is a sheet of ${files.length} labelled photographs of ONE ${g.type}. ` +
+        files
+          .map((f) => `The panel labelled ${f.slot.toUpperCase()} is ${describe(f.slot)}.`)
+          .join(" ") +
+        " Read the label printed above each panel to know which part it is. The panels keep their own proportions: the BORDER panel shows a narrow strip, and the border on the finished garment must stay that narrow."
+      : `You are given ${files.length} reference photographs of ONE ${g.type}, attached in this order. ` +
+        files.map((f, i) => `Image ${i + 1} is ${describe(f.slot)}.`).join(" ");
+
+  const mandate = `Your task is to photograph THIS ${g.type} on a model — not to design a ${g.type} in this style. Reproduce each part exactly as photographed: the same motifs, the same colours, the same motif scale and spacing, the same border design and width. Where the body is visible it must show the body print. Where the pallu is visible it must show the pallu print. The border on the finished ${g.type} must be the border shown, at its real width. The blouse must be made of the blouse fabric. Do not invent motifs, do not substitute a generic print in the same style, and do not swap one part's design onto another.`;
+
+  return `${which} ${mandate}`;
 }
 
 /**
@@ -270,9 +301,10 @@ export function composePrompt(
   const p = PRONOUNS[s.modelType];
   const subject = `a ${p.noun} ${s.modelType === "girl" || s.modelType === "boy" ? s.age : `in ${p.her} ${s.age}`}`;
   const bg = BACKGROUNDS.find((b) => b.id === s.background) ?? BACKGROUNDS[0]!;
+  const refs = s.attachMode === "sheet" ? "reference sheet" : "reference images";
 
   const parts: Record<Slot, string> = {
-    opening: template.opening(garment, p, subject),
+    opening: template.opening(garment, p, subject, refs),
     pose: fill(template.pose, p),
     blouse: template.blouse ?? "",
     expression: fill(EXPRESSION, p),
@@ -287,5 +319,5 @@ export function composePrompt(
 
   // Legend first, so the model knows what it is looking at before it is told
   // what to do with it; rules last, as the standing constraints on the whole.
-  return [legend(files, garment), body, ...rules].filter(Boolean).join(" ");
+  return [legend(files, garment, s.attachMode), body, ...rules].filter(Boolean).join(" ");
 }

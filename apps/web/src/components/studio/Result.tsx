@@ -50,15 +50,25 @@ export function Result({
   const template = TEMPLATES.find((t) => t.id === active) ?? TEMPLATES[0]!;
   const prompt = template.live ? composePrompt(template, garment, selections, files) : "";
   const gaps = missingSlots(product);
+  const sheetMode = selections.attachMode === "sheet";
 
-  function save(slot: string) {
-    if (!product.code) return;
+  function download(href: string, name: string) {
     const a = document.createElement("a");
-    a.href = `/api/products/${product.code}/image/${slot}`;
-    a.download = `${product.code}-${slot}.png`;
+    a.href = href;
+    a.download = name;
     document.body.appendChild(a);
     a.click();
     a.remove();
+  }
+
+  function save(slot: string) {
+    if (!product.code) return;
+    download(`/api/products/${product.code}/image/${slot}`, `${product.code}-${slot}.png`);
+  }
+
+  function saveSheet() {
+    if (!product.code) return;
+    download(`/api/products/${product.code}/sheet`, `${product.code}-sheet.png`);
   }
 
   async function saveAll() {
@@ -138,17 +148,55 @@ export function Result({
 
         {product.code && (
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => void saveAll()}
-              disabled={saving}
-              className="rounded-lg bg-accent px-5 py-2.5 text-[14px] font-medium text-white transition hover:bg-accent-hover disabled:bg-surface-3 disabled:text-ink-soft"
-            >
-              {saving ? "Saving…" : `Download all ${product.parts.length}`}
-            </button>
-            <span className="text-[12.5px] text-ink-faint">
-              Originals, unresized. Gemini needs the files attached, not a link.
-            </span>
+            {/*
+              The primary button follows the choice on the left. The sheet is
+              one image with BODY, PALLU, BORDER, BLOUSE printed above each
+              panel — the only way a chat model can tell which photograph is
+              which, since it is never shown filenames.
+            */}
+            {sheetMode ? (
+              <>
+                <button
+                  type="button"
+                  onClick={saveSheet}
+                  className="rounded-lg bg-accent px-5 py-2.5 text-[14px] font-medium text-white transition hover:bg-accent-hover"
+                >
+                  Download sheet
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void saveAll()}
+                  disabled={saving}
+                  className="rounded-lg border border-line bg-surface px-4 py-2.5 text-[14px] text-ink-soft transition hover:border-ink-faint hover:text-ink disabled:opacity-50"
+                >
+                  {saving ? "Saving…" : `Files (${product.parts.length})`}
+                </button>
+                <span className="text-[12.5px] text-ink-faint">
+                  One PNG, each photograph labelled in the pixels. Attach it with the prompt.
+                </span>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void saveAll()}
+                  disabled={saving}
+                  className="rounded-lg bg-accent px-5 py-2.5 text-[14px] font-medium text-white transition hover:bg-accent-hover disabled:bg-surface-3 disabled:text-ink-soft"
+                >
+                  {saving ? "Saving…" : `Download all ${product.parts.length}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={saveSheet}
+                  className="rounded-lg border border-line bg-surface px-4 py-2.5 text-[14px] text-ink-soft transition hover:border-ink-faint hover:text-ink"
+                >
+                  Sheet
+                </button>
+                <span className="text-[12.5px] text-ink-faint">
+                  Originals, unresized. Attach them in the order body, pallu, border, blouse.
+                </span>
+              </>
+            )}
           </div>
         )}
       </section>

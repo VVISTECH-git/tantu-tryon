@@ -51,6 +51,7 @@ export function Studio() {
     modelType: "woman",
     age: defaultAge("woman"),
     background: "courtyard",
+    attachMode: "sheet",
     rules: defaultRules(),
   });
 
