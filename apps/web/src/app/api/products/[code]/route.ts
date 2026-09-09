@@ -24,14 +24,13 @@ interface SlkProduct {
   productCode: string;
   title: string;
   description: string | null;
-  design: {
-    code: string;
-    name: string;
-    colour: string | null;
-    productType: string | null;
-    motif: string | null;
-    motifCategory: string | null;
-  };
+  /**
+   * Every attribute SLK holds on the design, by name — fibreType, weaveStructure,
+   * audienceType, palluDesign, blouseStyle and the rest. Open-ended on purpose:
+   * SLK resolves whatever lookups the design carries, so a new attribute there
+   * arrives here without a change on this side.
+   */
+  design: { code: string; name: string } & Record<string, string | null>;
   qty: number;
   images: SlkImage[];
 }
