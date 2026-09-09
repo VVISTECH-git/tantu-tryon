@@ -172,7 +172,9 @@ export function Result({
                   {saving ? "Saving…" : `Files (${product.parts.length})`}
                 </button>
                 <span className="text-[12.5px] text-ink-faint">
-                  One PNG, each photograph labelled in the pixels. Attach it with the prompt.
+                  {selections.modelSource === "photo"
+                    ? "Attach the sheet first, then your photo, then paste the prompt."
+                    : "One PNG, each photograph labelled in the pixels. Attach it with the prompt."}
                 </span>
               </>
             ) : (
@@ -193,7 +195,9 @@ export function Result({
                   Sheet
                 </button>
                 <span className="text-[12.5px] text-ink-faint">
-                  Originals, unresized. Attach them in the order body, pallu, border, blouse.
+                  {selections.modelSource === "photo"
+                    ? "Originals, unresized. Attach body, pallu, border, blouse, then your photo last."
+                    : "Originals, unresized. Attach them in the order body, pallu, border, blouse."}
                 </span>
               </>
             )}

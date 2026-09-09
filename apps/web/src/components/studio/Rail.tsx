@@ -80,8 +80,19 @@ export function Rail({
           selects they take one line each and leave room for the rules.
         */}
         <section>
-          <Label>Model type</Label>
-          <div className="mt-2.5 grid grid-cols-2 gap-2">
+          <Label>Model</Label>
+          <div className="mt-2.5">
+            <Select
+              label="Model source"
+              value={selections.modelSource}
+              onChange={(v) => onChange({ ...selections, modelSource: v as Selections["modelSource"] })}
+              options={[
+                { value: "generated", label: "Generated model" },
+                { value: "photo", label: "From my photo" },
+              ]}
+            />
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
             <Select
               label="Model type"
               value={selections.modelType}
@@ -91,13 +102,21 @@ export function Rail({
               }}
               options={MODEL_TYPES.map((m) => ({ value: m.id, label: m.label }))}
             />
-            <Select
-              label="Age"
-              value={selections.age}
-              onChange={(age) => onChange({ ...selections, age })}
-              options={ages.map((a) => ({ value: a, label: a }))}
-            />
+            {/* A photograph has an age already; asking for one would be ignored. */}
+            {selections.modelSource === "generated" && (
+              <Select
+                label="Age"
+                value={selections.age}
+                onChange={(age) => onChange({ ...selections, age })}
+                options={ages.map((a) => ({ value: a, label: a }))}
+              />
+            )}
           </div>
+          {selections.modelSource === "photo" && (
+            <p className="mt-2 text-[12px] leading-relaxed text-ink-faint">
+              Attach your photo after the saree references. Face clearly visible, facing the camera, even light, plain background. Full length gives the best result.
+            </p>
+          )}
         </section>
 
         <section>

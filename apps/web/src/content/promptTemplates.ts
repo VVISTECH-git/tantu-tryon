@@ -28,8 +28,19 @@ export type BackgroundId = "courtyard" | "studio" | "outdoor";
  */
 export type AttachMode = "files" | "sheet";
 
+/**
+ * Who wears it.
+ *
+ * `generated`: the model is described — "a woman in her mid-20s" — and the
+ * image model invents her. `photo`: a photograph of a real person is attached
+ * after the garment references, and the prompt makes that person the model,
+ * face and all. The age choice has no meaning then; the photograph has one.
+ */
+export type ModelSource = "generated" | "photo";
+
 export interface Selections {
   modelType: ModelType;
+  modelSource: ModelSource;
   age: string;
   background: BackgroundId;
   attachMode: AttachMode;
@@ -322,7 +333,7 @@ const PART_WORDS: Record<string, (type: string) => string> = {
  * order to copy exactly comes before the instruction to make a photograph,
  * because a model does what it is told first.
  */
-function legend(files: Attachment[], g: GarmentWords, mode: AttachMode): string {
+function legend(files: Attachment[], g: GarmentWords, mode: AttachMode, person?: Pronouns): string {
   if (files.length === 0) return "";
   const describe = (slot: string) => (PART_WORDS[slot] ?? (() => slot))(g.type);
 
@@ -338,7 +349,19 @@ function legend(files: Attachment[], g: GarmentWords, mode: AttachMode): string 
 
   const mandate = `Your task is to photograph THIS ${g.type} on a model — not to design a ${g.type} in this style. Reproduce each part exactly as photographed: the same motifs, the same colours, the same motif scale and spacing, the same border design and width. Where the body is visible it must show the body print. Where the pallu is visible it must show the pallu print. The border on the finished ${g.type} must be the border shown, at its real width. The blouse must be made of the blouse fabric. Do not invent motifs, do not substitute a generic print in the same style, and do not swap one part's design onto another.`;
 
-  return `${which} ${mandate}`;
+  if (!person) return `${which} ${mandate}`;
+
+  /*
+    The person's photograph is the last attachment, after the garment. It
+    needs no label: a person is not mistakable for fabric. What it needs is
+    the same kind of order the fabric got — this is THAT person, not a model
+    in that person's style — because the default failure is the same: a
+    generic, idealised face wearing the right saree.
+  */
+  const where = mode === "sheet" ? "After the sheet, one more image is attached" : `Image ${files.length + 1} is different`;
+  const identity = `${where}: a photograph of a real person. That person is the model. Keep ${person.her} face, facial features, skin tone, hair, and body shape exactly as in that photograph, so that ${person.she} is recognisably the same person. Do not replace ${person.her} with a different or idealised model, and do not change ${person.her} age or build. Change only what ${person.she} is wearing, ${person.her} pose, and the setting: dress ${person.her} in the ${g.type} from the reference photographs.`;
+
+  return `${which} ${mandate} ${identity}`;
 }
 
 /**
@@ -352,7 +375,10 @@ export function composePrompt(
   files: Attachment[] = [],
 ): string {
   const p = PRONOUNS[s.modelType];
-  const subject = `a ${p.noun} ${s.modelType === "girl" || s.modelType === "boy" ? s.age : `in ${p.her} ${s.age}`}`;
+  const fromPhoto = s.modelSource === "photo";
+  const subject = fromPhoto
+    ? `the ${p.noun} in the attached photograph`
+    : `a ${p.noun} ${s.modelType === "girl" || s.modelType === "boy" ? s.age : `in ${p.her} ${s.age}`}`;
   const bg = BACKGROUNDS.find((b) => b.id === s.background) ?? BACKGROUNDS[0]!;
   const refs = s.attachMode === "sheet" ? "reference sheet" : "reference images";
 
@@ -372,5 +398,7 @@ export function composePrompt(
 
   // Legend first, so the model knows what it is looking at before it is told
   // what to do with it; rules last, as the standing constraints on the whole.
-  return [legend(files, garment, s.attachMode), body, ...rules].filter(Boolean).join(" ");
+  return [legend(files, garment, s.attachMode, fromPhoto ? p : undefined), body, ...rules]
+    .filter(Boolean)
+    .join(" ");
 }

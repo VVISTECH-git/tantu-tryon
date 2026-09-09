@@ -49,6 +49,7 @@ export function Studio() {
   const [error, setError] = useState<string | null>(null);
   const [selections, setSelections] = useState<Selections>({
     modelType: "woman",
+    modelSource: "generated",
     age: defaultAge("woman"),
     background: "courtyard",
     attachMode: "sheet",
