@@ -289,8 +289,11 @@ export const TEMPLATES: PromptTemplate[] = [
     title: "Three-quarter, hand on hip",
     summary: "Turned 30 degrees, pallu forward down the left front so the full pattern reads.",
     live: true,
-    // Tested on 300021 with the house rules: the pallu panel, the chest band
-    // and the blouse all came through. Not yet frozen — one approved run.
+    // FROZEN v2. Approved on 300021 from the Studio with Claude-read garment
+    // words: the pallu panel, the chest band and the blouse all came through.
+    // Do not edit this template's wording or the shared blocks it uses
+    // without bumping the version and proving it again.
+    frozen: { version: 2, on: "2026-09-10", proof: "300021, sheet mode, defaults, described words" },
     map: PALLU_FORWARD_MAP,
     pose: [
       "POSE: A professional fashion catalog photo of {subject} wearing this {type}.",
