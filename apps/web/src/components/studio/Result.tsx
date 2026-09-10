@@ -1,15 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { garmentWordsFrom, type DescribedGarment } from "@/content/garmentWords";
 import { TEMPLATES, composePrompt, type Selections } from "@/content/promptTemplates";
 import { rotationQuery, turn, type Rotations } from "@/lib/rotation";
+import { addRun, deleteRun, listRuns, runId, updateRun, type Run, type Verdict } from "@/lib/runs";
 import { CopyButton } from "./CopyButton";
 import { GarmentWordsPanel } from "./GarmentWordsPanel";
 import { GeminiButton } from "./GeminiButton";
 import { Lightbox } from "./Lightbox";
-import { Outputs, type Output } from "./Outputs";
+import { ReviewBoard } from "./ReviewBoard";
 import { REQUIRED_SLOTS, missingSlots, type ChosenProduct } from "./types";
 
 /**
@@ -108,51 +109,25 @@ export function Result({
     return () => controller.abort();
   }, [product.code, rotQuery]);
 
-  // Gemini's answers, per prompt, for this visit. Object URLs are revoked on
-  // removal and when the product changes; nothing is stored anywhere.
-  const [outputs, setOutputs] = useState<Record<string, Output[]>>({});
-  const nextId = useRef(1);
+  /*
+    The runs for this product, from the browser's own store. Loaded once per
+    product; every change is written through and mirrored here, so the board
+    never waits on a read.
+  */
+  const [runs, setRuns] = useState<Run[]>([]);
   useEffect(() => {
+    const code = product.code;
+    if (!code) return;
+    let alive = true;
+    listRuns(code)
+      .then((list) => {
+        if (alive) setRuns(list);
+      })
+      .catch(() => {});
     return () => {
-      Object.values(outputs)
-        .flat()
-        .forEach((o) => URL.revokeObjectURL(o.url));
+      alive = false;
     };
-    // Only on unmount / product change: revoking on every add would kill live previews.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.code]);
-
-  const addOutput = useCallback(
-    (file: File) => {
-      setOutputs((prev) => {
-        const list = prev[active] ?? [];
-        const id = nextId.current++;
-        const ext = file.type === "image/jpeg" ? "jpg" : file.type === "image/webp" ? "webp" : "png";
-        return {
-          ...prev,
-          [active]: [
-            ...list,
-            {
-              id,
-              url: URL.createObjectURL(file),
-              name: `${product.code}-${active}-${list.length + 1}.${ext}`,
-              at: new Date(),
-            },
-          ],
-        };
-      });
-    },
-    [active, product.code],
-  );
-
-  function removeOutput(id: number) {
-    setOutputs((prev) => {
-      const list = prev[active] ?? [];
-      const gone = list.find((o) => o.id === id);
-      if (gone) URL.revokeObjectURL(gone.url);
-      return { ...prev, [active]: list.filter((o) => o.id !== id) };
-    });
-  }
 
   const d = product.design;
   const garment = garmentWordsFrom(d, savedWords);
@@ -173,6 +148,59 @@ export function Result({
   const prompt = template.live ? composePrompt(template, garment, selections, files) : "";
   const gaps = missingSlots(product);
   const sheetMode = selections.attachMode === "sheet";
+  const [showPrompt, setShowPrompt] = useState(false);
+
+  const version = template.frozen ? `v${template.frozen.version}` : "draft";
+  const chosen = [
+    selections.modelSource === "photo" ? `${selections.modelType} from photo` : `${selections.modelType} · ${selections.age}`,
+    selections.background,
+    sheetMode ? "sheet" : "files",
+  ].join(" · ");
+
+  const addOutput = useCallback(
+    (file: File) => {
+      if (!product.code) return;
+      const run: Run = {
+        id: runId(),
+        code: product.code,
+        promptId: active,
+        version,
+        prompt,
+        selections: chosen,
+        image: file,
+        at: new Date().toISOString(),
+        verdict: null,
+        note: "",
+      };
+      setRuns((prev) => [...prev, run]);
+      void addRun(run).catch(() => {});
+    },
+    [product.code, active, version, prompt, chosen],
+  );
+
+  function setVerdict(id: string, verdict: Verdict) {
+    setRuns((prev) => prev.map((r) => (r.id === id ? { ...r, verdict } : r)));
+    void updateRun(id, { verdict }).catch(() => {});
+  }
+
+  function setNote(id: string, note: string) {
+    setRuns((prev) => prev.map((r) => (r.id === id ? { ...r, note } : r)));
+    void updateRun(id, { note }).catch(() => {});
+  }
+
+  function removeRun(id: string) {
+    setRuns((prev) => prev.filter((r) => r.id !== id));
+    void deleteRun(id).catch(() => {});
+  }
+
+  const tally = (id: string) => {
+    const mine = runs.filter((r) => r.promptId === id);
+    return {
+      approved: mine.filter((r) => r.verdict === "approved").length,
+      rejected: mine.filter((r) => r.verdict === "rejected").length,
+      total: mine.length,
+    };
+  };
 
   function download(href: string, name: string) {
     const a = document.createElement("a");
@@ -376,66 +404,111 @@ export function Result({
       />
 
       <section>
+        {/*
+          Prompt buttons carry their record: how many runs approved and
+          rejected. Which prompt is trustworthy is read off the row.
+        */}
         <div className="flex flex-wrap gap-2">
-          {TEMPLATES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              disabled={!t.live}
-              onClick={() => setActive(t.id)}
-              aria-pressed={active === t.id}
-              title={t.live ? t.title : "Not written yet"}
-              className={`rounded-lg border px-4 py-2 text-[14px] transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                active === t.id
-                  ? "border-accent bg-accent text-white"
-                  : "border-line bg-surface text-ink-soft hover:border-ink-faint hover:text-ink"
-              }`}
-            >
-              Prompt {t.id.slice(1)}
-            </button>
-          ))}
+          {TEMPLATES.map((t) => {
+            const n = tally(t.id);
+            const on = active === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                disabled={!t.live}
+                onClick={() => {
+                  setActive(t.id);
+                  setShowPrompt(false);
+                }}
+                aria-pressed={on}
+                title={t.live ? t.title : "Not written yet"}
+                className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-[14px] transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                  on
+                    ? "border-accent bg-accent text-white"
+                    : "border-line bg-surface text-ink-soft hover:border-ink-faint hover:text-ink"
+                }`}
+              >
+                Prompt {t.id.slice(1)}
+                {n.total > 0 && (
+                  <span className={`text-[12px] tabular-nums ${on ? "text-white/80" : "text-ink-faint"}`}>
+                    {n.approved > 0 && `✓${n.approved}`}
+                    {n.approved > 0 && n.rejected > 0 && " "}
+                    {n.rejected > 0 && `✗${n.rejected}`}
+                    {n.approved === 0 && n.rejected === 0 && `${n.total}`}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
+        {/*
+          The prompt as a card, not a document. Its name, its status, and the
+          one thing to do with it. The text itself is behind a toggle: it is
+          copied, never read, and two thousand words of it were burying the
+          photographs and the runs.
+        */}
         <article className="mt-4 rounded-xl border border-line bg-surface p-5">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="rounded-full bg-accent-wash px-2 py-0.5 text-[12px] font-semibold tabular-nums text-accent">
               {template.id}
             </span>
-            <h2 className="text-[15px] font-semibold text-ink">{template.title}</h2>
-            {template.frozen && (
+            <h2 className="text-[16px] font-semibold text-ink">{template.title}</h2>
+            {template.frozen ? (
               <span
                 title={`Approved ${template.frozen.on} on ${template.frozen.proof}. Wording does not change without a new version.`}
-                className="rounded-full border border-line px-2 py-0.5 text-[11.5px] font-medium tabular-nums text-ink-soft"
+                className="rounded-full border border-good/40 bg-good/10 px-2 py-0.5 text-[11.5px] font-medium tabular-nums text-good"
               >
                 Frozen · v{template.frozen.version}
               </span>
+            ) : (
+              <span className="rounded-full border border-line px-2 py-0.5 text-[11.5px] font-medium text-ink-faint">
+                Draft
+              </span>
             )}
-            <CopyButton text={prompt} className="ml-auto" />
           </div>
-          <p className="mt-1.5 text-[13px] text-ink-faint">{template.summary}</p>
-          <p className="mt-3 whitespace-pre-wrap text-[13.5px] leading-[1.75] text-ink-soft">{prompt}</p>
+          <p className="mt-1.5 text-[13.5px] text-ink-soft">{template.summary}</p>
+          <p className="mt-1 text-[12.5px] text-ink-faint">{chosen}</p>
 
           {template.live && (
-            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
+            <div className="mt-4 flex flex-wrap items-center gap-3">
               <GeminiButton prompt={prompt} sheet={sheetMode ? sheet : null} />
-              <span className="text-[12.5px] leading-relaxed text-ink-faint">
+              <CopyButton text={prompt} />
+              <button
+                type="button"
+                onClick={() => setShowPrompt((s) => !s)}
+                aria-expanded={showPrompt}
+                className="rounded-full border border-line px-3.5 py-1.5 text-[13px] text-ink-soft transition hover:border-ink-faint hover:text-ink"
+              >
+                {showPrompt ? "Hide text" : "Show text"}
+              </button>
+              <span className="basis-full text-[12.5px] leading-relaxed text-ink-faint sm:basis-auto">
                 {sheetMode
                   ? selections.modelSource === "photo"
-                    ? "In Gemini: Ctrl+V pastes the sheet and the prompt. Attach your photo, then send."
-                    : "In Gemini: Ctrl+V pastes the sheet and the prompt together. Then send."
-                  : "In Gemini: attach the four files, Ctrl+V for the prompt, then send."}
+                    ? "In Gemini: Ctrl+V, attach your photo, send."
+                    : "In Gemini: Ctrl+V, then send."
+                  : "In Gemini: attach the four files, Ctrl+V, send."}
               </span>
             </div>
           )}
+
+          {showPrompt && (
+            <p className="mt-4 whitespace-pre-wrap border-t border-line pt-4 text-[13px] leading-[1.7] text-ink-soft">
+              {prompt}
+            </p>
+          )}
         </article>
 
-        <div className="mt-4">
-          <Outputs
+        <div className="mt-6">
+          <ReviewBoard
             code={product.code ?? ""}
             promptId={template.id}
-            outputs={outputs[template.id] ?? []}
+            runs={runs.filter((r) => r.promptId === template.id)}
             onAdd={addOutput}
-            onRemove={removeOutput}
+            onVerdict={setVerdict}
+            onNote={setNote}
+            onRemove={removeRun}
           />
         </div>
       </section>
