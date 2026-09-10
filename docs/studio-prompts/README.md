@@ -74,6 +74,15 @@ pose set is a decision made once, here, not a question asked of a buyer.
 one. The single paid call is the optional description of the photographs, a
 short text call at flash pricing, made from a button.
 
+## Amendments to frozen blocks
+
+- **2026-09-10, HOUSE RULES and OUTPUT gained "one single photograph".**
+  Prompt 5's first run came back as a two-panel collage: the model on the
+  left, a close-up of the pallu on the right. Nothing had said one image. The
+  sentence was added to the shared blocks, so Prompts 1 to 4 carry it too.
+  They were not re-proven; the addition only forbids something none of their
+  approved runs did.
+
 ## Decided
 
 - The received wordings said "the reference image", singular. The composed

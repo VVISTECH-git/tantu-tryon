@@ -217,10 +217,11 @@ const HOUSE_RULES = [
   "- The pallu never touches the ground. The {type} hem clears the floor and the feet are visible.",
   "- Nothing is added that is not in the reference photographs: no extra jewellery, no bindi except a small plain one, no tassels, no belt, no brooch, no embroidery, no sequins.",
   "- No text, logo or watermark in the image.",
+  "- One single photograph of the model, filling the whole frame. No collage, no split frame, no side panel, no inset, no close-up detail placed beside the model, and no copy of the reference panels in the output.",
   "- Every print appears only in the region named for it in the placement map.",
 ].join("\n");
 
-const OUTPUT = "OUTPUT: Return only the image. No caption, no notes, no commentary.";
+const OUTPUT = "OUTPUT: Return only the image: one photograph, nothing else in the frame. No caption, no notes, no commentary.";
 
 const EXPRESSION = "{She} has a direct, confident gaze and a neutral-to-soft expression.";
 
