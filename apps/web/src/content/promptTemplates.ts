@@ -221,7 +221,8 @@ const HOUSE_RULES = [
   "- Every print appears only in the region named for it in the placement map.",
 ].join("\n");
 
-const OUTPUT = "OUTPUT: Return only the image: one photograph, nothing else in the frame. No caption, no notes, no commentary.";
+const OUTPUT =
+  "OUTPUT: Return only the image: ONE photograph in portrait orientation, 3:4, taller than wide, with the one model filling the frame. Not a pair of views, not a grid, not a collage. No caption, no notes, no commentary.";
 
 const EXPRESSION = "{She} has a direct, confident gaze and a neutral-to-soft expression.";
 
@@ -421,10 +422,10 @@ function reference(files: Attachment[], type: string, mode: AttachMode, person?:
     mode === "sheet"
       ? `The attached image is a sheet of ${files.length} labelled photographs of ONE ${type}. ` +
         files.map((f) => `The panel labelled ${f.slot.toUpperCase()} is ${describe(f.slot)}.`).join(" ") +
-        ` Read the label printed above each panel to know which part it is. These are ${n} different fabrics with ${n} different prints. They must never be mixed, blended, or shown in each other's place. The panels keep their own proportions: the BORDER panel shows a narrow strip, and the border on the finished garment must stay that narrow.`
+        ` Read the label printed above each panel to know which part it is. These are ${n} different fabrics with ${n} different prints. They must never be mixed, blended, or shown in each other's place. The panels keep their own proportions: the BORDER panel shows a narrow strip, and the border on the finished garment must stay that narrow. The sheet is only something to copy the fabrics from. Do not reproduce its layout: the output is ONE photograph of one model, not a sheet, not a grid, not two views side by side.`
       : `You are given ${files.length} reference photographs of ONE ${type}, attached in this order. ` +
         files.map((f, i) => `Image ${i + 1} is ${describe(f.slot)}.`).join(" ") +
-        ` These are ${n} different fabrics with ${n} different prints. They must never be mixed, blended, or shown in each other's place. The border photograph shows a narrow strip, and the border on the finished garment must stay that narrow.`;
+        ` These are ${n} different fabrics with ${n} different prints. They must never be mixed, blended, or shown in each other's place. The border photograph shows a narrow strip, and the border on the finished garment must stay that narrow. The photographs are only something to copy the fabrics from: the output is ONE photograph of one model, not a set of images, not a grid, not two views side by side.`;
 
   if (!person) return `REFERENCE: ${which}`;
 

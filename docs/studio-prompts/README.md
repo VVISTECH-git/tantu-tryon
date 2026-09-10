@@ -82,6 +82,11 @@ short text call at flash pricing, made from a button.
   sentence was added to the shared blocks, so Prompts 1 to 4 carry it too.
   They were not re-proven; the addition only forbids something none of their
   approved runs did.
+- **2026-09-10, second collage.** The house-rule sentence alone was not
+  enough: the next Prompt 5 run came back as two views side by side. The
+  REFERENCE block now says, where the model first meets the sheet, that its
+  layout is not to be reproduced, and OUTPUT asks for a portrait 3:4 frame,
+  which a side-by-side pair cannot satisfy. Both are shared blocks.
 
 ## Decided
 
