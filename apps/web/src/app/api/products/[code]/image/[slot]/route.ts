@@ -77,11 +77,14 @@ export async function GET(
   }
 
   const rotation = parseRotations(new URL(request.url).searchParams.get(QUERY_KEY))[slot] ?? 0;
-  if (rotation !== 0) {
-    const turned = await sharp(Buffer.from(await file.arrayBuffer()))
-      .rotate(rotation)
-      .png()
-      .toBuffer();
+  const bytes = Buffer.from(await file.arrayBuffer());
+
+  // A phone's portrait JPEG is often sideways pixels plus an orientation
+  // tag. A browser obeys the tag; an image model may not. Any file that
+  // needs turning — by tag or by choice — goes out as upright pixels.
+  const tagged = ((await sharp(bytes).metadata()).orientation ?? 1) !== 1;
+  if (rotation !== 0 || tagged) {
+    const turned = await sharp(bytes).autoOrient().rotate(rotation).png().toBuffer();
     return new Response(turned, {
       headers: {
         "Content-Type": "image/png",
@@ -94,7 +97,7 @@ export async function GET(
   const type = file.headers.get("content-type") ?? "image/png";
   const extension = type.includes("jpeg") ? "jpg" : type.includes("webp") ? "webp" : "png";
 
-  return new Response(file.body, {
+  return new Response(bytes, {
     headers: {
       "Content-Type": type,
       "Content-Disposition": `attachment; filename="${code}-${slot}.${extension}"`,

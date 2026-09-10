@@ -119,7 +119,10 @@ export async function buildContactSheet(
     const x = col * cellW;
     const y = row * cellH;
 
+    // autoOrient first: a phone stores a portrait photo as sideways pixels
+    // plus a tag, and a browser obeys the tag where a resize would not.
     const panel = await sharp(Buffer.from(part.data, "base64"))
+      .autoOrient()
       .rotate(part.rotate ?? 0)
       .resize(cellW - pad * 2, cell - pad * 2, {
         fit: "contain",
