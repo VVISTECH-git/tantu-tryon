@@ -308,21 +308,26 @@ export const TEMPLATES: PromptTemplate[] = [
     title: "Back view, head in profile",
     summary: "Back to the camera, pallu falling down the back, lower drape and hem seen from behind.",
     live: true,
-    // This is the shot that sells the pallu, so the pallu is opened out to its
-    // full width across the back, not pleated into a strip. The first run
-    // with a pleated panel showed the buyer a third of the design.
+    // FROZEN v2. This is the shot that sells the pallu, so the pallu is opened
+    // out to its full width across the back, not pleated into a strip. The
+    // first run with a pleated panel showed the buyer a third of the design.
+    // Approved on 300021 as a display shot: the design reads upright, which
+    // is a quarter turn from how the fabric would physically lie. Accepted on
+    // purpose; the one invention that came with it, a zari border down the
+    // saree's end edge, is forbidden below.
+    frozen: { version: 2, on: "2026-09-10", proof: "300021, sheet mode, defaults, described words" },
     map: [
       "PLACEMENT MAP (seen from behind):",
       "1. BLOUSE fabric: the back neckline, the right shoulder and both sleeves. Plain blouse fabric. Most of the blouse back is covered by the spread pallu.",
       "2. PALLU print: the pallu comes over the top of the left shoulder from the front and is opened out flat to its FULL WIDTH across the back, unpleated, like a panel on display. It covers the back from the left shoulder across to the right hip and hangs down to mid-calf. This spread panel, and only this panel, is {pallu_colour} PALLU print. The whole pallu design is visible in one piece: {pallu_top} nearest the shoulder, the {pallu_motif} complete and unbroken across the middle, and {palluEnd} along the very bottom.",
       "3. BODY print: everything else visible from behind: the back of the skirt below and beside the spread pallu, from the waist to the hem, and both sides of the body. {body_colour_cap} BODY print with no {pallu_motif}, no pallu motif and no {pallu_colour} pallu ground on it.",
-      "4. BORDER: along the hem, and along both long edges of the spread pallu, exactly as narrow as shown.",
+      "4. BORDER: along the hem, and along both long edges of the spread pallu, exactly as narrow as shown. The end edge of the pallu, the edge where the {type} finishes, has NO border: {palluEnd} is the fabric's end.",
       "Transition rule: the {pallu_colour} PALLU print is confined to the spread panel hanging from the left shoulder. Its two long edges are the {border_colour} border; where the border ends, the {body_colour} BODY print begins.",
-      "Not allowed: no pallu motif on the skirt. No zari or border trim on the blouse. The pallu must not be pleated, folded, gathered, twisted or narrowed into a strip; it is fully opened so the {pallu_motif} is seen whole, not cut off at an edge. The pallu must not reach the floor or pool on the ground. No bare skin at the waist or lower back; the spread pallu and the {type} cover the lower back completely.",
+      "Not allowed: no pallu motif on the skirt. No zari or border trim on the blouse. No zari or {border_colour} border on the end edge of the pallu; that edge is the scalloped fabric end only. The pallu must not be pleated, folded, gathered, twisted or narrowed into a strip; it is fully opened so the {pallu_motif} is seen whole, not cut off at an edge. The pallu must not reach the floor or pool on the ground. No bare skin at the waist or lower back; the spread pallu and the {type} cover the lower back completely.",
     ].join("\n"),
     pose: [
       "POSE: A professional fashion catalog photo of {subject} wearing this {type}.",
-      "{She} stands with {her} back squarely to the camera, feet together, head turned to {her} right so {her} face is seen in clean profile. {Her} arms hang naturally at {her} sides with the hands relaxed, clear of the pallu.",
+      "{She} stands with {her} back squarely to the camera, feet together, head turned to {her} right so {her} face is seen in clean profile. {Her} left arm hangs naturally at {her} side. {Her} right arm is raised out to the side, holding the far corner of the pallu in {her} right hand so the pallu is stretched open across {her} back.",
       "The pallu is pinned at the left shoulder and spread open to its full width across {her} back, flat and smooth, so the entire pallu design, its border and its end edge are displayed to the camera down to mid-calf against the {body_colour} {type}. The blouse has short sleeves ending above the elbow, forearms bare. Neutral-to-soft expression.",
       "Full-length portrait, tightly framed so {her} figure fills most of the vertical frame, with the top of {her} head, the hem of the {type} and the ground under {her} feet all inside the frame, shot at eye level from directly behind with minimal headroom.",
     ].join(" "),

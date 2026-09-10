@@ -10,14 +10,14 @@ keeps the proven wording intact, and leaves the choice of engine open.
 
 ## Status
 
-Version 2 of the composition, 2026-09-10. Two frozen, three live and awaiting
+Version 2 of the composition, 2026-09-10. Three frozen, two live and awaiting
 their test.
 
 | #   | File                                                         | State                                                              |
 | --- | ------------------------------------------------------------ | ------------------------------------------------------------------ |
 | 1   | [`01-front-symmetrical.md`](01-front-symmetrical.md)         | **frozen v2**, approved 2026-09-10 on 300021                       |
 | 2   | [`02-three-quarter.md`](02-three-quarter.md)                 | **frozen v2**, approved 2026-09-10 on 300021 from the Studio, garment words read by Claude |
-| 3   | [`03-back-view.md`](03-back-view.md)                         | v2 wording, live, not yet tested                                    |
+| 3   | [`03-back-view.md`](03-back-view.md)                         | **frozen v2**, approved 2026-09-10 on 300021; pallu spread full width as a display shot (design upright, a quarter turn from the physical lie, accepted on purpose) |
 | 4   | [`04-waist-up.md`](04-waist-up.md)                           | v2 wording, live, not yet tested; the drape changed (see file)      |
 | 5   | [`05-relaxed-three-quarter.md`](05-relaxed-three-quarter.md) | v2 wording, live, not yet tested; shares Prompt 2's placement map    |
 
