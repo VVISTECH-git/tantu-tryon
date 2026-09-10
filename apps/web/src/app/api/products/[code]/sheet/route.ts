@@ -1,4 +1,5 @@
 import { buildContactSheet } from "@/lib/contactSheet";
+import { QUERY_KEY, parseRotations } from "@/lib/rotation";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -24,7 +25,7 @@ interface Part {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ code: string }> },
 ) {
   const base = process.env.SLK_API_BASE;
@@ -60,6 +61,10 @@ export async function GET(
     return Response.json({ error: `${code} has no photographs.` }, { status: 404 });
   }
 
+  // Orientation corrections chosen in the Studio, so the sheet shows each
+  // part the way the person sees it there.
+  const rotations = parseRotations(new URL(request.url).searchParams.get(QUERY_KEY));
+
   const parts = await Promise.all(
     present.map(async (slot) => {
       const file = await fetch(bySlot.get(slot)!, { cache: "no-store" });
@@ -68,6 +73,7 @@ export async function GET(
         key: slot,
         label: slot.toUpperCase(),
         data: Buffer.from(await file.arrayBuffer()).toString("base64"),
+        rotate: rotations[slot] ?? 0,
       };
     }),
   ).catch((error: Error) => error);

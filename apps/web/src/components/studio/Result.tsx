@@ -8,8 +8,10 @@ import {
   type GarmentWords,
   type Selections,
 } from "@/content/promptTemplates";
+import { rotationQuery, turn, type Rotations } from "@/lib/rotation";
 import { CopyButton } from "./CopyButton";
 import { GeminiButton } from "./GeminiButton";
+import { Lightbox } from "./Lightbox";
 import { Outputs, type Output } from "./Outputs";
 import { REQUIRED_SLOTS, missingSlots, type ChosenProduct } from "./types";
 
@@ -36,20 +38,54 @@ export function Result({
     needs it in hand — a clipboard write has to happen inside the click — and
     Download sheet can then serve it without a second build on the server.
   */
-  const [fetched, setFetched] = useState<{ code: string; blob: Blob } | null>(null);
-  const sheet = fetched && fetched.code === product.code ? fetched.blob : null;
+  /*
+    Orientation corrections, per part, remembered for this product in this
+    browser. Result only mounts after a product is found, client-side, so
+    reading storage in the initialiser cannot disagree with a server render.
+  */
+  const storageKey = `tantu:rotation:${product.code ?? "upload"}`;
+  const [rotations, setRotations] = useState<Rotations>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey) ?? "{}") as Rotations;
+    } catch {
+      return {};
+    }
+  });
+  useEffect(() => {
+    try {
+      if (Object.values(rotations).some((d) => d !== 0)) localStorage.setItem(storageKey, JSON.stringify(rotations));
+      else localStorage.removeItem(storageKey);
+    } catch {
+      // Storage refused — the turn still applies for this visit.
+    }
+  }, [rotations, storageKey]);
+  const rotQuery = rotationQuery(rotations);
+
+  function rotate(slot: string) {
+    setRotations((prev) => ({ ...prev, [slot]: turn(prev[slot] ?? 0) }));
+  }
+
+  const [viewing, setViewing] = useState<number | null>(null);
+  const present = REQUIRED_SLOTS.map((slot) => product.parts.find((p) => p.slot === slot)).filter(
+    (p): p is NonNullable<typeof p> => Boolean(p),
+  );
+
+  const sheetKey = `${product.code}${rotQuery}`;
+  const [fetched, setFetched] = useState<{ key: string; blob: Blob } | null>(null);
+  const sheet = fetched && fetched.key === sheetKey ? fetched.blob : null;
   useEffect(() => {
     const code = product.code;
     if (!code) return;
+    const key = `${code}${rotQuery}`;
     const controller = new AbortController();
-    fetch(`/api/products/${code}/sheet`, { signal: controller.signal })
+    fetch(`/api/products/${code}/sheet${rotQuery}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.blob() : null))
       .then((blob) => {
-        if (blob && !controller.signal.aborted) setFetched({ code, blob });
+        if (blob && !controller.signal.aborted) setFetched({ key, blob });
       })
       .catch(() => {});
     return () => controller.abort();
-  }, [product.code]);
+  }, [product.code, rotQuery]);
 
   // Gemini's answers, per prompt, for this visit. Object URLs are revoked on
   // removal and when the product changes; nothing is stored anywhere.
@@ -131,7 +167,11 @@ export function Result({
 
   function save(slot: string) {
     if (!product.code) return;
-    download(`/api/products/${product.code}/image/${slot}`, `${product.code}-${slot}.png`);
+    const deg = rotations[slot] ?? 0;
+    download(
+      `/api/products/${product.code}/image/${slot}${rotationQuery({ [slot]: deg })}`,
+      `${product.code}-${slot}.png`,
+    );
   }
 
   function saveSheet() {
@@ -141,7 +181,7 @@ export function Result({
       download(url, `${product.code}-sheet.png`);
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } else {
-      download(`/api/products/${product.code}/sheet`, `${product.code}-sheet.png`);
+      download(`/api/products/${product.code}/sheet${rotQuery}`, `${product.code}-sheet.png`);
     }
   }
 
@@ -157,6 +197,18 @@ export function Result({
 
   return (
     <div className="space-y-8">
+      {viewing !== null && product.code && present[viewing] && (
+        <Lightbox
+          code={product.code}
+          parts={present}
+          index={viewing}
+          rotations={rotations}
+          onIndex={setViewing}
+          onRotate={rotate}
+          onClose={() => setViewing(null)}
+        />
+      )}
+
       <section>
         <div className="flex flex-wrap items-baseline gap-x-3">
           <h1 className="text-[22px] font-semibold tracking-tight text-ink">{product.title}</h1>
@@ -196,15 +248,32 @@ export function Result({
             const part = product.parts.find((p) => p.slot === slot);
             return (
               <figure key={slot} className="m-0">
-                <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-line bg-surface">
-                  {part ? (
-                    <Image src={part.src} alt={part.alt} fill sizes="240px" className="object-cover" />
-                  ) : (
+                {part ? (
+                  <button
+                    type="button"
+                    onClick={() => setViewing(present.indexOf(part))}
+                    title="Open large"
+                    className="relative block aspect-square w-full overflow-hidden rounded-xl border border-line bg-surface transition hover:border-ink-faint focus:outline-none focus-visible:border-accent"
+                  >
+                    <Image
+                      src={part.src}
+                      alt={part.alt}
+                      fill
+                      sizes="240px"
+                      className="object-cover"
+                      style={{ transform: `rotate(${rotations[slot] ?? 0}deg)` }}
+                    />
+                  </button>
+                ) : (
+                  <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-line bg-surface">
                     <span className="grid h-full place-items-center text-[12px] text-ink-faint">missing</span>
-                  )}
-                </div>
-                <figcaption className="mt-1.5 flex items-center text-[13px] capitalize text-ink-soft">
+                  </div>
+                )}
+                <figcaption className="mt-1.5 flex items-center gap-1.5 text-[13px] capitalize text-ink-soft">
                   {slot}
+                  {(rotations[slot] ?? 0) !== 0 && (
+                    <span className="text-[11.5px] normal-case text-ink-faint">turned {rotations[slot]}°</span>
+                  )}
                   {part && product.code && (
                     <button
                       type="button"

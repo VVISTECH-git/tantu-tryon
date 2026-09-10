@@ -1,7 +1,16 @@
+import sharp from "sharp";
+import { QUERY_KEY, parseRotations } from "@/lib/rotation";
+
 export const runtime = "nodejs";
 
 /**
  * One photograph, as a download.
+ *
+ * With `?r=border:90` the photograph is turned a quarter before it goes out.
+ * A quarter turn moves pixels without resampling them, and the result is
+ * written as PNG, which is lossless — so a turned photograph carries every
+ * pixel of the original, only upright. Untouched photographs stream through
+ * exactly as stored.
  *
  * The link on its own is not enough: the image tools these prompts are written
  * for cannot fetch a URL — they want a file attached. Handing over an address
@@ -22,7 +31,7 @@ interface Part {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ code: string; slot: string }> },
 ) {
   const base = process.env.SLK_API_BASE;
@@ -65,6 +74,21 @@ export async function GET(
   const file = await fetch(match.url, { cache: "no-store" });
   if (!file.ok || !file.body) {
     return Response.json({ error: "The photograph could not be fetched." }, { status: 502 });
+  }
+
+  const rotation = parseRotations(new URL(request.url).searchParams.get(QUERY_KEY))[slot] ?? 0;
+  if (rotation !== 0) {
+    const turned = await sharp(Buffer.from(await file.arrayBuffer()))
+      .rotate(rotation)
+      .png()
+      .toBuffer();
+    return new Response(turned, {
+      headers: {
+        "Content-Type": "image/png",
+        "Content-Disposition": `attachment; filename="${code}-${slot}.png"`,
+        "Cache-Control": "no-store",
+      },
+    });
   }
 
   const type = file.headers.get("content-type") ?? "image/png";

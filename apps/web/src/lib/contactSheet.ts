@@ -20,6 +20,8 @@ export interface SheetPart {
   label: string;
   /** Raw base64 of the photograph. */
   data: string;
+  /** Quarter turns to apply first, clockwise. A sideways photo stays sideways otherwise. */
+  rotate?: 0 | 90 | 180 | 270;
 }
 
 export interface SheetOptions {
@@ -118,6 +120,7 @@ export async function buildContactSheet(
     const y = row * cellH;
 
     const panel = await sharp(Buffer.from(part.data, "base64"))
+      .rotate(part.rotate ?? 0)
       .resize(cellW - pad * 2, cell - pad * 2, {
         fit: "contain",
         background: { r: 255, g: 255, b: 255, alpha: 1 },
