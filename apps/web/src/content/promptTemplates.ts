@@ -342,9 +342,11 @@ export const TEMPLATES: PromptTemplate[] = [
     title: "Waist up, pallu detail",
     summary: "Cropped from the waist up, pallu end brought over the left forearm so its print is in frame.",
     live: true,
-    // The v1 wording kept the pallu behind the shoulder, so the "pallu
-    // detail" shot barely showed the pallu. Bringing its end over the left
-    // forearm puts the pallu print, the border and the blouse in one frame.
+    // FROZEN v2. The v1 wording kept the pallu behind the shoulder, so the
+    // "pallu detail" shot barely showed the pallu. Bringing its end over the
+    // left forearm puts the pallu print, the border and the blouse in one
+    // frame. Approved on 300021 on the first run.
+    frozen: { version: 2, on: "2026-09-10", proof: "300021, sheet mode, defaults, described words" },
     map: [
       "PLACEMENT MAP:",
       "1. BLOUSE fabric: the fitted top, both sleeves and the neckline. {Her} right shoulder and the right side of {her} chest show blouse fabric.",
