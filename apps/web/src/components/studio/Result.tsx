@@ -484,11 +484,6 @@ export function Result({
                 >
                   {saving ? "Saving…" : `Files (${product.parts.length})`}
                 </button>
-                <span className="text-[12.5px] text-ink-faint">
-                  {selections.modelSource === "photo"
-                    ? "Attach the sheet first, then your photo, then paste the prompt."
-                    : "One PNG, each photograph labelled in the pixels. Attach it with the prompt."}
-                </span>
               </>
             ) : (
               <>
@@ -507,11 +502,6 @@ export function Result({
                 >
                   Sheet
                 </button>
-                <span className="text-[12.5px] text-ink-faint">
-                  {selections.modelSource === "photo"
-                    ? "Originals, unresized. Attach body, pallu, border, blouse, then your photo last."
-                    : "Originals, unresized. Attach them in the order body, pallu, border, blouse."}
-                </span>
               </>
             )}
 
@@ -525,25 +515,13 @@ export function Result({
               onChange={setSavedWords}
               canDescribe={canDescribe}
             />
-          </div>
-        )}
-      </section>
 
-      <ReviewBoard
-        code={product.code ?? ""}
-        promptId={template.id}
-        runs={runs.filter((r) => r.promptId === template.id)}
-        onAdd={addOutput}
-        onVerdict={setVerdict}
-        onNote={setNote}
-        onRemove={removeRun}
-        prompt={
-          <>
             {/*
-          Prompt buttons carry their record: how many runs approved and
-          rejected. Which prompt is trustworthy is read off the row.
-        */}
-            <div className="flex flex-wrap gap-2">
+              Prompt buttons on the same row, at the right: they carry their
+              record — runs approved and rejected — so which prompt is
+              trustworthy is read off the toolbar.
+            */}
+            <div className="flex flex-wrap gap-2 sm:ml-auto">
               {TEMPLATES.map((t) => {
                 const n = tally(t.id);
                 const on = active === t.id;
@@ -579,14 +557,27 @@ export function Result({
                 );
               })}
             </div>
+          </div>
+        )}
+      </section>
 
+      <ReviewBoard
+        code={product.code ?? ""}
+        promptId={template.id}
+        runs={runs.filter((r) => r.promptId === template.id)}
+        onAdd={addOutput}
+        onVerdict={setVerdict}
+        onNote={setNote}
+        onRemove={removeRun}
+        prompt={
+          <>
             {/*
           The prompt as a card, not a document. Its name, its status, and the
           one thing to do with it. The text itself is behind a toggle: it is
           copied, never read, and two thousand words of it were burying the
           photographs and the runs.
         */}
-            <article className="mt-4 rounded-xl border border-line bg-surface p-5">
+            <article className="rounded-xl border border-line bg-surface p-5">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span className="rounded-full bg-accent-wash px-2 py-0.5 text-[12px] font-semibold tabular-nums text-accent">
                   {template.id}

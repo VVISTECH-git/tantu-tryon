@@ -41,8 +41,14 @@ export function ReviewBoard({
   useEffect(() => {
     function onPaste(e: ClipboardEvent) {
       const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
-      const file = Array.from(e.clipboardData?.files ?? []).find((f) => f.type.startsWith("image/"));
+      if (
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA")
+      )
+        return;
+      const file = Array.from(e.clipboardData?.files ?? []).find((f) =>
+        f.type.startsWith("image/"),
+      );
       if (file) {
         e.preventDefault();
         onAdd(file);
@@ -57,41 +63,33 @@ export function ReviewBoard({
   const pending = runs.length - approved - rejected;
 
   /*
-    Two columns on a wide screen: the prompt and the drop zone on the left,
-    the runs three across on the right. Reviewing is comparing, and a single
-    column under the prompt could only ever show one output at a time.
+    Two columns on a wide screen: the prompt on the left, the runs three
+    across on the right. Reviewing is comparing, and a single column under
+    the prompt could only ever show one output at a time.
+
+    The runs column is itself the drop target. There is no separate box to
+    aim for: an output dropped anywhere on the runs, or pasted anywhere on
+    the page, is filed. When the column is empty it says so, once.
   */
   return (
     <section className="grid gap-8 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-      <div className="min-w-0 space-y-4">
-        {prompt}
+      <div className="min-w-0">{prompt}</div>
 
-        <div
-          onDragOver={(e) => {
-            e.preventDefault();
-            setOver(true);
-          }}
-          onDragLeave={() => setOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setOver(false);
-            for (const file of Array.from(e.dataTransfer.files)) {
-              if (file.type.startsWith("image/")) onAdd(file);
-            }
-          }}
-          className={`rounded-xl border-2 border-dashed px-5 py-6 text-center transition ${
-            over ? "border-accent bg-accent-wash" : "border-line bg-surface"
-          }`}
-        >
-          <p className="text-[14px] text-ink">Drop Gemini&rsquo;s output here</p>
-          <p className="mt-1 text-[12.5px] text-ink-faint">
-            Or copy the image in Gemini and paste anywhere on this page. Kept on this computer, with
-            the prompt that made it.
-          </p>
-        </div>
-      </div>
-
-      <div className="min-w-0">
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setOver(false);
+          for (const file of Array.from(e.dataTransfer.files)) {
+            if (file.type.startsWith("image/")) onAdd(file);
+          }
+        }}
+        className={`min-w-0 rounded-xl transition ${over ? "bg-accent-wash ring-2 ring-accent" : ""}`}
+      >
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h3 className="text-[15px] font-semibold text-ink">Runs</h3>
           <span className="text-[13px] tabular-nums text-ink-faint">
@@ -105,6 +103,11 @@ export function ReviewBoard({
                   .filter(Boolean)
                   .join(" · ")}
           </span>
+          {runs.length > 0 && (
+            <span className="ml-auto text-[12.5px] text-ink-faint">
+              Drop or paste an output to add it.
+            </span>
+          )}
         </div>
 
         {runs.length > 0 ? (
@@ -123,9 +126,16 @@ export function ReviewBoard({
             ))}
           </ul>
         ) : (
-          <p className="mt-3 rounded-xl border border-dashed border-line px-5 py-10 text-center text-[13px] text-ink-faint">
-            Outputs you drop or paste appear here, newest first, with Approve and Reject.
-          </p>
+          <div className="mt-3 rounded-xl border-2 border-dashed border-line px-5 py-10 text-center">
+            <p className="text-[14px] text-ink">
+              Drop Gemini&rsquo;s output here
+            </p>
+            <p className="mt-1 text-[12.5px] text-ink-faint">
+              Or copy the image in Gemini and paste anywhere on this page. It is
+              kept on this computer with the prompt that made it, ready to
+              approve or reject.
+            </p>
+          </div>
         )}
       </div>
     </section>
@@ -175,11 +185,23 @@ function RunCard({
         : "border-line";
 
   return (
-    <li className={`m-0 list-none overflow-hidden rounded-xl border bg-surface ${tone}`}>
-      <a href={url} target="_blank" rel="noopener" title="Open full size" className="block">
+    <li
+      className={`m-0 list-none overflow-hidden rounded-xl border bg-surface ${tone}`}
+    >
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener"
+        title="Open full size"
+        className="block"
+      >
         <div className="relative aspect-[4/5] w-full bg-surface-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt={`${promptId} run ${index}`} className="h-full w-full object-cover" />
+          <img
+            src={url}
+            alt={`${promptId} run ${index}`}
+            className="h-full w-full object-cover"
+          />
         </div>
       </a>
 
@@ -188,9 +210,16 @@ function RunCard({
           <span className="font-semibold tabular-nums text-ink">
             {promptId} · run {index}
           </span>
-          <span className="rounded-full border border-line px-1.5 py-0 text-[11px] tabular-nums">{run.version}</span>
+          <span className="rounded-full border border-line px-1.5 py-0 text-[11px] tabular-nums">
+            {run.version}
+          </span>
           <span className="text-ink-faint">
-            {new Date(run.at).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+            {new Date(run.at).toLocaleString([], {
+              day: "numeric",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </span>
         </div>
         <p className="text-[12px] text-ink-faint">{run.selections}</p>
@@ -198,7 +227,9 @@ function RunCard({
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => onVerdict(run.id, run.verdict === "approved" ? null : "approved")}
+            onClick={() =>
+              onVerdict(run.id, run.verdict === "approved" ? null : "approved")
+            }
             aria-pressed={run.verdict === "approved"}
             className={`flex-1 rounded-lg border px-3 py-1.5 text-[13px] font-medium transition ${
               run.verdict === "approved"
@@ -210,7 +241,9 @@ function RunCard({
           </button>
           <button
             type="button"
-            onClick={() => onVerdict(run.id, run.verdict === "rejected" ? null : "rejected")}
+            onClick={() =>
+              onVerdict(run.id, run.verdict === "rejected" ? null : "rejected")
+            }
             aria-pressed={run.verdict === "rejected"}
             className={`flex-1 rounded-lg border px-3 py-1.5 text-[13px] font-medium transition ${
               run.verdict === "rejected"
@@ -230,7 +263,9 @@ function RunCard({
             onKeyDown={(e) => {
               if (e.key === "Enter") (e.target as HTMLInputElement).blur();
             }}
-            placeholder={run.verdict === "rejected" ? "What went wrong" : "Note"}
+            placeholder={
+              run.verdict === "rejected" ? "What went wrong" : "Note"
+            }
             aria-label="Note on this run"
             className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-[13px] outline-none focus:border-accent"
           />
