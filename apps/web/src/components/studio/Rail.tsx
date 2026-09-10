@@ -9,6 +9,7 @@ import {
   defaultAge,
   type Selections,
 } from "@/content/promptTemplates";
+import type { StudioStatus } from "./types";
 
 /**
  * Everything you set, in one column.
@@ -25,6 +26,7 @@ export function Rail({
   selections,
   onChange,
   hasProduct,
+  status,
 }: {
   onFind: (code: string) => void;
   busy: boolean;
@@ -32,6 +34,8 @@ export function Rail({
   selections: Selections;
   onChange: (next: Selections) => void;
   hasProduct: boolean;
+  /** Where the product stands, once there is one. */
+  status?: StudioStatus | null;
 }) {
   const [code, setCode] = useState("");
 
@@ -174,6 +178,57 @@ export function Rail({
           </div>
         </section>
       </fieldset>
+
+      {/*
+        What is done. The rail had a column of empty space under the rules;
+        this is the thing worth putting there — the product's standing at a
+        glance, so nobody scrolls the right side to find out.
+      */}
+      {status && (
+        <section className="border-t border-line pt-6">
+          <Label>This product</Label>
+          <dl className="mt-2.5 space-y-2 text-[13px]">
+            <Status
+              ok={status.photos.have >= status.photos.need}
+              label="Photographs"
+              value={`${status.photos.have} of ${status.photos.need}`}
+            />
+            <Status
+              ok={status.wordsMissing.length === 0}
+              label="Garment words"
+              value={status.wordsMissing.length === 0 ? "complete" : `${status.wordsMissing.length} missing`}
+            />
+            {status.prompts.map((p) => (
+              <Status
+                key={p.id}
+                ok={p.approved > 0}
+                neutral={p.total === 0}
+                label={`${p.id} ${p.title}`}
+                value={
+                  p.total === 0
+                    ? p.frozen ? `frozen ${p.frozen}` : "no runs"
+                    : [p.approved > 0 && `✓${p.approved}`, p.rejected > 0 && `✗${p.rejected}`, p.total - p.approved - p.rejected > 0 && `${p.total - p.approved - p.rejected} open`]
+                        .filter(Boolean)
+                        .join(" ")
+                }
+              />
+            ))}
+          </dl>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function Status({ ok, neutral, label, value }: { ok: boolean; neutral?: boolean; label: string; value: string }) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <span
+        aria-hidden
+        className={`mt-1 size-2 shrink-0 self-center rounded-full ${neutral ? "bg-line" : ok ? "bg-good" : "bg-turmeric"}`}
+      />
+      <dt className="min-w-0 flex-1 truncate text-ink-soft">{label}</dt>
+      <dd className="m-0 shrink-0 tabular-nums text-ink">{value}</dd>
     </div>
   );
 }

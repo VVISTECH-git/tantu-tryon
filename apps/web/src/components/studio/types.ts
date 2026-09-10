@@ -46,6 +46,19 @@ export interface StudioDraft {
 
 export const REQUIRED_SLOTS = ["body", "pallu", "border", "blouse"] as const;
 
+/**
+ * Where this product stands, for the rail to say in three lines.
+ *
+ * Computed on the right, where the photographs, the words and the runs
+ * live, and handed left — the rail is the place a person looks to know
+ * what is done and what is not.
+ */
+export interface StudioStatus {
+  photos: { have: number; need: number };
+  wordsMissing: string[];
+  prompts: { id: string; title: string; frozen: string | null; approved: number; rejected: number; total: number }[];
+}
+
 export function missingSlots(product: ChosenProduct | null): string[] {
   if (!product) return [...REQUIRED_SLOTS];
   return REQUIRED_SLOTS.filter((slot) => !product.parts.some((p) => p.slot === slot));

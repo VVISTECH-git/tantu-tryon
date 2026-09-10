@@ -9,7 +9,7 @@ import {
 } from "@/content/promptTemplates";
 import { Rail } from "./Rail";
 import { Result } from "./Result";
-import type { ChosenProduct, GarmentPart } from "./types";
+import type { ChosenProduct, GarmentPart, StudioStatus } from "./types";
 
 /**
  * One page: what you set on the left, what you take on the right.
@@ -45,6 +45,7 @@ interface ApiProduct {
 
 export function Studio({ canDescribe = false }: { canDescribe?: boolean }) {
   const [product, setProduct] = useState<ChosenProduct | null>(null);
+  const [status, setStatus] = useState<StudioStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selections, setSelections] = useState<Selections>({
@@ -86,15 +87,21 @@ export function Studio({ canDescribe = false }: { canDescribe?: boolean }) {
       setSelections((s) => ({ ...s, modelType, age: defaultAge(modelType) }));
     } catch (problem) {
       setProduct(null);
+      setStatus(null);
       setError(problem instanceof Error ? problem.message : "The lookup failed.");
     } finally {
       setBusy(false);
     }
   }
 
+  /*
+    The whole width. A working screen with photographs on it has no reason
+    to sit in a band down the middle of a wide monitor: the rail keeps its
+    size and the results take everything else.
+  */
   return (
-    <div className="mx-auto grid max-w-7xl gap-10 px-6 py-8 lg:grid-cols-[300px_minmax(0,1fr)]">
-      <aside className="lg:sticky lg:top-6 lg:self-start">
+    <div className="grid gap-10 px-6 py-8 lg:grid-cols-[280px_minmax(0,1fr)] lg:px-8 2xl:px-12">
+      <aside className="lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto">
         <Rail
           onFind={find}
           busy={busy}
@@ -102,12 +109,13 @@ export function Studio({ canDescribe = false }: { canDescribe?: boolean }) {
           selections={selections}
           onChange={setSelections}
           hasProduct={product !== null}
+          status={status}
         />
       </aside>
 
       <main className="min-w-0">
         {product ? (
-          <Result product={product} selections={selections} canDescribe={canDescribe} />
+          <Result product={product} selections={selections} canDescribe={canDescribe} onStatus={setStatus} />
         ) : (
           <div className="rounded-xl border border-dashed border-line px-6 py-16 text-center">
             <p className="text-[15px] text-ink-soft">Enter a product code to begin.</p>

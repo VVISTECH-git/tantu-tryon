@@ -1,17 +1,39 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useState } from "react";
-import { garmentWordsFrom, type DescribedGarment } from "@/content/garmentWords";
-import { TEMPLATES, composePrompt, type Selections } from "@/content/promptTemplates";
+import { useEffect, useState } from "react";
+import {
+  garmentWordsFrom,
+  missingWords,
+  type DescribedGarment,
+  type GarmentWords,
+} from "@/content/garmentWords";
+import {
+  TEMPLATES,
+  composePrompt,
+  type Selections,
+} from "@/content/promptTemplates";
 import { rotationQuery, turn, type Rotations } from "@/lib/rotation";
-import { addRun, deleteRun, listRuns, runId, updateRun, type Run, type Verdict } from "@/lib/runs";
+import {
+  addRun,
+  deleteRun,
+  listRuns,
+  runId,
+  updateRun,
+  type Run,
+  type Verdict,
+} from "@/lib/runs";
 import { CopyButton } from "./CopyButton";
 import { GarmentWordsPanel } from "./GarmentWordsPanel";
 import { GeminiButton } from "./GeminiButton";
 import { Lightbox } from "./Lightbox";
 import { ReviewBoard } from "./ReviewBoard";
-import { REQUIRED_SLOTS, missingSlots, type ChosenProduct } from "./types";
+import {
+  REQUIRED_SLOTS,
+  missingSlots,
+  type ChosenProduct,
+  type StudioStatus,
+} from "./types";
 
 /**
  * What you take away, on the right.
@@ -25,14 +47,20 @@ export function Result({
   product,
   selections,
   canDescribe,
+  onStatus,
 }: {
   product: ChosenProduct;
   selections: Selections;
   /** Whether this deployment has an engine key to read the photographs with. */
   canDescribe: boolean;
+  /** Where the product stands, for the rail. */
+  onStatus: (status: StudioStatus) => void;
 }) {
-  const [active, setActive] = useState(TEMPLATES.find((t) => t.live)?.id ?? "P1");
+  const [active, setActive] = useState(
+    TEMPLATES.find((t) => t.live)?.id ?? "P1",
+  );
   const [saving, setSaving] = useState(false);
+  const [moreFacts, setMoreFacts] = useState(false);
 
   /*
     The saree in words — described from the sheet or typed — remembered for
@@ -41,14 +69,17 @@ export function Result({
   const wordsKey = `tantu:garment:${product.code ?? "upload"}`;
   const [savedWords, setSavedWords] = useState<DescribedGarment>(() => {
     try {
-      return JSON.parse(localStorage.getItem(wordsKey) ?? "{}") as DescribedGarment;
+      return JSON.parse(
+        localStorage.getItem(wordsKey) ?? "{}",
+      ) as DescribedGarment;
     } catch {
       return {};
     }
   });
   useEffect(() => {
     try {
-      if (Object.keys(savedWords).length > 0) localStorage.setItem(wordsKey, JSON.stringify(savedWords));
+      if (Object.keys(savedWords).length > 0)
+        localStorage.setItem(wordsKey, JSON.stringify(savedWords));
       else localStorage.removeItem(wordsKey);
     } catch {
       // Storage refused — the words still apply for this visit.
@@ -75,7 +106,8 @@ export function Result({
   });
   useEffect(() => {
     try {
-      if (Object.values(rotations).some((d) => d !== 0)) localStorage.setItem(storageKey, JSON.stringify(rotations));
+      if (Object.values(rotations).some((d) => d !== 0))
+        localStorage.setItem(storageKey, JSON.stringify(rotations));
       else localStorage.removeItem(storageKey);
     } catch {
       // Storage refused — the turn still applies for this visit.
@@ -88,19 +120,23 @@ export function Result({
   }
 
   const [viewing, setViewing] = useState<number | null>(null);
-  const present = REQUIRED_SLOTS.map((slot) => product.parts.find((p) => p.slot === slot)).filter(
-    (p): p is NonNullable<typeof p> => Boolean(p),
-  );
+  const present = REQUIRED_SLOTS.map((slot) =>
+    product.parts.find((p) => p.slot === slot),
+  ).filter((p): p is NonNullable<typeof p> => Boolean(p));
 
   const sheetKey = `${product.code}${rotQuery}`;
-  const [fetched, setFetched] = useState<{ key: string; blob: Blob } | null>(null);
+  const [fetched, setFetched] = useState<{ key: string; blob: Blob } | null>(
+    null,
+  );
   const sheet = fetched && fetched.key === sheetKey ? fetched.blob : null;
   useEffect(() => {
     const code = product.code;
     if (!code) return;
     const key = `${code}${rotQuery}`;
     const controller = new AbortController();
-    fetch(`/api/products/${code}/sheet${rotQuery}`, { signal: controller.signal })
+    fetch(`/api/products/${code}/sheet${rotQuery}`, {
+      signal: controller.signal,
+    })
       .then((r) => (r.ok ? r.blob() : null))
       .then((blob) => {
         if (blob && !controller.signal.aborted) setFetched({ key, blob });
@@ -138,45 +174,48 @@ export function Result({
     pallu, border, blouse — not the order SLK happened to return them.
   */
   const files = product.code
-    ? REQUIRED_SLOTS.filter((slot) => product.parts.some((p) => p.slot === slot)).map((slot) => ({
+    ? REQUIRED_SLOTS.filter((slot) =>
+        product.parts.some((p) => p.slot === slot),
+      ).map((slot) => ({
         slot,
         file: `${product.code}-${slot}.png`,
       }))
     : [];
 
   const template = TEMPLATES.find((t) => t.id === active) ?? TEMPLATES[0]!;
-  const prompt = template.live ? composePrompt(template, garment, selections, files) : "";
+  const prompt = template.live
+    ? composePrompt(template, garment, selections, files)
+    : "";
   const gaps = missingSlots(product);
   const sheetMode = selections.attachMode === "sheet";
   const [showPrompt, setShowPrompt] = useState(false);
 
   const version = template.frozen ? `v${template.frozen.version}` : "draft";
   const chosen = [
-    selections.modelSource === "photo" ? `${selections.modelType} from photo` : `${selections.modelType} · ${selections.age}`,
+    selections.modelSource === "photo"
+      ? `${selections.modelType} from photo`
+      : `${selections.modelType} · ${selections.age}`,
     selections.background,
     sheetMode ? "sheet" : "files",
   ].join(" · ");
 
-  const addOutput = useCallback(
-    (file: File) => {
-      if (!product.code) return;
-      const run: Run = {
-        id: runId(),
-        code: product.code,
-        promptId: active,
-        version,
-        prompt,
-        selections: chosen,
-        image: file,
-        at: new Date().toISOString(),
-        verdict: null,
-        note: "",
-      };
-      setRuns((prev) => [...prev, run]);
-      void addRun(run).catch(() => {});
-    },
-    [product.code, active, version, prompt, chosen],
-  );
+  function addOutput(file: File) {
+    if (!product.code) return;
+    const run: Run = {
+      id: runId(),
+      code: product.code,
+      promptId: active,
+      version,
+      prompt,
+      selections: chosen,
+      image: file,
+      at: new Date().toISOString(),
+      verdict: null,
+      note: "",
+    };
+    setRuns((prev) => [...prev, run]);
+    void addRun(run).catch(() => {});
+  }
 
   function setVerdict(id: string, verdict: Verdict) {
     setRuns((prev) => prev.map((r) => (r.id === id ? { ...r, verdict } : r)));
@@ -201,6 +240,33 @@ export function Result({
       total: mine.length,
     };
   };
+
+  // The rail's summary, recomputed whenever what it summarises changes.
+  const wordsMissing = missingWords(garment);
+  const statusKey = JSON.stringify([
+    product.parts.length,
+    wordsMissing,
+    TEMPLATES.filter((t) => t.live).map((t) => [t.id, tally(t.id)]),
+  ]);
+  useEffect(() => {
+    onStatus({
+      photos: {
+        have: REQUIRED_SLOTS.filter((s) =>
+          product.parts.some((p) => p.slot === s),
+        ).length,
+        need: REQUIRED_SLOTS.length,
+      },
+      wordsMissing,
+      prompts: TEMPLATES.filter((t) => t.live).map((t) => ({
+        id: t.id,
+        title: t.title,
+        frozen: t.frozen ? `v${t.frozen.version}` : null,
+        ...tally(t.id),
+      })),
+    });
+    // statusKey captures every input above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusKey, onStatus]);
 
   function download(href: string, name: string) {
     const a = document.createElement("a");
@@ -227,7 +293,10 @@ export function Result({
       download(url, `${product.code}-sheet.png`);
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } else {
-      download(`/api/products/${product.code}/sheet${rotQuery}`, `${product.code}-sheet.png`);
+      download(
+        `/api/products/${product.code}/sheet${rotQuery}`,
+        `${product.code}-sheet.png`,
+      );
     }
   }
 
@@ -257,29 +326,60 @@ export function Result({
 
       <section>
         <div className="flex flex-wrap items-baseline gap-x-3">
-          <h1 className="text-[22px] font-semibold tracking-tight text-ink">{product.title}</h1>
-          {product.code && <span className="text-[14px] tabular-nums text-ink-faint">{product.code}</span>}
+          <h1 className="text-[22px] font-semibold tracking-tight text-ink">
+            {product.title}
+          </h1>
+          {product.code && (
+            <span className="text-[14px] tabular-nums text-ink-faint">
+              {product.code}
+            </span>
+          )}
         </div>
 
+        {/*
+          The facts that matter to a prompt, on one line; the rest behind
+          More. Ten label-and-value pairs in a grid were a block of height
+          between the title and the photographs, for four values anyone
+          looked at.
+        */}
         {d && (
-          <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13.5px] sm:grid-cols-[auto_1fr_auto_1fr]">
+          <p className="mt-1.5 text-[13.5px] text-ink-soft">
+            {[
+              d.fibreType,
+              [d.craftTechnique, d.craftSubType].filter(Boolean).join(", "),
+              d.borderHeight && `border ${d.borderHeight}`,
+              d.blouseStyle && `${d.blouseStyle.toLowerCase()} blouse`,
+              d.audienceType && `for ${d.audienceType.toLowerCase()}`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+            <button
+              type="button"
+              onClick={() => setMoreFacts((m) => !m)}
+              aria-expanded={moreFacts}
+              className="ml-2 text-[13px] text-accent hover:underline"
+            >
+              {moreFacts ? "Less" : "More"}
+            </button>
+          </p>
+        )}
+        {d && moreFacts && (
+          <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13.5px] sm:grid-cols-[auto_1fr_auto_1fr] xl:grid-cols-[auto_1fr_auto_1fr_auto_1fr]">
             <Fact k="Design">{d.code}</Fact>
             <Fact k="Colour">{d.colour}</Fact>
             <Fact k="Motif">{d.motif}</Fact>
-            <Fact k="Fibre">{d.fibreType}</Fact>
-            <Fact k="Craft">{[d.craftTechnique, d.craftSubType].filter(Boolean).join(" · ") || null}</Fact>
             <Fact k="Weave">{d.weaveStructure}</Fact>
             <Fact k="Pallu">{d.palluMotif}</Fact>
-            <Fact k="Border">{[d.borderMotif, d.borderHeight].filter(Boolean).join(" · ") || null}</Fact>
-            <Fact k="Blouse">{[d.blouseStyle, d.blouseMotif].filter(Boolean).join(" · ") || null}</Fact>
-            <Fact k="For">{d.audienceType}</Fact>
+            <Fact k="Border">
+              {[d.borderMotif, d.borderHeight].filter(Boolean).join(" · ") ||
+                null}
+            </Fact>
+            <Fact k="Blouse">
+              {[d.blouseStyle, d.blouseMotif].filter(Boolean).join(" · ") ||
+                null}
+            </Fact>
+            <Fact k="Description">{product.description}</Fact>
           </dl>
-        )}
-
-        {product.description ? (
-          <p className="mt-4 max-w-prose text-[14.5px] leading-relaxed text-ink-soft">{product.description}</p>
-        ) : (
-          <p className="mt-4 text-[13px] text-ink-faint">No description written for this product in SLK.</p>
         )}
       </section>
 
@@ -289,46 +389,70 @@ export function Result({
             Not photographed yet: {gaps.join(", ")}.
           </p>
         )}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {/*
+          Four across the full width, each with its words underneath: what
+          the prompt will say this part looks like. A print should be readable
+          from the tile, and the caption is where a wrong colour is noticed.
+        */}
+        <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
           {REQUIRED_SLOTS.map((slot) => {
             const part = product.parts.find((p) => p.slot === slot);
+            const words = captionFor(slot, garment);
             return (
-              <figure key={slot} className="m-0">
+              <figure key={slot} className="m-0 min-w-0">
                 {part ? (
                   <button
                     type="button"
                     onClick={() => setViewing(present.indexOf(part))}
                     title="Open large"
-                    className="relative block aspect-square w-full overflow-hidden rounded-xl border border-line bg-surface transition hover:border-ink-faint focus:outline-none focus-visible:border-accent"
+                    className="relative block aspect-[4/5] w-full overflow-hidden rounded-xl border border-line bg-surface transition hover:border-ink-faint focus:outline-none focus-visible:border-accent"
                   >
                     <Image
                       src={part.src}
                       alt={part.alt}
                       fill
-                      sizes="240px"
+                      sizes="(min-width: 1024px) 25vw, 50vw"
                       className="object-cover"
-                      style={{ transform: `rotate(${rotations[slot] ?? 0}deg)` }}
+                      style={{
+                        transform: `rotate(${rotations[slot] ?? 0}deg)`,
+                      }}
                     />
                   </button>
                 ) : (
-                  <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-line bg-surface">
-                    <span className="grid h-full place-items-center text-[12px] text-ink-faint">missing</span>
+                  <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl border border-dashed border-line bg-surface">
+                    <span className="grid h-full place-items-center text-[13px] text-ink-faint">
+                      Not photographed
+                    </span>
                   </div>
                 )}
-                <figcaption className="mt-1.5 flex items-center gap-1.5 text-[13px] capitalize text-ink-soft">
-                  {slot}
-                  {(rotations[slot] ?? 0) !== 0 && (
-                    <span className="text-[11.5px] normal-case text-ink-faint">turned {rotations[slot]}°</span>
-                  )}
-                  {part && product.code && (
-                    <button
-                      type="button"
-                      onClick={() => save(slot)}
-                      className="ml-auto rounded-full border border-line px-2.5 py-0.5 text-[12px] normal-case text-ink-soft transition hover:border-ink-faint hover:text-ink"
-                    >
-                      Save
-                    </button>
-                  )}
+                <figcaption className="mt-2 min-w-0">
+                  <div className="flex items-center gap-1.5 text-[14px] font-medium capitalize text-ink">
+                    {slot}
+                    {(rotations[slot] ?? 0) !== 0 && (
+                      <span className="text-[11.5px] font-normal normal-case text-ink-faint">
+                        turned {rotations[slot]}°
+                      </span>
+                    )}
+                    {part && product.code && (
+                      <button
+                        type="button"
+                        onClick={() => save(slot)}
+                        className="ml-auto rounded-full border border-line px-2.5 py-0.5 text-[12px] font-normal normal-case text-ink-soft transition hover:border-ink-faint hover:text-ink"
+                      >
+                        Save
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-0.5 flex items-baseline gap-1.5 text-[12.5px] leading-snug text-ink-soft">
+                    {words.colour ? (
+                      <span className="shrink-0 font-medium text-ink">
+                        {words.colour}
+                      </span>
+                    ) : (
+                      <span className="shrink-0 text-turmeric">colour?</span>
+                    )}
+                    <span className="line-clamp-2 min-w-0">{words.desc}</span>
+                  </p>
                 </figcaption>
               </figure>
             );
@@ -336,7 +460,7 @@ export function Result({
         </div>
 
         {product.code && (
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="mt-5 flex flex-wrap items-center gap-3">
             {/*
               The primary button follows the choice on the left. The sheet is
               one image with BODY, PALLU, BORDER, BLOUSE printed above each
@@ -390,134 +514,167 @@ export function Result({
                 </span>
               </>
             )}
+
+            <span className="hidden h-6 w-px bg-line sm:block" aria-hidden />
+
+            <GarmentWordsPanel
+              code={product.code}
+              rotQuery={rotQuery}
+              words={garment}
+              saved={savedWords}
+              onChange={setSavedWords}
+              canDescribe={canDescribe}
+            />
           </div>
         )}
       </section>
 
-      <GarmentWordsPanel
-        code={product.code}
-        rotQuery={rotQuery}
-        words={garment}
-        saved={savedWords}
-        onChange={setSavedWords}
-        canDescribe={canDescribe}
-      />
-
-      <section>
-        {/*
+      <ReviewBoard
+        code={product.code ?? ""}
+        promptId={template.id}
+        runs={runs.filter((r) => r.promptId === template.id)}
+        onAdd={addOutput}
+        onVerdict={setVerdict}
+        onNote={setNote}
+        onRemove={removeRun}
+        prompt={
+          <>
+            {/*
           Prompt buttons carry their record: how many runs approved and
           rejected. Which prompt is trustworthy is read off the row.
         */}
-        <div className="flex flex-wrap gap-2">
-          {TEMPLATES.map((t) => {
-            const n = tally(t.id);
-            const on = active === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                disabled={!t.live}
-                onClick={() => {
-                  setActive(t.id);
-                  setShowPrompt(false);
-                }}
-                aria-pressed={on}
-                title={t.live ? t.title : "Not written yet"}
-                className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-[14px] transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                  on
-                    ? "border-accent bg-accent text-white"
-                    : "border-line bg-surface text-ink-soft hover:border-ink-faint hover:text-ink"
-                }`}
-              >
-                Prompt {t.id.slice(1)}
-                {n.total > 0 && (
-                  <span className={`text-[12px] tabular-nums ${on ? "text-white/80" : "text-ink-faint"}`}>
-                    {n.approved > 0 && `✓${n.approved}`}
-                    {n.approved > 0 && n.rejected > 0 && " "}
-                    {n.rejected > 0 && `✗${n.rejected}`}
-                    {n.approved === 0 && n.rejected === 0 && `${n.total}`}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+            <div className="flex flex-wrap gap-2">
+              {TEMPLATES.map((t) => {
+                const n = tally(t.id);
+                const on = active === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    disabled={!t.live}
+                    onClick={() => {
+                      setActive(t.id);
+                      setShowPrompt(false);
+                    }}
+                    aria-pressed={on}
+                    title={t.live ? t.title : "Not written yet"}
+                    className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-[14px] transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                      on
+                        ? "border-accent bg-accent text-white"
+                        : "border-line bg-surface text-ink-soft hover:border-ink-faint hover:text-ink"
+                    }`}
+                  >
+                    Prompt {t.id.slice(1)}
+                    {n.total > 0 && (
+                      <span
+                        className={`text-[12px] tabular-nums ${on ? "text-white/80" : "text-ink-faint"}`}
+                      >
+                        {n.approved > 0 && `✓${n.approved}`}
+                        {n.approved > 0 && n.rejected > 0 && " "}
+                        {n.rejected > 0 && `✗${n.rejected}`}
+                        {n.approved === 0 && n.rejected === 0 && `${n.total}`}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
-        {/*
+            {/*
           The prompt as a card, not a document. Its name, its status, and the
           one thing to do with it. The text itself is behind a toggle: it is
           copied, never read, and two thousand words of it were burying the
           photographs and the runs.
         */}
-        <article className="mt-4 rounded-xl border border-line bg-surface p-5">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="rounded-full bg-accent-wash px-2 py-0.5 text-[12px] font-semibold tabular-nums text-accent">
-              {template.id}
-            </span>
-            <h2 className="text-[16px] font-semibold text-ink">{template.title}</h2>
-            {template.frozen ? (
-              <span
-                title={`Approved ${template.frozen.on} on ${template.frozen.proof}. Wording does not change without a new version.`}
-                className="rounded-full border border-good/40 bg-good/10 px-2 py-0.5 text-[11.5px] font-medium tabular-nums text-good"
-              >
-                Frozen · v{template.frozen.version}
-              </span>
-            ) : (
-              <span className="rounded-full border border-line px-2 py-0.5 text-[11.5px] font-medium text-ink-faint">
-                Draft
-              </span>
-            )}
-          </div>
-          <p className="mt-1.5 text-[13.5px] text-ink-soft">{template.summary}</p>
-          <p className="mt-1 text-[12.5px] text-ink-faint">{chosen}</p>
+            <article className="mt-4 rounded-xl border border-line bg-surface p-5">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="rounded-full bg-accent-wash px-2 py-0.5 text-[12px] font-semibold tabular-nums text-accent">
+                  {template.id}
+                </span>
+                <h2 className="text-[16px] font-semibold text-ink">
+                  {template.title}
+                </h2>
+                {template.frozen ? (
+                  <span
+                    title={`Approved ${template.frozen.on} on ${template.frozen.proof}. Wording does not change without a new version.`}
+                    className="rounded-full border border-good/40 bg-good/10 px-2 py-0.5 text-[11.5px] font-medium tabular-nums text-good"
+                  >
+                    Frozen · v{template.frozen.version}
+                  </span>
+                ) : (
+                  <span className="rounded-full border border-line px-2 py-0.5 text-[11.5px] font-medium text-ink-faint">
+                    Draft
+                  </span>
+                )}
+              </div>
+              <p className="mt-1.5 text-[13.5px] text-ink-soft">
+                {template.summary}
+              </p>
+              <p className="mt-1 text-[12.5px] text-ink-faint">{chosen}</p>
 
-          {template.live && (
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <GeminiButton prompt={prompt} sheet={sheetMode ? sheet : null} />
-              <CopyButton text={prompt} />
-              <button
-                type="button"
-                onClick={() => setShowPrompt((s) => !s)}
-                aria-expanded={showPrompt}
-                className="rounded-full border border-line px-3.5 py-1.5 text-[13px] text-ink-soft transition hover:border-ink-faint hover:text-ink"
-              >
-                {showPrompt ? "Hide text" : "Show text"}
-              </button>
-              <span className="basis-full text-[12.5px] leading-relaxed text-ink-faint sm:basis-auto">
-                {sheetMode
-                  ? selections.modelSource === "photo"
-                    ? "In Gemini: Ctrl+V, attach your photo, send."
-                    : "In Gemini: Ctrl+V, then send."
-                  : "In Gemini: attach the four files, Ctrl+V, send."}
-              </span>
-            </div>
-          )}
+              {template.live && (
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <GeminiButton
+                    prompt={prompt}
+                    sheet={sheetMode ? sheet : null}
+                  />
+                  <CopyButton text={prompt} />
+                  <button
+                    type="button"
+                    onClick={() => setShowPrompt((s) => !s)}
+                    aria-expanded={showPrompt}
+                    className="rounded-full border border-line px-3.5 py-1.5 text-[13px] text-ink-soft transition hover:border-ink-faint hover:text-ink"
+                  >
+                    {showPrompt ? "Hide text" : "Show text"}
+                  </button>
+                  <span className="basis-full text-[12.5px] leading-relaxed text-ink-faint sm:basis-auto">
+                    {sheetMode
+                      ? selections.modelSource === "photo"
+                        ? "In Gemini: Ctrl+V, attach your photo, send."
+                        : "In Gemini: Ctrl+V, then send."
+                      : "In Gemini: attach the four files, Ctrl+V, send."}
+                  </span>
+                </div>
+              )}
 
-          {showPrompt && (
-            <p className="mt-4 whitespace-pre-wrap border-t border-line pt-4 text-[13px] leading-[1.7] text-ink-soft">
-              {prompt}
-            </p>
-          )}
-        </article>
-
-        <div className="mt-6">
-          <ReviewBoard
-            code={product.code ?? ""}
-            promptId={template.id}
-            runs={runs.filter((r) => r.promptId === template.id)}
-            onAdd={addOutput}
-            onVerdict={setVerdict}
-            onNote={setNote}
-            onRemove={removeRun}
-          />
-        </div>
-      </section>
+              {showPrompt && (
+                <p className="mt-4 max-h-[60vh] overflow-y-auto whitespace-pre-wrap border-t border-line pt-4 text-[13px] leading-[1.7] text-ink-soft">
+                  {prompt}
+                </p>
+              )}
+            </article>
+          </>
+        }
+      />
     </div>
   );
 }
 
+/** The caption under a photograph: its ground colour and one line of what is on it. */
+function captionFor(
+  slot: string,
+  w: GarmentWords,
+): { colour: string | null; desc: string } {
+  switch (slot) {
+    case "body":
+      return { colour: w.bodyColour, desc: w.bodyDesc };
+    case "pallu":
+      return { colour: w.palluColour, desc: w.palluDesc };
+    case "border":
+      return {
+        colour: w.borderColour,
+        desc: [w.borderDesc, w.borderWidth].filter(Boolean).join(", "),
+      };
+    case "blouse":
+      return { colour: w.blouseColour, desc: w.blouseDesc };
+    default:
+      return { colour: null, desc: "" };
+  }
+}
+
 function Fact({ k, children }: { k: string; children: React.ReactNode }) {
-  if (children === null || children === undefined || children === "") return null;
+  if (children === null || children === undefined || children === "")
+    return null;
   return (
     <>
       <dt className="text-ink-faint">{k}</dt>

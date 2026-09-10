@@ -17,6 +17,7 @@ export function ReviewBoard({
   code,
   promptId,
   runs,
+  prompt,
   onAdd,
   onVerdict,
   onNote,
@@ -26,6 +27,8 @@ export function ReviewBoard({
   promptId: string;
   /** Runs for this product and prompt, oldest first. */
   runs: Run[];
+  /** The prompt chooser and card, laid beside the runs on a wide screen. */
+  prompt: React.ReactNode;
   onAdd: (file: File) => void;
   onVerdict: (id: string, verdict: Verdict) => void;
   onNote: (id: string, note: string) => void;
@@ -53,63 +56,78 @@ export function ReviewBoard({
   const rejected = runs.filter((r) => r.verdict === "rejected").length;
   const pending = runs.length - approved - rejected;
 
+  /*
+    Two columns on a wide screen: the prompt and the drop zone on the left,
+    the runs three across on the right. Reviewing is comparing, and a single
+    column under the prompt could only ever show one output at a time.
+  */
   return (
-    <section>
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h3 className="text-[15px] font-semibold text-ink">Runs</h3>
-        <span className="text-[13px] tabular-nums text-ink-faint">
-          {runs.length === 0
-            ? "None yet for this prompt."
-            : [
-                approved > 0 && `${approved} approved`,
-                rejected > 0 && `${rejected} rejected`,
-                pending > 0 && `${pending} to judge`,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-        </span>
+    <section className="grid gap-8 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+      <div className="min-w-0 space-y-4">
+        {prompt}
+
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setOver(true);
+          }}
+          onDragLeave={() => setOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setOver(false);
+            for (const file of Array.from(e.dataTransfer.files)) {
+              if (file.type.startsWith("image/")) onAdd(file);
+            }
+          }}
+          className={`rounded-xl border-2 border-dashed px-5 py-6 text-center transition ${
+            over ? "border-accent bg-accent-wash" : "border-line bg-surface"
+          }`}
+        >
+          <p className="text-[14px] text-ink">Drop Gemini&rsquo;s output here</p>
+          <p className="mt-1 text-[12.5px] text-ink-faint">
+            Or copy the image in Gemini and paste anywhere on this page. Kept on this computer, with
+            the prompt that made it.
+          </p>
+        </div>
       </div>
 
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setOver(true);
-        }}
-        onDragLeave={() => setOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setOver(false);
-          for (const file of Array.from(e.dataTransfer.files)) {
-            if (file.type.startsWith("image/")) onAdd(file);
-          }
-        }}
-        className={`mt-3 rounded-xl border-2 border-dashed px-5 py-5 text-center transition ${
-          over ? "border-accent bg-accent-wash" : "border-line bg-surface"
-        }`}
-      >
-        <p className="text-[14px] text-ink">Drop Gemini&rsquo;s output here</p>
-        <p className="mt-1 text-[12.5px] text-ink-faint">
-          Or copy the image in Gemini and paste anywhere on this page. Kept on this computer, with the
-          prompt that made it.
-        </p>
-      </div>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h3 className="text-[15px] font-semibold text-ink">Runs</h3>
+          <span className="text-[13px] tabular-nums text-ink-faint">
+            {runs.length === 0
+              ? "None yet for this prompt."
+              : [
+                  approved > 0 && `${approved} approved`,
+                  rejected > 0 && `${rejected} rejected`,
+                  pending > 0 && `${pending} to judge`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+          </span>
+        </div>
 
-      {runs.length > 0 && (
-        <ul className="mt-4 grid gap-4 sm:grid-cols-2">
-          {[...runs].reverse().map((run, i) => (
-            <RunCard
-              key={run.id}
-              run={run}
-              index={runs.length - i}
-              code={code}
-              promptId={promptId}
-              onVerdict={onVerdict}
-              onNote={onNote}
-              onRemove={onRemove}
-            />
-          ))}
-        </ul>
-      )}
+        {runs.length > 0 ? (
+          <ul className="mt-3 grid grid-cols-2 gap-4 lg:grid-cols-3">
+            {[...runs].reverse().map((run, i) => (
+              <RunCard
+                key={run.id}
+                run={run}
+                index={runs.length - i}
+                code={code}
+                promptId={promptId}
+                onVerdict={onVerdict}
+                onNote={onNote}
+                onRemove={onRemove}
+              />
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 rounded-xl border border-dashed border-line px-5 py-10 text-center text-[13px] text-ink-faint">
+            Outputs you drop or paste appear here, newest first, with Approve and Reject.
+          </p>
+        )}
+      </div>
     </section>
   );
 }
