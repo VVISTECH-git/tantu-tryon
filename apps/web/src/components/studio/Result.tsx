@@ -2,14 +2,11 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  TEMPLATES,
-  composePrompt,
-  type GarmentWords,
-  type Selections,
-} from "@/content/promptTemplates";
+import { garmentWordsFrom, type DescribedGarment } from "@/content/garmentWords";
+import { TEMPLATES, composePrompt, type Selections } from "@/content/promptTemplates";
 import { rotationQuery, turn, type Rotations } from "@/lib/rotation";
 import { CopyButton } from "./CopyButton";
+import { GarmentWordsPanel } from "./GarmentWordsPanel";
 import { GeminiButton } from "./GeminiButton";
 import { Lightbox } from "./Lightbox";
 import { Outputs, type Output } from "./Outputs";
@@ -26,12 +23,36 @@ import { REQUIRED_SLOTS, missingSlots, type ChosenProduct } from "./types";
 export function Result({
   product,
   selections,
+  canDescribe,
 }: {
   product: ChosenProduct;
   selections: Selections;
+  /** Whether this deployment has an engine key to read the photographs with. */
+  canDescribe: boolean;
 }) {
   const [active, setActive] = useState(TEMPLATES.find((t) => t.live)?.id ?? "P1");
   const [saving, setSaving] = useState(false);
+
+  /*
+    The saree in words — described from the sheet or typed — remembered for
+    this product in this browser. SLK's record fills whatever is not here.
+  */
+  const wordsKey = `tantu:garment:${product.code ?? "upload"}`;
+  const [savedWords, setSavedWords] = useState<DescribedGarment>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(wordsKey) ?? "{}") as DescribedGarment;
+    } catch {
+      return {};
+    }
+  });
+  useEffect(() => {
+    try {
+      if (Object.keys(savedWords).length > 0) localStorage.setItem(wordsKey, JSON.stringify(savedWords));
+      else localStorage.removeItem(wordsKey);
+    } catch {
+      // Storage refused — the words still apply for this visit.
+    }
+  }, [savedWords, wordsKey]);
 
   /*
     The sheet, fetched once per product and held as a blob. The Gemini button
@@ -134,10 +155,7 @@ export function Result({
   }
 
   const d = product.design;
-  const garment: GarmentWords = {
-    fibre: d?.fibreType?.toLowerCase() ?? null,
-    type: d?.productType?.toLowerCase() ?? "saree",
-  };
+  const garment = garmentWordsFrom(d, savedWords);
 
   /*
     The files the prompt will be pasted alongside, named exactly as the
@@ -347,6 +365,15 @@ export function Result({
           </div>
         )}
       </section>
+
+      <GarmentWordsPanel
+        code={product.code}
+        rotQuery={rotQuery}
+        words={garment}
+        saved={savedWords}
+        onChange={setSavedWords}
+        canDescribe={canDescribe}
+      />
 
       <section>
         <div className="flex flex-wrap gap-2">

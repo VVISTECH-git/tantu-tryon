@@ -43,7 +43,7 @@ interface ApiProduct {
   error?: string;
 }
 
-export function Studio() {
+export function Studio({ canDescribe = false }: { canDescribe?: boolean }) {
   const [product, setProduct] = useState<ChosenProduct | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +107,7 @@ export function Studio() {
 
       <main className="min-w-0">
         {product ? (
-          <Result product={product} selections={selections} />
+          <Result product={product} selections={selections} canDescribe={canDescribe} />
         ) : (
           <div className="rounded-xl border border-dashed border-line px-6 py-16 text-center">
             <p className="text-[15px] text-ink-soft">Enter a product code to begin.</p>
