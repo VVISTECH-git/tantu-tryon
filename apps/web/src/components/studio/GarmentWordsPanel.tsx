@@ -38,6 +38,9 @@ export function GarmentWordsPanel({
 }) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // Fourteen inputs is a lot of screen between the photographs and the
+  // prompt. Closed by default; the button and the warning stay visible.
+  const [open, setOpen] = useState(false);
   const gaps = missingWords(words);
   const touched = Object.keys(saved).length > 0;
 
@@ -51,6 +54,7 @@ export function GarmentWordsPanel({
       if (!response.ok || !payload.words) throw new Error(payload.error ?? `Describe failed (${response.status}).`);
       // The engine's reading replaces SLK's words but not what a person typed.
       onChange({ ...payload.words, ...saved });
+      setOpen(true);
       setNote(`Read from the photographs by ${payload.model ?? "the engine"}. Check the colours before you copy.`);
     } catch (problem) {
       setNote(problem instanceof Error ? problem.message : "The description failed.");
@@ -98,6 +102,14 @@ export function GarmentWordsPanel({
               Back to SLK
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            className="rounded-lg border border-line bg-surface px-3 py-2 text-[13px] text-ink-soft transition hover:border-ink-faint hover:text-ink"
+          >
+            {open ? "Hide fields" : "Edit fields"}
+          </button>
         </div>
       </div>
 
@@ -108,19 +120,26 @@ export function GarmentWordsPanel({
       )}
       {note && <p className="mt-3 text-[13px] text-ink-soft">{note}</p>}
 
-      <div className="mt-4 grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-        {DESCRIBED_FIELDS.map((f) => (
-          <label key={f.key} className={`block ${f.wide ? "sm:col-span-2 lg:col-span-3" : ""}`}>
-            <span className="text-[12px] font-medium text-ink-faint">{f.label}</span>
-            <input
-              value={words[f.key] ?? ""}
-              onChange={(e) => set(f.key, e.target.value)}
-              placeholder={f.hint}
-              className="mt-1 w-full min-w-0 rounded-lg border border-line bg-surface px-3 py-1.5 text-[13.5px] text-ink outline-none placeholder:text-ink-faint/70 focus:border-accent"
-            />
-          </label>
-        ))}
-      </div>
+      {open ? (
+        <div className="mt-4 grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+          {DESCRIBED_FIELDS.map((f) => (
+            <label key={f.key} className={`block ${f.wide ? "sm:col-span-2 lg:col-span-3" : ""}`}>
+              <span className="text-[12px] font-medium text-ink-faint">{f.label}</span>
+              <input
+                value={words[f.key] ?? ""}
+                onChange={(e) => set(f.key, e.target.value)}
+                placeholder={f.hint}
+                className="mt-1 w-full min-w-0 rounded-lg border border-line bg-surface px-3 py-1.5 text-[13.5px] text-ink outline-none placeholder:text-ink-faint/70 focus:border-accent"
+              />
+            </label>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 text-[13px] text-ink-soft">
+          Body: {words.bodyColour ?? "?"} · Pallu: {words.palluColour ?? "?"}, {words.palluMotif} · Border: {words.borderColour ?? "?"}
+          {words.borderWidth ? `, ${words.borderWidth}` : ""} · Blouse: {words.blouseColour ?? "?"}
+        </p>
+      )}
     </section>
   );
 }
