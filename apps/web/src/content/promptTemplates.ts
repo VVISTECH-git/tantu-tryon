@@ -466,9 +466,25 @@ function lowerFirst(s: string): string {
   return /^(The|A|An)\b/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s;
 }
 
+const same = (a: string | null, b: string | null) => Boolean(a && b && a.trim().toLowerCase() === b.trim().toLowerCase());
+
+/**
+ * The word that tells the pallu apart from the body in the placement map.
+ *
+ * Usually its ground colour — "cream", so "never cream". When the pallu
+ * shares the body's ground (a blue saree whose pallu is blue with peacocks),
+ * "never blue" would forbid the body's own colour, so the motif does the
+ * telling instead: "never peacock-patterned".
+ */
+function palluWord(w: GarmentWords): string {
+  if (!w.palluColour) return "PALLU-print";
+  if (same(w.palluColour, w.bodyColour)) return `${w.palluMotif}-patterned`;
+  return w.palluColour;
+}
+
 /** "not cream, not pale" — every colour the body ground must not be mistaken for. */
 function notColours(w: GarmentWords): string {
-  const others = [...new Set([w.palluColour, w.blouseColour].filter((c): c is string => Boolean(c)))];
+  const others = [...new Set([w.palluColour, w.blouseColour].filter((c): c is string => Boolean(c) && !same(c, w.bodyColour)))];
   return [...others.map((c) => `not ${c}`), "not pale"].join(", ");
 }
 
@@ -484,7 +500,7 @@ function fill(text: string, p: Pronouns, w: GarmentWords, subject: string): stri
     "{type}": w.type,
     "{body_colour}": bodyColour,
     "{body_colour_cap}": capitalise(bodyColour),
-    "{pallu_colour}": w.palluColour ?? "PALLU-print",
+    "{pallu_colour}": palluWord(w),
     "{blouse_colour}": w.blouseColour ?? "BLOUSE-print",
     "{border_colour}": w.borderColour ?? "",
     "{pallu_motif}": w.palluMotif,
