@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { buildContactSheet } from "@/lib/contactSheet";
 import { QUERY_KEY, parseRotations } from "@/lib/rotation";
 import type { DescribedGarment } from "@/content/garmentWords";
@@ -15,8 +16,11 @@ export const maxDuration = 60;
  * labelled sheet by a vision model, once per product, and saved in the
  * browser with the product.
  *
- * This is the one place the Studio spends money, and it is a text call at
- * flash pricing, opt-in from a button. It needs the same key the engine uses.
+ * Three readers, tried in order, whichever keys the deployment has: Claude,
+ * then OpenAI, then Gemini. One refused key (Gemini returned 403 on the first
+ * deployment) should not leave the button dead when another key is present.
+ * This is the one place the Studio spends money: a short text call, opt-in
+ * from a button.
  */
 
 const ORDER = ["body", "pallu", "border", "blouse"] as const;
@@ -35,7 +39,7 @@ const FIELDS: (keyof DescribedGarment)[] = [
   "blouseDesc",
 ];
 
-const INSTRUCTIONS = `The attached image is a sheet of labelled photographs of ONE saree: BODY, PALLU, BORDER, BLOUSE. Read the label printed above each panel to know which part it is. Describe each fabric factually for a catalogue writer, in British English, lower case except where a proper noun needs a capital. Do not guess at anything not visible. Return ONLY this JSON object, no other text:
+const INSTRUCTIONS = `The attached image is a sheet of labelled photographs of ONE saree: BODY, PALLU, BORDER, BLOUSE. Read the label printed above each panel to know which part it is. Describe each fabric factually for a catalogue writer, in British English, lower case except where a proper noun needs a capital. Do not guess at anything not visible. Return ONLY this JSON object, no other text, no code fence:
 
 {
   "bodyColour": "one or two words: the dominant ground colour of the BODY panel, e.g. 'deep blue'",
@@ -56,9 +60,105 @@ interface Part {
   url: string;
 }
 
+interface Reader {
+  id: string;
+  configured: () => boolean;
+  /** @returns the model's text answer and which model answered. */
+  read: (sheetBase64: string) => Promise<{ text: string; model: string }>;
+}
+
+const claude: Reader = {
+  id: "claude",
+  configured: () => Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN),
+  async read(data) {
+    const model = process.env.ANTHROPIC_TEXT_MODEL || "claude-opus-5";
+    const client = new Anthropic();
+    const response = await client.beta.messages.create({
+      model,
+      max_tokens: 2048,
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      output_config: { effort: "low" },
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: "image/png", data } },
+            { type: "text", text: INSTRUCTIONS },
+          ],
+        },
+      ],
+    });
+    if (response.stop_reason === "refusal") {
+      throw new Error(`Claude declined to describe the sheet (${response.stop_details?.category ?? "no category"}).`);
+    }
+    const text = response.content
+      .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+    return { text, model: response.model };
+  },
+};
+
+const openai: Reader = {
+  id: "openai",
+  configured: () => Boolean(process.env.OPENAI_API_KEY),
+  async read(data) {
+    const model = process.env.OPENAI_TEXT_MODEL || "gpt-4.1-mini";
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+      body: JSON.stringify({
+        model,
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: INSTRUCTIONS },
+              { type: "image_url", image_url: { url: `data:image/png;base64,${data}`, detail: "high" } },
+            ],
+          },
+        ],
+      }),
+    });
+    if (!res.ok) throw new Error(`OpenAI refused the request: ${res.status} ${(await res.text()).slice(0, 300)}`);
+    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    return { text: json.choices?.[0]?.message?.content ?? "", model };
+  },
+};
+
+const gemini: Reader = {
+  id: "gemini",
+  configured: () => Boolean(process.env.GEMINI_API_KEY),
+  async read(data) {
+    // gemini-2.5-flash was retired for new keys in 2026; the API's own error
+    // named this as the replacement.
+    const model = process.env.GEMINI_TEXT_MODEL || "gemini-3.6-flash";
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: INSTRUCTIONS }, { inline_data: { mime_type: "image/png", data } }] }],
+        generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
+      }),
+    });
+    if (!res.ok) throw new Error(`Gemini refused the request: ${res.status} ${(await res.text()).slice(0, 300)}`);
+    const json = (await res.json()) as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    };
+    return { text: json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "", model };
+  },
+};
+
+// The same three keys the Studio page checks to enable the button.
+const READERS: Reader[] = [claude, openai, gemini];
+
 export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
+  const readers = READERS.filter((r) => r.configured());
+  if (readers.length === 0) {
     return Response.json(
       { error: "No engine key on this deployment, so the photographs cannot be read. Fill the words in by hand." },
       { status: 503 },
@@ -117,58 +217,39 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
   // legible without sending four megapixels to a text model.
   const sheet = await buildContactSheet(parts, { cell: 800 });
 
-  // gemini-2.5-flash was retired for new keys in 2026; the API's own error
-  // named this as the replacement.
-  const model = process.env.GEMINI_TEXT_MODEL || "gemini-3.6-flash";
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const failures: string[] = [];
+  for (const reader of readers) {
+    let answer: { text: string; model: string };
+    try {
+      answer = await reader.read(sheet.data);
+    } catch (problem) {
+      failures.push(`${reader.id}: ${problem instanceof Error ? problem.message : String(problem)}`);
+      continue;
+    }
 
-  let res: Response;
-  try {
-    res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: INSTRUCTIONS }, { inline_data: { mime_type: "image/png", data: sheet.data } }],
-          },
-        ],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
-      }),
-    });
-  } catch {
-    return Response.json({ error: "Could not reach Gemini." }, { status: 502 });
+    let raw: Record<string, unknown>;
+    try {
+      raw = JSON.parse(answer.text.replace(/^```(?:json)?\s*|\s*```$/g, "")) as Record<string, unknown>;
+    } catch {
+      failures.push(`${reader.id}: did not return the fields as JSON.`);
+      continue;
+    }
+
+    // Only the fields asked for, only as trimmed strings, colours lower-cased,
+    // the pallu end capitalised because it opens sentences in the prompt.
+    const words: DescribedGarment = {};
+    for (const key of FIELDS) {
+      const value = raw[key];
+      if (typeof value !== "string" || !value.trim()) continue;
+      let v = value.trim().replace(/\.$/, "");
+      if (key.endsWith("Colour")) v = v.toLowerCase();
+      if (key === "palluEndDesc") v = v.charAt(0).toUpperCase() + v.slice(1);
+      if (key === "palluTopDesc") v = v.charAt(0).toLowerCase() + v.slice(1);
+      words[key] = v;
+    }
+
+    return Response.json({ words, model: answer.model, reader: reader.id }, { headers: { "Cache-Control": "no-store" } });
   }
 
-  if (!res.ok) {
-    const text = await res.text();
-    return Response.json({ error: `Gemini refused the request: ${res.status} ${text.slice(0, 300)}` }, { status: 502 });
-  }
-
-  const json = (await res.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  };
-  const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
-
-  let raw: Record<string, unknown>;
-  try {
-    raw = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, "")) as Record<string, unknown>;
-  } catch {
-    return Response.json({ error: "Gemini did not return the fields as JSON." }, { status: 502 });
-  }
-
-  // Only the fields asked for, only as trimmed strings, colours lower-cased,
-  // the pallu end capitalised because it opens sentences in the prompt.
-  const words: DescribedGarment = {};
-  for (const key of FIELDS) {
-    const value = raw[key];
-    if (typeof value !== "string" || !value.trim()) continue;
-    let v = value.trim().replace(/\.$/, "");
-    if (key.endsWith("Colour")) v = v.toLowerCase();
-    if (key === "palluEndDesc") v = v.charAt(0).toUpperCase() + v.slice(1);
-    if (key === "palluTopDesc") v = v.charAt(0).toLowerCase() + v.slice(1);
-    words[key] = v;
-  }
-
-  return Response.json({ words, model }, { headers: { "Cache-Control": "no-store" } });
+  return Response.json({ error: failures.join(" · ") }, { status: 502 });
 }
