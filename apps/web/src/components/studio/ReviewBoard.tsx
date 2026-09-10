@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Run, Verdict } from "@/lib/runs";
 
 /**
@@ -131,22 +131,16 @@ function RunCard({
   onNote: (id: string, note: string) => void;
   onRemove: (id: string) => void;
 }) {
-  // One object URL per card, for as long as the card is on screen.
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    const u = URL.createObjectURL(run.image);
-    const raf = requestAnimationFrame(() => setUrl(u));
-    return () => {
-      cancelAnimationFrame(raf);
-      URL.revokeObjectURL(u);
-    };
-  }, [run.image]);
+  // One object URL per card, made as the card renders and released when it
+  // goes. Not set from a frame callback: a background tab never gets one,
+  // and a card that waits for it shows nothing.
+  const url = useMemo(() => URL.createObjectURL(run.image), [run.image]);
+  useEffect(() => () => URL.revokeObjectURL(url), [url]);
 
   const [note, setNote] = useState(run.note);
   const dirty = note !== run.note;
 
   function save() {
-    if (!url) return;
     const a = document.createElement("a");
     a.href = url;
     a.download = `${code}-${promptId}-${index}.${run.image.type === "image/jpeg" ? "jpg" : "png"}`;
@@ -164,12 +158,10 @@ function RunCard({
 
   return (
     <li className={`m-0 list-none overflow-hidden rounded-xl border bg-surface ${tone}`}>
-      <a href={url ?? undefined} target="_blank" rel="noopener" title="Open full size" className="block">
+      <a href={url} target="_blank" rel="noopener" title="Open full size" className="block">
         <div className="relative aspect-[4/5] w-full bg-surface-3">
-          {url && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={url} alt={`${promptId} run ${index}`} className="h-full w-full object-cover" />
-          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={url} alt={`${promptId} run ${index}`} className="h-full w-full object-cover" />
         </div>
       </a>
 
