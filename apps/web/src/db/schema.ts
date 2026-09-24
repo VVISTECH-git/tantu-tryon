@@ -95,8 +95,16 @@ export const creditLedger = pgTable(
   ],
 );
 
+/** What the free check at upload made of one photograph. */
+export interface PartQuality {
+  /** ok · warn · block — block means the tile asks for a retake before Generate. */
+  status: "ok" | "warn" | "block";
+  reasons: { code: string; level: "warn" | "block"; message: string }[];
+  metrics: { sharpness: number; brightness: number; dark: number; bright: number; width: number; height: number };
+}
+
 export interface GarmentPartRow {
-  /** body · pallu · border · blouse · full-drape · weave */
+  /** body · pallu · border · blouse · body_motif · pallu_motif · whole · saree (one flat photo) · full-drape · weave */
   slot: string;
   /** Our R2 key when uploaded here; null when the photograph is SLK's. */
   key: string | null;
@@ -106,6 +114,8 @@ export interface GarmentPartRow {
   height: number | null;
   /** Quarter turns applied before use. */
   rotate: 0 | 90 | 180 | 270;
+  /** Set for photographs uploaded here; SLK's photographs carry none. */
+  quality?: PartQuality;
 }
 
 export interface GarmentAnswers {
@@ -136,6 +146,10 @@ export const garments = pgTable(
       .references(() => accounts.id),
     /** slk · upload */
     source: text().notNull(),
+    /** saree today; the dropdown's other values once their prompts are proven. */
+    garmentType: text().notNull().default("saree"),
+    /** unstitched · stitched_top · bottom · set — decides the shot list. */
+    family: text().notNull().default("unstitched"),
     productCode: text(),
     title: text().notNull(),
     description: text(),

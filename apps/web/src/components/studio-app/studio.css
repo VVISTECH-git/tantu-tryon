@@ -324,3 +324,46 @@
 }
 .st-select:focus-visible { outline: 2px solid rgba(240, 141, 66, 0.6); outline-offset: 2px; }
 .st-select-chevron { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--st-text-soft); pointer-events: none; }
+
+/* ── Shot list: one tile per photograph the garment type asks for ── */
+.st-shots { display: grid; gap: 10px; width: 100%; }
+.st-shot { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: start; padding: 10px; border-radius: 18px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--st-border); text-align: left; }
+.st-shot--blocked { border-color: rgba(227, 73, 73, 0.5); }
+.st-shot--warned { border-color: rgba(224, 162, 58, 0.45); }
+.st-shot-thumb { position: relative; width: 64px; height: 84px; padding: 0; border-radius: 12px; overflow: hidden; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--st-border); display: grid; place-items: center; color: var(--st-text-muted); font-size: 24px; font-family: inherit; cursor: pointer; }
+.st-shot-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.st-shot-busy { position: absolute; inset: 0; background: rgba(15, 15, 16, 0.6); }
+.st-shot-busy::after { content: ""; position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 999px; border: 2px solid rgba(255, 255, 255, 0.25); border-top-color: var(--st-accent-strong); animation: st-spin 0.9s linear infinite; }
+@keyframes st-spin { to { transform: rotate(360deg); } }
+.st-shot-body { display: grid; gap: 5px; min-width: 0; }
+.st-shot-name { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+.st-shot-how { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--st-text-muted); font-size: 12px; line-height: 1.35; }
+.st-shot-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.st-shot-how-link { font-size: 12px; margin-left: 2px; }
+.st-tag { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+.st-tag--required { color: #ffd9c2; background: rgba(219, 113, 36, 0.22); }
+.st-tag--optional { color: var(--st-text-muted); background: rgba(255, 255, 255, 0.06); }
+
+/* Which way to hold the phone: a small phone outline, upright or on its side. */
+.st-ori { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--st-text); padding: 1px 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); white-space: nowrap; }
+.st-ori i { display: inline-block; border: 1.5px solid currentColor; border-radius: 2px; }
+.st-ori--upright i { width: 7px; height: 11px; }
+.st-ori--sideways i { width: 11px; height: 7px; }
+.st-ori--large { font-size: 13px; padding: 4px 12px; gap: 8px; }
+.st-ori--large.st-ori--upright i { width: 12px; height: 20px; border-width: 2px; }
+.st-ori--large.st-ori--sideways i { width: 20px; height: 12px; border-width: 2px; }
+
+/* The free quality check's verdict on a tile. */
+.st-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
+.st-check-dot { width: 9px; height: 9px; border-radius: 999px; display: inline-block; background: currentColor; }
+.st-check--ok { color: #8fe0b6; }
+.st-check--warn { color: #f4cf7c; }
+.st-check--block { color: #ff9f99; }
+.st-check-copy { margin: 0; font-size: 12px; color: var(--st-text-soft); line-height: 1.4; }
+
+/* The "How" sheet for one shot. */
+.st-how { display: grid; justify-items: center; gap: 8px; text-align: center; }
+.st-how-where { margin: 0; font-size: 15px; font-weight: 600; }
+.st-how-copy { margin: 0; font-size: 14px; color: var(--st-text-soft); line-height: 1.5; text-align: left; }
+.st-how-note { margin: 0; font-size: 12px; color: var(--st-text-muted); }
+.st-shots-status { margin: 0; font-size: 13px; color: var(--st-text-soft); text-align: center; }

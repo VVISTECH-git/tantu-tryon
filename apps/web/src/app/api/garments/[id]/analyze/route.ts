@@ -1,5 +1,6 @@
 import { describeSheet } from "@/lib/describe";
-import { getGarment, isReady, publicGarment, sheetFor, updateGarment, wordsFor } from "@/lib/garments";
+import { getGarment, isReady, missingSlots, publicGarment, sheetFor, updateGarment, wordsFor } from "@/lib/garments";
+import { shotFor } from "@/content/shots";
 import { requireAccount, unauthorised } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -8,10 +9,13 @@ export const maxDuration = 60;
 /**
  * "Analyzing your garment."
  *
- * Reads the photographs into words with a vision model and looks at the
- * photograph itself for the things that make a saree render badly: a
- * landscape flat lay (pallu probably not at the bottom) or only a close-up.
- * The words a person already typed are kept; the reader fills the gaps.
+ * Reads the photographs into words with a vision model. For the older
+ * one-flat-photo path it also looks at the photograph itself for the things
+ * that make a saree render badly: a landscape flat lay (pallu probably not
+ * at the bottom) or only a close-up. Rod shots carry their own quality check
+ * from upload, and those results are repeated here so the confirm screen
+ * can show them. The words a person already typed are kept; the reader fills
+ * the gaps.
  */
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -20,10 +24,16 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     const garment = await getGarment(id, account.id);
     if (!garment) return Response.json({ error: "No such garment." }, { status: 404 });
     if (!isReady(garment)) {
-      return Response.json({ error: "Upload the saree photograph first." }, { status: 422 });
+      const missing = missingSlots(garment).map((slot) => shotFor(garment.garmentType, slot)?.label ?? slot);
+      return Response.json({ error: `Add these photos first: ${missing.join(", ")}.` }, { status: 422 });
     }
 
     const warnings: { title: string; body: string }[] = [];
+    for (const part of garment.parts) {
+      if (!part.quality || part.quality.status !== "warn") continue;
+      const label = shotFor(garment.garmentType, part.slot)?.label ?? part.slot;
+      warnings.push({ title: `${label} photo could be better.`, body: part.quality.reasons.map((r) => r.message).join(" ") });
+    }
     const flat = garment.parts.find((p) => p.slot === "saree");
     if (flat && flat.width && flat.height && flat.width > flat.height) {
       warnings.push({
@@ -59,7 +69,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       : garment;
 
     return Response.json(
-      { garment: publicGarment(updated), words: wordsFor(updated), warnings, model, readerError, garmentType: "saree" },
+      { garment: publicGarment(updated), words: wordsFor(updated), warnings, model, readerError, garmentType: updated.garmentType },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

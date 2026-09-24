@@ -1,4 +1,4 @@
-import type { GenerationLook } from "@/db";
+import type { GenerationLook, PartQuality } from "@/db";
 import { loadImageFile } from "@/lib/image";
 import type { GarmentView, RunView } from "./types";
 
@@ -10,17 +10,25 @@ async function json<T>(response: Response): Promise<T> {
   return payload;
 }
 
-export async function uploadPart(file: File, slot: string, garmentId: string | null): Promise<GarmentView> {
-  // Resize in the browser: a 40 MP phone photograph becomes a ~1600px JPEG,
-  // upright and small enough for any server limit.
-  const loaded = await loadImageFile(file, 1600);
+export interface UploadResult {
+  garment: GarmentView;
+  quality: PartQuality;
+  /** Required slots still missing or blocked. */
+  missing: string[];
+}
+
+export async function uploadPart(file: File, slot: string, garmentId: string | null, type: string): Promise<UploadResult> {
+  // Resize in the browser: a 40 MP phone photograph becomes a ~2000px JPEG,
+  // upright and small enough for any server limit, still big enough for a
+  // 1000px sheet cell.
+  const loaded = await loadImageFile(file, 2000);
   const blob = await (await fetch(loaded.dataUrl)).blob();
   const form = new FormData();
   form.set("file", blob, "part.jpg");
   form.set("slot", slot);
+  form.set("type", type);
   if (garmentId) form.set("garmentId", garmentId);
-  const { garment } = await json<{ garment: GarmentView }>(await fetch("/api/garments/upload", { method: "POST", body: form }));
-  return garment;
+  return json<UploadResult>(await fetch("/api/garments/upload", { method: "POST", body: form }));
 }
 
 export async function getGarment(id: string): Promise<{ garment: GarmentView; words: Record<string, string | null> }> {

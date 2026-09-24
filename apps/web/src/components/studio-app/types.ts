@@ -6,6 +6,8 @@ export interface GarmentView {
   title: string;
   productCode: string | null;
   source: string;
+  garmentType: string;
+  family: string;
   design: Record<string, string | null> | null;
   words: Record<string, string>;
   answers: GarmentAnswers & { borders?: boolean; bordersIdentical?: boolean };
@@ -18,6 +20,8 @@ export function toView(garment: Garment): GarmentView {
     title: garment.title,
     productCode: garment.productCode,
     source: garment.source,
+    garmentType: garment.garmentType,
+    family: garment.family,
     design: garment.design ?? null,
     words: garment.words,
     answers: garment.answers,
@@ -49,6 +53,7 @@ export type Screen =
   | "splash"
   | "entry"
   | "upload"
+  | "shots"
   | "analyzing"
   | "confirm"
   | "details"

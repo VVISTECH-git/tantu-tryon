@@ -4,7 +4,10 @@
 import { useEffect, useRef, useState } from "react";
 import { CREDIT_PAISE, QUALITY_LABEL, rupees, type Quality } from "@/content/credits";
 import { ADULT_AGES, BACKGROUNDS, CHILD_AGES, MODEL_TYPES, TEMPLATES, type ModelType } from "@/content/promptTemplates";
+import { DEFAULT_GARMENT_TYPE, garmentType as typeOf, requiredSlots, shotFor, type Shot } from "@/content/shots";
+import type { PartQuality } from "@/db";
 import { ConfirmModal, Question, TipsModal, YesNo } from "./screens";
+import { GarmentTypeSelect, ShotHowModal, ShotList, type ShotTile } from "./ShotList";
 import { T } from "./texts";
 import { POSE_TILES } from "./types";
 
@@ -22,6 +25,7 @@ import { POSE_TILES } from "./types";
 type Screen =
   | "splash"
   | "upload"
+  | "shots"
   | "analyzing"
   | "confirm"
   | "details"
@@ -36,7 +40,10 @@ type Screen =
   | "posesGenerating"
   | "gallery";
 
-type ModalKind = null | "tips" | "restart" | "regenerate" | "regeneratePose" | "viewer";
+type ModalKind = null | "tips" | "how" | "restart" | "regenerate" | "regeneratePose" | "viewer";
+
+/** The demo has no server, so a picked photo is simply "looks good". */
+const DEMO_OK: PartQuality = { status: "ok", reasons: [], metrics: { sharpness: 0, brightness: 0, dark: 0, bright: 0, width: 0, height: 0 } };
 
 interface Answers {
   borders: boolean;
@@ -70,7 +77,10 @@ const POSE_PHOTOS = ["/splash/b_1.jpg", "/splash/b_2.jpg", "/splash/b_3.jpg", "/
 export function StudioDemo() {
   const [screen, setScreen] = useState<Screen>("splash");
   const [stack, setStack] = useState<Screen[]>([]);
-  const [pending, setPending] = useState<{ preview: string } | null>(null);
+  const [garmentType, setGarmentType] = useState<string>(DEFAULT_GARMENT_TYPE);
+  const [tiles, setTiles] = useState<ShotTile[]>([]);
+  const [howShot, setHowShot] = useState<Shot | null>(null);
+  const activeSlot = useRef<string>("body");
   const [answers, setAnswers] = useState<Answers>({ borders: true, bordersIdentical: false, blouseSame: true });
   const [look, setLook] = useState<Look>({ modelType: "woman", age: "mid-20s", background: BACKGROUNDS[0]!.id, quality: "high" });
   const [balance, setBalance] = useState(4000);
@@ -82,6 +92,7 @@ export function StudioDemo() {
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [modal, setModal] = useState<ModalKind>(null);
   const [tipIndex, setTipIndex] = useState(0);
+  const cameraInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -99,7 +110,7 @@ export function StudioDemo() {
     });
   }
   function resetAll() {
-    setPending(null);
+    setTiles([]);
     setPrimaryDone(false);
     setPrimaryRating(null);
     setSelectedPoses(new Set());
@@ -115,16 +126,33 @@ export function StudioDemo() {
     return () => clearTimeout(t);
   }, [screen]);
 
-  function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
+  function openPicker(shot: Shot, camera: boolean) {
+    activeSlot.current = shot.slot;
+    (camera ? cameraInput : fileInput).current?.click();
+  }
+
+  function pickShot(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    // Picking a photo goes straight into analysing — the reference has no
-    // in-between "here's your photo, press Continue" step.
-    setPending({ preview: URL.createObjectURL(file) });
+    const slot = activeSlot.current;
+    const tile: ShotTile = { slot, url: URL.createObjectURL(file), quality: DEMO_OK };
+    setTiles((all) => [...all.filter((t) => t.slot !== slot), tile]);
+  }
+
+  function clearShot(slot: string) {
+    setTiles((all) => all.filter((t) => t.slot !== slot));
+  }
+
+  function analyzeNow() {
     go("analyzing");
     timer.current = setTimeout(() => setScreen("confirm"), 1400);
   }
+
+  const required = requiredSlots(garmentType);
+  const missing = required.filter((slot) => !tiles.some((t) => t.slot === slot));
+  const label = (slot: string) => shotFor(garmentType, slot)?.label ?? slot;
+  const flat = tiles.find((t) => t.slot === "body") ?? tiles[0];
 
   function generatePrimary() {
     if (balance < CREDIT_PAISE[look.quality]) return;
@@ -232,8 +260,12 @@ export function StudioDemo() {
                   <h1 className="st-title">{T.upload.title}</h1>
                   <p className="st-copy" style={{ marginTop: 6 }}>{T.upload.copy}</p>
                 </div>
-                <input ref={fileInput} type="file" accept="image/*" hidden onChange={pickFile} />
-                <div className="st-grow" style={{ width: "100%", minHeight: "52vh" }}>
+                <div className="st-stack" style={{ width: "100%", gap: 8 }}>
+                  <span className="st-section-title" style={{ margin: 0 }}>{T.upload.typeLabel}</span>
+                  <GarmentTypeSelect value={garmentType} onChange={setGarmentType} />
+                  <p className="st-support" style={{ margin: 0 }}>{T.upload.typeHelp}</p>
+                </div>
+                <div className="st-grow" style={{ width: "100%", minHeight: "30vh" }}>
                   <div className="st-callout">
                     {T.upload.calloutPrefix}{" "}
                     <button
@@ -248,24 +280,47 @@ export function StudioDemo() {
                     </button>{" "}
                     {T.upload.calloutSuffix}
                   </div>
-                  <button type="button" className="st-action" style={{ maxWidth: 360 }} onClick={() => fileInput.current?.click()}>{T.upload.dropzone}</button>
+                  <button type="button" className="st-action" style={{ maxWidth: 360 }} onClick={() => go("shots")}>{T.upload.dropzone}</button>
                   <p className="st-support">{T.upload.dropzoneCopy}</p>
                 </div>
               </div>
             )}
 
+            {screen === "shots" && (
+              <div className="st-stack">
+                <h1 className="st-title">{T.shots.title(typeOf(garmentType).label)}</h1>
+                <p className="st-copy">{T.shots.copy}</p>
+                <p className="st-shots-status">{T.shots.progress(required.length - missing.length, required.length)}</p>
+                <ShotList
+                  type={garmentType}
+                  tiles={tiles}
+                  busySlot={null}
+                  onCamera={(shot) => openPicker(shot, true)}
+                  onUpload={(shot) => openPicker(shot, false)}
+                  onHow={(shot) => { setHowShot(shot); setModal("how"); }}
+                  onClear={(shot) => clearShot(shot.slot)}
+                />
+                <p className="st-support">{T.shots.support}</p>
+                <button type="button" className="st-action" disabled={missing.length > 0} onClick={analyzeNow}>
+                  {missing.length > 0 ? T.shots.continueMissing(missing.map(label)) : T.common.continue}
+                </button>
+              </div>
+            )}
+
+            <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={pickShot} />
+            <input ref={fileInput} type="file" accept="image/*" hidden onChange={pickShot} />
             {screen === "analyzing" && <FullSpinner text={T.confirm.analyzing} sub={T.confirm.analyzingMobile} />}
 
             {screen === "confirm" && (
               <div className="st-stack">
                 <h1 className="st-title">{T.confirm.title}</h1>
                 <p className="st-copy">{T.confirm.copy}</p>
-                {pending && (
+                {flat?.url && (
                   <div className="st-frame st-frame--contain" style={{ maxHeight: 280 }}>
-                    <img src={pending.preview} alt="Garment" />
+                    <img src={flat.url} alt="Garment" />
                   </div>
                 )}
-<GarmentTypeSelect />
+                <GarmentTypeSelect value={garmentType} onChange={() => undefined} />
                 <button type="button" className="st-action" onClick={() => go("details")}>{T.confirm.continue}</button>
               </div>
             )}
@@ -291,25 +346,17 @@ export function StudioDemo() {
               <div className="st-stack">
                 <h1 className="st-title">{T.flats.title}</h1>
                 <p className="st-copy">{T.flats.copy}</p>
-                {(["blouse", "pallu", "border"] as const).map((slot) => {
-                  if (slot === "blouse" && answers.blouseSame) return null;
-                  const item = T.flats.items[slot];
-                  return (
-                    <div key={slot} className="st-thumb-card">
-                      <div className="st-thumb">
-                        <span className="st-thumb-empty">{T.flats.empty}</span>
-                      </div>
-                      <div className="st-stack" style={{ gap: 6 }}>
-                        <div className="st-tile-top">
-                          <span className="st-tile-label" style={{ fontSize: 14 }}>{item.label}</span>
-                          <span className="st-badge st-badge--soft">{T.flats.optional}</span>
-                        </div>
-                        <span className="st-tile-help" style={{ fontSize: 12 }}>{item.help}</span>
-                        <button type="button" className="st-chip st-chip--accent" style={{ width: "fit-content" }}>{T.flats.upload}</button>
-                      </div>
-                    </div>
-                  );
-                })}
+                <ShotList
+                  type={garmentType}
+                  tiles={tiles}
+                  busySlot={null}
+                  optionalOnly
+                  hideBlouse={answers.blouseSame}
+                  onCamera={(shot) => openPicker(shot, true)}
+                  onUpload={(shot) => openPicker(shot, false)}
+                  onHow={(shot) => { setHowShot(shot); setModal("how"); }}
+                  onClear={(shot) => clearShot(shot.slot)}
+                />
                 <button type="button" className="st-action" onClick={() => go("model")}>{T.common.continue}</button>
               </div>
             )}
@@ -588,6 +635,7 @@ export function StudioDemo() {
       </div>
 
       {modal === "tips" && <TipsModal index={tipIndex} onIndex={setTipIndex} onClose={() => setModal(null)} />}
+      {modal === "how" && howShot && <ShotHowModal shot={howShot} onClose={() => setModal(null)} />}
       {modal === "restart" && (
         <ConfirmModal icon="👗" title={T.generate.restartTitle} message={T.generate.restartMessage} confirm={T.generate.restartButton} onConfirm={resetAll} onClose={() => setModal(null)} />
       )}
@@ -733,48 +781,3 @@ function TantuMark({ size }: { size: number }) {
   );
 }
 
-/** Every garment type the reference lists, grouped. Only Saree works today. */
-const GARMENT_TYPES = {
-  Women: [
-    { value: "saree", label: "Saree", enabled: true },
-    { value: "stitched_kurta", label: "Women's Stitched Kurta", enabled: false },
-    { value: "unstitched_kurta", label: "Women's Unstitched Kurta", enabled: false },
-    { value: "womens_dress", label: "Women's Western Dress", enabled: false },
-    { value: "womens_top", label: "Women's Top", enabled: false },
-    { value: "womens_tee", label: "Women's Tee", enabled: false },
-    { value: "womens_bra", label: "Women's Bra", enabled: false },
-    { value: "womens_briefs", label: "Women's Briefs", enabled: false },
-    { value: "womens_sleepwear", label: "Women's Sleepwear", enabled: false },
-    { value: "womens_lehenga", label: "Women's Lehenga / Indian Bridal", enabled: false },
-  ],
-  Men: [
-    { value: "mens_tee", label: "Men's Tee", enabled: false },
-    { value: "mens_shirt", label: "Men's Shirt", enabled: false },
-    { value: "mens_kurta", label: "Men's Kurta", enabled: false },
-  ],
-  Kids: [
-    { value: "kids_western_wear", label: "Kids Western Wear", enabled: false },
-    { value: "kids_indian_ethnic", label: "Kids Indian Ethnic", enabled: false },
-  ],
-} as const;
-
-function GarmentTypeSelect() {
-  return (
-    <div style={{ position: "relative", width: "100%" }}>
-      <select className="st-select" defaultValue="saree" onChange={(e) => { if (e.target.value !== "saree") e.target.value = "saree"; }}>
-        {Object.entries(GARMENT_TYPES).map(([group, options]) => (
-          <optgroup key={group} label={group}>
-            {options.map((o) => (
-              <option key={o.value} value={o.value} disabled={!o.enabled}>
-                {o.label}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
-      <span className="st-select-chevron" aria-hidden>
-        <svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
-      </span>
-    </div>
-  );
-}
