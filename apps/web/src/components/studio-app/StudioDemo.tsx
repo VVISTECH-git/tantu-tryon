@@ -104,7 +104,7 @@ export function StudioDemo() {
 const SPLASH_SHOTS = [
   "https://pub-344134bc87ed4d1b8a06ac24789cf1da.r2.dev/products/f0e2cc26-f9f1-4398-9989-afc99227c741/ad698475-7c31-4d4e-88d3-1da2f1f0b3e7-1790216109752.jpg",
   "https://pub-344134bc87ed4d1b8a06ac24789cf1da.r2.dev/products/f0e2cc26-f9f1-4398-9989-afc99227c741/cced55d9-4e96-4400-9572-76e028b514a9-1790216073146.jpg",
-  "/poses/saree/SAR-P15/master-reference.png",
+  "/splash/b_3.jpg",
   "https://pub-344134bc87ed4d1b8a06ac24789cf1da.r2.dev/products/f0e2cc26-f9f1-4398-9989-afc99227c741/5eb42d28-e31e-4515-969d-ad9946c990ed-1790216096763.jpg",
   "https://pub-344134bc87ed4d1b8a06ac24789cf1da.r2.dev/products/f0e2cc26-f9f1-4398-9989-afc99227c741/b783d2e8-630b-4b5b-b479-a326071ae91f-1790216063370.jpg",
 ];
