@@ -12,6 +12,9 @@ allowBuilds:
   '@embedded-postgres/darwin-x64': false
   '@embedded-postgres/darwin-arm64': false
   '@embedded-postgres/windows-arm64': false
+  '@embedded-postgres/linux-arm': false
+  '@embedded-postgres/linux-ia32': false
+  '@embedded-postgres/linux-ppc64': false
   # the bundler tsx, vitest and drizzle-kit run on
   esbuild: true
   # eslint's native resolver; nothing at runtime depends on it
