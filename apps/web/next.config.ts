@@ -21,12 +21,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  experimental: {
-    serverActions: {
-      // Reference photographs go up as base64 in the request body.
-      bodySizeLimit: "32mb",
-    },
-  },
 };
 
 export default nextConfig;

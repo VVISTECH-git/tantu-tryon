@@ -99,6 +99,8 @@ export function Studio({ canDescribe = false }: { canDescribe?: boolean }) {
     to sit in a band down the middle of a wide monitor: the rail keeps its
     size and the results take everything else.
   */
+  // Result is keyed by product below: its state initialisers read that
+  // product's saved words and turns, and must not carry the last product's in.
   return (
     <div className="grid gap-10 px-6 py-8 lg:grid-cols-[280px_minmax(0,1fr)] lg:px-8 2xl:px-12">
       <aside className="lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto">
@@ -115,7 +117,7 @@ export function Studio({ canDescribe = false }: { canDescribe?: boolean }) {
 
       <main className="min-w-0">
         {product ? (
-          <Result product={product} selections={selections} canDescribe={canDescribe} onStatus={setStatus} />
+          <Result key={product.code ?? "upload"} product={product} selections={selections} canDescribe={canDescribe} onStatus={setStatus} />
         ) : (
           <div className="rounded-xl border border-dashed border-line px-6 py-16 text-center">
             <p className="text-[15px] text-ink-soft">Enter a product code to begin.</p>

@@ -1,5 +1,12 @@
 # Tantu build order
 
+> **2026-09-24.** Stages 5–8 below describe generation inside the app. That was
+> paused (see [`studio-prompts/README.md`](studio-prompts/README.md): prompts
+> composed here, generated in Gemini chat by hand) and has now resumed as the
+> guided flow at `/app`: labelled parts → look → one Gemini call per pose →
+> review, behind credits and hard spend caps. The frozen v2 prompts are the
+> wording that flow sends. Stage 8's "pay" step is still to come.
+
 Agreed sequence. The ordering is the point — several stages exist to stop us
 building a large amount of work on top of an unproven assumption.
 

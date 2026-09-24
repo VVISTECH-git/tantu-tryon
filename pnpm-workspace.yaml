@@ -3,5 +3,8 @@ packages:
   - "packages/*"
 
 allowBuilds:
+  # local dev database and the bundler tsx/vitest/drizzle-kit run on
+  '@embedded-postgres/windows-x64': true
+  esbuild: true
   # eslint's native resolver; nothing at runtime depends on it
   unrs-resolver: false

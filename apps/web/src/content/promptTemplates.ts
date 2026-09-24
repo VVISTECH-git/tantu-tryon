@@ -400,6 +400,8 @@ const PART_WORDS: Record<string, (type: string) => string> = {
   border: () => "the border, the narrow decorated strip that runs along the long edges and the hem",
   blouse: () => "the blouse piece, the fabric for the fitted top",
   "full-drape": (t) => `the whole ${t} laid out`,
+  // A single flat photograph as the guided flow asks for it: body above, pallu below.
+  saree: (t) => `the whole ${t} laid flat, with the ${t} body in the upper part of the photograph and the pallu in the lower part, both long borders visible along the sides`,
   weave: () => "a close-up of the weave",
 };
 
