@@ -552,7 +552,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                 onHow={(shot) => { setHowShot(shot); setModal("how"); }}
                 onClear={(shot) => void clearShot(shot.slot)}
               />
-              <button type="button" className="st-action" disabled={busy || busySlot !== null} onClick={() => go("background")}>
+              <button type="button" className="st-action" disabled={busy || busySlot !== null} onClick={() => go("output")}>
                 {T.common.continue}
               </button>
             </div>
