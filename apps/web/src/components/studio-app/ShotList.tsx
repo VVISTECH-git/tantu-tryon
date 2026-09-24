@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- thumbnails of the merchant's own uploads, shown at tile size. */
 
+import { useState } from "react";
 import type { PartQuality } from "@/db";
 import { garmentTypeGroups, shotsFor, type Orientation, type Shot } from "@/content/shots";
 import { Modal } from "./screens";
@@ -37,12 +38,25 @@ interface ShotListProps {
 }
 
 export function ShotList({ type, tiles, busySlot, optionalOnly, hideBlouse, onCamera, onUpload, onHow, onClear }: ShotListProps) {
+  // Optional shots start folded into a row of chips so the required ones
+  // get the screen; a chip opens its tile, and a tile with a photo stays open.
+  const [opened, setOpened] = useState<Set<string>>(() => new Set());
   let shots = shotsFor(type);
   if (optionalOnly) shots = shots.filter((s) => !s.required);
   if (hideBlouse) shots = shots.filter((s) => s.slot !== "blouse");
+  const hasPhoto = (slot: string) => Boolean(tiles.find((t) => t.slot === slot)?.url);
+  const visible = shots.filter((s) => s.required || hasPhoto(s.slot) || opened.has(s.slot));
+  const folded = shots.filter((s) => !visible.includes(s));
+  const open = (slot: string) => setOpened((prev) => new Set(prev).add(slot));
+  const fold = (slot: string) =>
+    setOpened((prev) => {
+      const next = new Set(prev);
+      next.delete(slot);
+      return next;
+    });
   return (
     <div className="st-shots">
-      {shots.map((shot) => {
+      {visible.map((shot) => {
         const tile = tiles.find((t) => t.slot === shot.slot);
         const quality = tile?.quality ?? null;
         const state = quality?.status ?? (tile?.url ? "ok" : null);
@@ -110,11 +124,28 @@ export function ShotList({ type, tiles, busySlot, optionalOnly, hideBlouse, onCa
                 <button type="button" className="st-link st-shot-how-link" onClick={() => onHow(shot)}>
                   {T.shots.how}
                 </button>
+                {!shot.required && !tile?.url && opened.has(shot.slot) && (
+                  <button type="button" className="st-link st-shot-how-link" onClick={() => fold(shot.slot)}>
+                    {T.shots.hide}
+                  </button>
+                )}
               </div>
             </div>
           </div>
         );
       })}
+      {folded.length > 0 && (
+        <div className="st-shot-more">
+          <span className="st-shot-more-label">{T.shots.moreLabel}</span>
+          <div className="st-shot-more-chips">
+            {folded.map((shot) => (
+              <button type="button" key={shot.slot} className="st-chip st-shot-more-chip" onClick={() => open(shot.slot)}>
+                <span aria-hidden>+</span> {shot.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

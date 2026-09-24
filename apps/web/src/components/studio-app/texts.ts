@@ -69,6 +69,8 @@ export const T = {
     continueMissing: (labels: string[]) => `Continue · add ${labels.join(" and ")} first`,
     continueRetake: (labels: string[]) => `Continue · retake ${labels.join(" and ")} first`,
     support: "Camera opens the phone camera. Upload picks a photo already on the phone.",
+    moreLabel: "Optional. Add the ones this saree has:",
+    hide: "Hide",
     uploading: "Checking the photo…",
   },
   confirm: {
