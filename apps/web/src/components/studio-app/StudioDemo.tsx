@@ -7,7 +7,7 @@ import { ADULT_AGES, BACKGROUNDS, CHILD_AGES, MODEL_TYPES, TEMPLATES, type Model
 import { DEFAULT_GARMENT_TYPE, garmentType as typeOf, requiredSlots, shotFor, type Shot } from "@/content/shots";
 import type { PartQuality } from "@/db";
 import { ConfirmModal, Question, TipsModal, YesNo } from "./screens";
-import { GarmentTypeSelect, ShotHowModal, ShotList, type ShotTile } from "./ShotList";
+import { GarmentTypeSelect, ShotHowModal, ShotList, ShotStrip, type ShotTile } from "./ShotList";
 import { T } from "./texts";
 import { POSE_TILES } from "./types";
 
@@ -152,7 +152,6 @@ export function StudioDemo() {
   const required = requiredSlots(garmentType);
   const missing = required.filter((slot) => !tiles.some((t) => t.slot === slot));
   const label = (slot: string) => shotFor(garmentType, slot)?.label ?? slot;
-  const flat = tiles.find((t) => t.slot === "body") ?? tiles[0];
 
   function generatePrimary() {
     if (balance < CREDIT_PAISE[look.quality]) return;
@@ -314,12 +313,8 @@ export function StudioDemo() {
             {screen === "confirm" && (
               <div className="st-stack">
                 <h1 className="st-title">{T.confirm.title}</h1>
-                <p className="st-copy">{T.confirm.copy}</p>
-                {flat?.url && (
-                  <div className="st-frame st-frame--contain" style={{ maxHeight: 280 }}>
-                    <img src={flat.url} alt="Garment" />
-                  </div>
-                )}
+                <p className="st-copy">{T.confirm.copy(typeOf(garmentType).label, tiles.length)}</p>
+                <ShotStrip type={garmentType} tiles={tiles} onEdit={() => setScreen("shots")} />
                 <GarmentTypeSelect value={garmentType} onChange={() => undefined} />
                 <button type="button" className="st-action" onClick={() => go("details")}>{T.confirm.continue}</button>
               </div>

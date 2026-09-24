@@ -375,3 +375,15 @@
 .st-how-photo--upright { aspect-ratio: 3 / 4; max-height: 44vh; }
 .st-how-photo--sideways { aspect-ratio: 4 / 3; }
 .st-how-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Confirm screen: the uploaded photographs in a row, each with its verdict. */
+.st-strip { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 6px; scrollbar-width: none; }
+.st-strip::-webkit-scrollbar { display: none; }
+.st-strip-item { flex: 0 0 auto; display: grid; gap: 6px; justify-items: center; padding: 0; border: 0; background: transparent; color: var(--st-text-soft); font: inherit; font-size: 11px; cursor: pointer; }
+.st-strip-thumb { position: relative; width: 86px; height: 112px; border-radius: 14px; overflow: hidden; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--st-border); display: grid; place-items: center; font-size: 26px; color: var(--st-text-muted); }
+.st-strip-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.st-strip-thumb.is-warn { border-color: rgba(224, 162, 58, 0.6); }
+.st-strip-thumb.is-block { border-color: rgba(227, 73, 73, 0.7); }
+.st-strip-dot { position: absolute; right: 6px; top: 6px; width: 10px; height: 10px; border-radius: 999px; background: currentColor; box-shadow: 0 0 0 2px rgba(15, 15, 16, 0.9); }
+.st-strip-label { white-space: nowrap; }
+.st-strip-item--add .st-strip-thumb { border-style: dashed; }
