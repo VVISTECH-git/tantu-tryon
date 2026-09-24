@@ -126,6 +126,12 @@ export function SiteHeader() {
         >
           Open the Studio
         </Link>
+        <Link
+          href="/new-studio"
+          className="hidden rounded-full border border-madder px-5 py-2.5 text-[15px] font-medium text-madder transition hover:bg-madder hover:text-white lg:block"
+        >
+          New Studio
+        </Link>
 
         <button
           type="button"
@@ -169,6 +175,12 @@ export function SiteHeader() {
             className="mt-3 block rounded-full bg-accent px-5 py-3 text-center text-[16px] font-medium text-white"
           >
             Open the Studio
+          </Link>
+          <Link
+            href="/new-studio"
+            className="mt-2 block rounded-full border border-madder px-5 py-3 text-center text-[16px] font-medium text-madder"
+          >
+            New Studio
           </Link>
         </div>
       )}

@@ -59,7 +59,6 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   const [regenTarget, setRegenTarget] = useState<RunView | null>(null);
   const [editingWords, setEditingWords] = useState(false);
   const [myImages, setMyImages] = useState<RunView[] | null>(null);
-  const [lang, setLang] = useState<"en" | "hi">("en");
   const [code, setCode] = useState("");
   const [showCode, setShowCode] = useState(false);
   const restored = useRef(false);
@@ -446,15 +445,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
             </div>
           </div>
           <div className="st-header-actions">
-            <div className="st-lang" role="group" aria-label="Language">
-              <button type="button" className={lang === "en" ? "is-active" : ""} onClick={() => setLang("en")}>
-                English
-              </button>
-              <span>/</span>
-              <button type="button" className={lang === "hi" ? "is-active" : ""} onClick={() => setLang("hi")} title="हिन्दी जल्द आ रही है">
-                हिन्दी
-              </button>
-            </div>
+            <span className="st-status-chip">{T.status.trial}</span>
             <button type="button" className="st-icon-button st-icon-button--profile" onClick={() => go("profile")} aria-label={T.profile.title}>
               <svg viewBox="0 0 24 24" aria-hidden>
                 <circle cx="12" cy="8" r="3.6" />
@@ -467,7 +458,6 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
 
         {!splash && (
         <main className="st-main">
-          {lang === "hi" && <p className="st-support st-support--important">हिन्दी जल्द आ रही है। अभी अंग्रेज़ी में जारी रखें।</p>}
           {error && <p className="st-error">{error}</p>}
 
           {screen === "entry" && (

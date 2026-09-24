@@ -4,6 +4,9 @@ export const runtime = "nodejs";
 
 /** The passcode in, a session cookie out. Ten wrong tries in a quarter hour and the address waits. */
 export async function POST(request: Request) {
+  if (!process.env.DATABASE_URL && !process.env.POSTGRES_URL) {
+    return Response.json({ error: "The studio is not connected to its database yet." }, { status: 503 });
+  }
   let passcode = "";
   try {
     passcode = String(((await request.json()) as { passcode?: unknown }).passcode ?? "");

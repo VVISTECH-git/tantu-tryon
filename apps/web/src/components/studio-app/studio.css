@@ -99,10 +99,7 @@
 .st-icon-button--profile::after { content: ""; position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 999px; background: var(--st-accent-strong); }
 .st-icon-button svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
-.st-lang { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.06); font-size: 12px; }
-.st-lang button { padding: 0; border: 0; background: transparent; color: var(--st-text-soft); font: inherit; cursor: pointer; }
-.st-lang button.is-active { color: var(--st-text); text-decoration: underline; text-underline-offset: 2px; }
-.st-lang span { color: var(--st-text-muted); }
+.st-status-chip { display: inline-flex; align-items: center; min-height: 30px; padding: 0 10px; border-radius: 999px; font-size: 11px; font-weight: 500; color: var(--st-accent-pale); background: rgba(219, 113, 36, 0.14); border: 1px solid rgba(219, 113, 36, 0.2); }
 
 /* ── Main ── */
 .st-main { min-height: 0; padding: 22px 20px 18px; display: grid; align-content: start; gap: 16px; }
@@ -281,3 +278,7 @@
   .st-splash-shot { width: 120px; }
   .st-splash-shot:nth-child(3) { width: 176px; margin-left: -88px; }
 }
+
+/* Footer with three chips in a row, as the signed-in upload screen shows it. */
+.st-footer-chip--buy { color: #f8ebdf; background: linear-gradient(180deg, rgba(74, 40, 22, 0.9), rgba(52, 28, 16, 0.95)); border-color: rgba(219, 113, 36, 0.3); font-weight: 600; }
+.st-footer-chip--gallery { color: #efe7ff; background: rgba(84, 100, 214, 0.16); border-color: rgba(84, 100, 214, 0.26); }

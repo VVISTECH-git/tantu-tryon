@@ -2,12 +2,12 @@
  * Every word on the studio screens, in one place.
  *
  * Written to read like the competitor's app, because that is what this is
- * judged against, with Tantu's name where theirs was. Hindi is a second
- * column waiting to be filled; the switch is already on the header.
+ * judged against, with Tantu's name where theirs was.
  */
 export const T = {
   header: { back: "Back", newGarment: "Start new garment", appLabel: "Try-On" },
   splash: { name: "Tantu", tagline: "AI Studio for Fashion Brands" },
+  status: { trial: "Trial" },
   entry: {
     title: "Your AI Fashion Shoot Studio",
     copy: "Transform garment photos into premium model catalog shoots in seconds.",
