@@ -37,7 +37,7 @@ type ModalKind = null | "tips" | "restart" | "regenerate" | "regeneratePose" | "
 const KIDS: ModelType[] = ["girl", "boy"];
 
 export function StudioApp({ account, balancePaise: initialBalance, canDescribe }: Props) {
-  const [screen, setScreen] = useState<Screen>("entry");
+  const [screen, setScreen] = useState<Screen>("splash");
   const [stack, setStack] = useState<Screen[]>([]);
   const [garment, setGarment] = useState<GarmentView | null>(null);
   const [words, setWords] = useState<Record<string, string | null>>({});
@@ -105,7 +105,9 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     const s = params.get("s") as Screen | null;
     if (!g) {
       restored.current = true;
-      return;
+      // The splash, then the studio. A tap skips the wait.
+      const timer = setTimeout(() => setScreen((current) => (current === "splash" ? "entry" : current)), 2200);
+      return () => clearTimeout(timer);
     }
     void (async () => {
       try {
@@ -387,6 +389,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   const flat = garment?.parts.find((p) => p.slot === "saree") ?? garment?.parts.find((p) => p.slot === "body");
   const livePoses = useMemo(() => TEMPLATES.filter((t) => t.live && t.id !== PRIMARY_PROMPT), []);
   const showBack = screen !== "entry" && stack.length > 0 && !["analyzing", "generating", "posesGenerating"].includes(screen);
+  const splash = screen === "splash";
   const gallery = poseRuns;
   const current = gallery[Math.min(galleryIndex, Math.max(0, gallery.length - 1))];
 
@@ -395,6 +398,23 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   return (
     <div className="st">
       <div className="st-shell">
+        {splash && (
+          <div className="st-splash" onClick={() => setScreen("entry")} role="button" aria-label="Enter the studio">
+            <div className="st-splash-brand">
+              <TantuMark />
+              <h1 className="st-splash-name">{T.splash.name}</h1>
+              <p className="st-splash-tagline">{T.splash.tagline}</p>
+            </div>
+            <div className="st-splash-shots" aria-hidden>
+              {SPLASH_SHOTS.map((src, i) => (
+                <div key={i} className="st-splash-shot">
+                  <img src={src} alt="" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {!splash && (
         <header className="st-header">
           <div className="st-header-main">
             {showBack && (
@@ -437,7 +457,9 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
             </button>
           </div>
         </header>
+        )}
 
+        {!splash && (
         <main className="st-main">
           {lang === "hi" && <p className="st-support st-support--important">हिन्दी जल्द आ रही है। अभी अंग्रेज़ी में जारी रखें।</p>}
           {error && <p className="st-error">{error}</p>}
@@ -991,7 +1013,9 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
             </div>
           )}
         </main>
+        )}
 
+        {!splash && (
         <footer className="st-footer">
           <div className="st-footer-row">
             <button type="button" className="st-footer-chip st-footer-chip--balance" onClick={() => go("profile")}>
@@ -1005,6 +1029,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
             {T.footer.buy}
           </button>
         </footer>
+        )}
       </div>
 
       {modal === "tips" && <TipsModal index={tipIndex} onIndex={setTipIndex} onClose={() => setModal(null)} />}
@@ -1133,4 +1158,37 @@ function swatch(id: string): string {
     default:
       return "linear-gradient(180deg, #c9d8b5 0%, #6f7d5c 100%)";
   }
+}
+
+
+/**
+ * The five shots on the splash. Until the first approved renders exist they
+ * are the pose reference and SLK's own photographs of 300010; swap in real
+ * catalogue images here as they are approved.
+ */
+const SPLASH_SHOTS = [
+  "https://pub-344134bc87ed4d1b8a06ac24789cf1da.r2.dev/products/f0e2cc26-f9f1-4398-9989-afc99227c741/ad698475-7c31-4d4e-88d3-1da2f1f0b3e7-1790216109752.jpg",
+  "https://pub-344134bc87ed4d1b8a06ac24789cf1da.r2.dev/products/f0e2cc26-f9f1-4398-9989-afc99227c741/cced55d9-4e96-4400-9572-76e028b514a9-1790216073146.jpg",
+  "/poses/saree/SAR-P15/master-reference.png",
+  "https://pub-344134bc87ed4d1b8a06ac24789cf1da.r2.dev/products/f0e2cc26-f9f1-4398-9989-afc99227c741/5eb42d28-e31e-4515-969d-ad9946c990ed-1790216096763.jpg",
+  "https://pub-344134bc87ed4d1b8a06ac24789cf1da.r2.dev/products/f0e2cc26-f9f1-4398-9989-afc99227c741/b783d2e8-630b-4b5b-b479-a326071ae91f-1790216063370.jpg",
+];
+
+/** Tantu's mark: a thread looping into a T, in the studio's orange, with a spark. */
+function TantuMark() {
+  return (
+    <svg className="st-splash-mark" viewBox="0 0 96 96" aria-hidden>
+      <defs>
+        <linearGradient id="tantu-mark" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#f6a15a" />
+          <stop offset="1" stopColor="#db7124" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M22 30 H74 a6 6 0 0 1 0 12 H56 V64 a10 10 0 0 1 -20 0 V54 a6 6 0 0 1 12 0 v8 a2 2 0 0 0 4 0 V42 H22 a6 6 0 0 1 0 -12 Z"
+        fill="url(#tantu-mark)"
+      />
+      <path d="M78 12 l2.6 6.4 L87 21 l-6.4 2.6 L78 30 l-2.6 -6.4 L69 21 l6.4 -2.6 Z" fill="#f4efe6" />
+    </svg>
+  );
 }

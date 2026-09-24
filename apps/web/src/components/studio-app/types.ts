@@ -46,6 +46,7 @@ export interface RunView {
 }
 
 export type Screen =
+  | "splash"
   | "entry"
   | "upload"
   | "analyzing"

@@ -7,6 +7,7 @@
  */
 export const T = {
   header: { back: "Back", newGarment: "Start new garment", appLabel: "Try-On" },
+  splash: { name: "Tantu", tagline: "AI Studio for Fashion Brands" },
   entry: {
     title: "Your AI Fashion Shoot Studio",
     copy: "Transform garment photos into premium model catalog shoots in seconds.",
