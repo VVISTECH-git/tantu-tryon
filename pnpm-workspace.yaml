@@ -3,8 +3,19 @@ packages:
   - "packages/*"
 
 allowBuilds:
-  # local dev database and the bundler tsx/vitest/drizzle-kit run on
+  # The local dev database ships a Postgres binary per platform. Only the
+  # machine that runs `pnpm dev:db` needs it built; every other platform is
+  # named so pnpm 11 does not stop the install over an unlisted script.
   '@embedded-postgres/windows-x64': true
+  '@embedded-postgres/linux-x64': false
+  '@embedded-postgres/linux-arm64': false
+  '@embedded-postgres/darwin-x64': false
+  '@embedded-postgres/darwin-arm64': false
+  '@embedded-postgres/windows-arm64': false
+  '@embedded-postgres/linux-arm': false
+  '@embedded-postgres/linux-ia32': false
+  '@embedded-postgres/linux-ppc64': false
+  # the bundler tsx, vitest and drizzle-kit run on
   esbuild: true
   # eslint's native resolver; nothing at runtime depends on it
   unrs-resolver: false
