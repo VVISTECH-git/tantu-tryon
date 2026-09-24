@@ -56,7 +56,6 @@ export type Screen =
   | "shots"
   | "analyzing"
   | "confirm"
-  | "details"
   | "flats"
   | "model"
   | "background"

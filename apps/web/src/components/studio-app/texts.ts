@@ -77,6 +77,8 @@ export const T = {
     title: "Confirm your photos",
     copy: (type: string, n: number) => `${n === 1 ? "1 photo" : `${n} photos`} of a ${type.toLowerCase()}. Tap a photo to change it. The type you chose is below; change it if it is wrong, it affects the result.`,
     addMore: "Add more",
+    readFromPhotos: "Read from your photos:",
+    noWords: "The photos could not be read yet. The render will use what it sees; you can still type the colours with Edit.",
     analyzing: "Analyzing your garment. This may take a few seconds.",
     analyzingMobile: "Keep this screen open and your phone unlocked.",
     preparing: "Preparing garment details. This may take a few seconds.",

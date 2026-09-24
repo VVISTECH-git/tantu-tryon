@@ -1,5 +1,5 @@
 import type { GarmentAnswers, GarmentPartRow } from "@/db";
-import { getGarment, publicGarment, updateGarment, wordsFor } from "@/lib/garments";
+import { blouseAnswer, getGarment, publicGarment, updateGarment, wordsFor } from "@/lib/garments";
 import { requireAccount, unauthorised } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -64,6 +64,7 @@ export async function PATCH(request: Request, { params }: Params) {
           return deg === 0 || deg === 90 || deg === 180 || deg === 270 ? { ...p, rotate: deg } : p;
         });
       next.parts = parts;
+      if (patch.removeSlots?.length) next.answers = blouseAnswer(garment, parts);
     }
 
     const updated = await updateGarment(id, next);

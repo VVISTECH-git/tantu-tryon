@@ -95,11 +95,22 @@ export async function addUploadedPart(
   const key = await saveUpload(garment.id, slot, bytes, mime);
   const part: GarmentPartRow = { slot, key, url: assetUrl(key), width: size.width, height: size.height, rotate: 0, ...(quality ? { quality } : {}) };
   const parts = [...garment.parts.filter((p) => p.slot !== slot), part];
-  return updateGarment(garment.id, { parts });
+  return updateGarment(garment.id, { parts, answers: blouseAnswer(garment, parts) });
 }
 
 export async function removePart(garment: Garment, slot: string): Promise<Garment> {
-  return updateGarment(garment.id, { parts: garment.parts.filter((p) => p.slot !== slot) });
+  const parts = garment.parts.filter((p) => p.slot !== slot);
+  return updateGarment(garment.id, { parts, answers: blouseAnswer(garment, parts) });
+}
+
+/**
+ * Whether the blouse is the body fabric, read from the photographs rather
+ * than asked: a blouse-piece photo means a separate fabric; none means we
+ * make a matching blouse. SLK garments keep the answer their design record gave.
+ */
+export function blouseAnswer(garment: Garment, parts: GarmentPartRow[]): Garment["answers"] {
+  if (garment.source !== "upload") return garment.answers;
+  return { ...garment.answers, blouseSameAsBody: !parts.some((p) => p.slot === "blouse") };
 }
 
 export async function getGarment(id: string, accountId: string): Promise<Garment | null> {
