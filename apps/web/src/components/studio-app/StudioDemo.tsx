@@ -328,7 +328,7 @@ export function StudioDemo() {
                   onClear={(shot) => clearShot(shot.slot)}
                 />
                 <button type="button" className="st-action" disabled={balance < CREDIT_PAISE[look.quality]} onClick={generatePrimary}>
-                  {T.generate.action} · {rupees(CREDIT_PAISE[look.quality])}
+                  {T.generate.action}
                 </button>
               </div>
             )}
