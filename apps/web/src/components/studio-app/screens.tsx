@@ -139,9 +139,9 @@ export function TipsModal({ index, onIndex, onClose }: { index: number; onIndex:
  * photographs (public/tips), never anyone else's.
  */
 const TIP_OVERLAYS: Record<number, { body?: string; pallu?: string }> = {
-  0: { body: "8%", pallu: "52%" },
-  1: { body: "8%", pallu: "32%" },
-  2: { body: "4%", pallu: "50%" },
+  0: { body: "8%", pallu: "68%" },
+  1: { body: "8%", pallu: "57%" },
+  2: { body: "6%", pallu: "42%" },
 };
 
 function TipDiagram({ index }: { index: number }) {
