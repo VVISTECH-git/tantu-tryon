@@ -559,7 +559,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                 disabled={busy || busySlot !== null || balance < CREDIT_PAISE[look.quality]}
                 onClick={() => void generatePrimary()}
               >
-                {T.generate.action} · {rupees(CREDIT_PAISE[look.quality])}
+                {T.generate.action}
               </button>
             </div>
           )}
