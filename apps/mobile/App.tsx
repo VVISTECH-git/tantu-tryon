@@ -26,7 +26,7 @@ import { C, R } from "./src/theme";
  * phone adds the camera and keeps working when the shop's network is slow.
  */
 
-type Screen = "boot" | "signin" | "type" | "shots" | "analyzing" | "confirm" | "flats" | "generating" | "result";
+type Screen = "splash" | "signin" | "type" | "shots" | "analyzing" | "confirm" | "flats" | "generating" | "result";
 
 const LONG_SIDE = 2000;
 
@@ -39,7 +39,7 @@ export default function App() {
 }
 
 function Studio() {
-  const [screen, setScreen] = useState<Screen>("boot");
+  const [screen, setScreen] = useState<Screen>("splash");
   const [passcode, setPasscode] = useState("");
   const [balance, setBalance] = useState<number | null>(null);
   const [garmentType, setGarmentType] = useState(DEFAULT_GARMENT_TYPE);
@@ -54,20 +54,37 @@ function Studio() {
   const [opened, setOpened] = useState<Set<string>>(() => new Set());
   const batch = useRef(api.newKey());
 
-  // Boot: a stored session skips the passcode.
+  // Splash for at least 2.2s (same as the web studio), while a stored
+  // session is checked in the background; whichever finishes last decides
+  // when the splash gives way to sign-in or straight into the studio.
   useEffect(() => {
+    if (screen !== "splash") return;
+    let target: Screen | null = null;
+    let timerDone = false;
+    const finish = () => {
+      if (target && timerDone) setScreen(target);
+    };
+    const timer = setTimeout(() => {
+      timerDone = true;
+      finish();
+    }, 2200);
     void (async () => {
       const token = await api.loadToken();
-      if (!token) return setScreen("signin");
+      if (!token) {
+        target = "signin";
+        return finish();
+      }
       try {
         const me = await api.account();
         setBalance(me.balancePaise);
-        setScreen("type");
+        target = "type";
       } catch {
-        setScreen("signin");
+        target = "signin";
       }
+      finish();
     })();
-  }, []);
+    return () => clearTimeout(timer);
+  }, [screen]);
 
   async function signIn() {
     if (!passcode.trim()) return;
@@ -226,7 +243,7 @@ function Studio() {
   return (
     <SafeAreaView style={s.page} edges={["top", "bottom"]}>
       <StatusBar style="light" />
-      {screen !== "boot" && screen !== "signin" && (
+      {screen !== "splash" && screen !== "signin" && (
         <View style={s.header}>
           <Text style={s.brand}>
             Tantu <Text style={s.brandSub}>Try-On</Text>
@@ -240,7 +257,15 @@ function Studio() {
       <ScrollView contentContainerStyle={s.main} keyboardShouldPersistTaps="handled">
         {error && <Text style={s.error}>{error}</Text>}
 
-        {screen === "boot" && <Spinner text="Opening the studio…" />}
+        {screen === "splash" && (
+          <Pressable style={s.splash} onPress={() => setScreen("signin")}>
+            <View style={s.splashMark}>
+              <Text style={s.splashMarkGlyph}>T</Text>
+            </View>
+            <Text style={s.splashName}>Tantu</Text>
+            <Text style={s.splashTagline}>AI Studio for Fashion Brands</Text>
+          </Pressable>
+        )}
 
         {screen === "signin" && (
           <View style={s.stack}>
@@ -684,4 +709,9 @@ const s = StyleSheet.create({
   howPhotoSideways: { width: "70%", aspectRatio: 4 / 3, borderRadius: R.md },
   howWhere: { color: C.text, fontSize: 15, fontWeight: "600", textAlign: "center" },
   howCopy: { color: C.textSoft, fontSize: 14, lineHeight: 20 },
+  splash: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, paddingBottom: 60 },
+  splashMark: { width: 84, height: 84, borderRadius: 22, backgroundColor: C.actionTop, alignItems: "center", justifyContent: "center" },
+  splashMarkGlyph: { color: "#fff8f1", fontSize: 40, fontWeight: "800" },
+  splashName: { color: C.text, fontSize: 40, fontWeight: "700", letterSpacing: -0.5 },
+  splashTagline: { color: C.textSoft, fontSize: 18, fontWeight: "600" },
 });
