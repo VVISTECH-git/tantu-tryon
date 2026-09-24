@@ -43,7 +43,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   const [busySlot, setBusySlot] = useState<string | null>(null);
   const [howShot, setHowShot] = useState<Shot | null>(null);
   const activeSlot = useRef<string>("body");
-  const [look, setLook] = useState<GenerationLook>({ modelType: "woman", age: "mid-20s", background: "courtyard", quality: "standard" });
+  const [look, setLook] = useState<GenerationLook>({ modelType: "woman", age: "late 20s", background: "courtyard", quality: "standard" });
   const [batch, setBatch] = useState<string>(() => (typeof crypto !== "undefined" ? crypto.randomUUID() : String(Date.now())));
   const [primary, setPrimary] = useState<RunView | null>(null);
   const [poseRuns, setPoseRuns] = useState<RunView[]>([]);
@@ -635,7 +635,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                 onHow={(shot) => { setHowShot(shot); setModal("how"); }}
                 onClear={(shot) => void clearShot(shot.slot)}
               />
-              <button type="button" className="st-action" disabled={busy || busySlot !== null} onClick={() => go("model")}>
+              <button type="button" className="st-action" disabled={busy || busySlot !== null} onClick={() => go("background")}>
                 {T.common.continue}
               </button>
             </div>
