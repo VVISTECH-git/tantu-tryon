@@ -150,12 +150,12 @@ function TipDiagram({ index }: { index: number }) {
     <>
       <img src={`/tips/t${index + 1}.jpg`} alt="" />
       {overlay?.body && (
-        <span style={{ position: "absolute", left: 14, top: overlay.body }}>
+        <span style={{ position: "absolute", right: 14, top: overlay.body }}>
           <Label>{T.upload.overlayBody}</Label>
         </span>
       )}
       {overlay?.pallu && (
-        <span style={{ position: "absolute", left: 14, top: overlay.pallu }}>
+        <span style={{ position: "absolute", right: 14, top: overlay.pallu }}>
           <Label>{T.upload.overlayPallu}</Label>
         </span>
       )}
