@@ -24,6 +24,8 @@ export async function POST(request: Request) {
   }
 
   const account = await sharedAccount();
-  await startSession(account.id);
-  return Response.json({ ok: true, account: { id: account.id, name: account.name } });
+  const token = await startSession(account.id);
+  // Only a client that cannot keep the cookie gets the token in the body.
+  const mobile = request.headers.get("x-tantu-client") === "mobile";
+  return Response.json({ ok: true, account: { id: account.id, name: account.name }, ...(mobile ? { token } : {}) });
 }

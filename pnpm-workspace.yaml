@@ -19,3 +19,13 @@ allowBuilds:
   esbuild: true
   # eslint's native resolver; nothing at runtime depends on it
   unrs-resolver: false
+
+minimumReleaseAgeExclude:
+  - '@expo/cli@57.0.27'
+  - '@expo/router-server@57.0.11'
+  - babel-preset-expo@57.0.13
+  - expo-image-manipulator@57.0.20
+  - expo-image-picker@57.0.20
+  - expo-modules-core@57.0.19
+  - expo-modules-jsi@57.1.1
+  - expo@57.0.25

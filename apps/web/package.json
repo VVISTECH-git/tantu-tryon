@@ -24,7 +24,8 @@
     "postgres": "^3.4.9",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "sharp": "^0.35.4"
+    "sharp": "^0.35.4",
+    "@tantu/shared": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

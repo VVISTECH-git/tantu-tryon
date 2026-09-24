@@ -16,7 +16,7 @@ const PUBLIC_API = [/^\/api\/auth\//, /^\/api\/poses\//, /^\/api\/products\/\d+$
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const signedIn = Boolean(request.cookies.get(COOKIE)?.value);
+  const signedIn = Boolean(request.cookies.get(COOKIE)?.value) || /^bearer /i.test(request.headers.get("authorization") ?? "");
   if (signedIn) return NextResponse.next();
 
   if (pathname.startsWith("/api/")) {

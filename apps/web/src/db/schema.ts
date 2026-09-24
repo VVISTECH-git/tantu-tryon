@@ -95,13 +95,9 @@ export const creditLedger = pgTable(
   ],
 );
 
-/** What the free check at upload made of one photograph. */
-export interface PartQuality {
-  /** ok · warn · block — block means the tile asks for a retake before Generate. */
-  status: "ok" | "warn" | "block";
-  reasons: { code: string; level: "warn" | "block"; message: string }[];
-  metrics: { sharpness: number; brightness: number; dark: number; bright: number; width: number; height: number };
-}
+/** What the free check at upload made of one photograph; the shape the phone reads too. */
+export type { PartQuality } from "@tantu/shared/views";
+import type { PartQuality } from "@tantu/shared/views";
 
 export interface GarmentPartRow {
   /** body · pallu · border · blouse · body_motif · pallu_motif · whole · saree (one flat photo) · full-drape · weave */

@@ -1,0 +1,67 @@
+# Codemagic builds for the Tantu phone app (apps/mobile, Expo).
+#
+# One workflow, Android, producing an installable APK for the shop's phones
+# and an AAB for the Play Store. It runs Expo's prebuild to generate the
+# native project on the build machine, so no android/ folder is committed.
+#
+# Before the first run, in Codemagic → the app → Environment variables, add
+# a group called `tantu_android` with:
+#   CM_KEYSTORE           the release keystore, base64 (Codemagic's
+#                         "Code signing identities" page can generate one)
+#   CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS, CM_KEY_PASSWORD
+#   EXPO_PUBLIC_API_BASE  https://tantu-tryon.vercel.app
+workflows:
+  tantu-android:
+    name: Tantu · Android
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      groups:
+        - tantu_android
+      node: 22.14.0
+      java: 17
+      vars:
+        PACKAGE_NAME: "com.vvistech.tantu"
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Install pnpm and dependencies
+        script: |
+          corepack enable
+          corepack prepare pnpm@11.24.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Generate the native Android project
+        script: |
+          cd apps/mobile
+          npx expo prebuild --platform android --no-install --clean
+      - name: Set up release signing
+        script: |
+          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/apps/mobile/android/app/release.keystore"
+          cat >> "$CM_BUILD_DIR/apps/mobile/android/gradle.properties" <<EOF
+          TANTU_UPLOAD_STORE_FILE=release.keystore
+          TANTU_UPLOAD_STORE_PASSWORD=$CM_KEYSTORE_PASSWORD
+          TANTU_UPLOAD_KEY_ALIAS=$CM_KEY_ALIAS
+          TANTU_UPLOAD_KEY_PASSWORD=$CM_KEY_PASSWORD
+          EOF
+          # Point the release build at the keystore instead of Expo's debug one.
+          sed -i 's/signingConfig signingConfigs.debug/signingConfig signingConfigs.release/' apps/mobile/android/app/build.gradle
+          sed -i '/signingConfigs {/a\        release {\n            storeFile file(TANTU_UPLOAD_STORE_FILE)\n            storePassword TANTU_UPLOAD_STORE_PASSWORD\n            keyAlias TANTU_UPLOAD_KEY_ALIAS\n            keyPassword TANTU_UPLOAD_KEY_PASSWORD\n        }' apps/mobile/android/app/build.gradle
+      - name: Build APK and AAB
+        script: |
+          cd apps/mobile/android
+          ./gradlew assembleRelease bundleRelease --no-daemon
+    artifacts:
+      - apps/mobile/android/app/build/outputs/apk/release/*.apk
+      - apps/mobile/android/app/build/outputs/bundle/release/*.aab
+    publishing:
+      email:
+        recipients:
+          - bhanuboddu09@gmail.com
+        notify:
+          success: true
+          failure: true
