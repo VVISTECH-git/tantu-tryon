@@ -8,7 +8,10 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.vvistech.tantu"
+      "bundleIdentifier": "com.vvistech.tantu",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +21,10 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.vvistech.tantu"
+      "package": "com.vvistech.tantu",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,7 +47,11 @@
       "expo-secure-store"
     ],
     "extra": {
-      "apiBase": "https://tantu-tryon.vercel.app"
-    }
+      "apiBase": "https://tantu-tryon.vercel.app",
+      "eas": {
+        "projectId": "3227338a-3c05-4287-ad4b-955be94e269a"
+      }
+    },
+    "owner": "vvistechs-team"
   }
 }

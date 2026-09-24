@@ -1,0 +1,20 @@
+{
+  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "ios": { "simulator": false },
+      "android": { "buildType": "apk" },
+      "env": { "EXPO_PUBLIC_API_BASE": "https://tantu-tryon.vercel.app" }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": { "EXPO_PUBLIC_API_BASE": "https://tantu-tryon.vercel.app" }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": { "appleTeamId": "4M469N5493", "ascAppId": "6815720463" }
+    }
+  }
+}
