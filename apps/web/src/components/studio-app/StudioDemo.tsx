@@ -21,7 +21,6 @@ import { POSE_TILES } from "./types";
 
 type Screen =
   | "splash"
-  | "entry"
   | "upload"
   | "analyzing"
   | "confirm"
@@ -112,7 +111,7 @@ export function StudioDemo() {
 
   useEffect(() => {
     if (screen !== "splash") return;
-    const t = setTimeout(() => setScreen((c) => (c === "splash" ? "entry" : c)), 2200);
+    const t = setTimeout(() => setScreen((c) => (c === "splash" ? "upload" : c)), 2200);
     return () => clearTimeout(t);
   }, [screen]);
 
@@ -159,7 +158,7 @@ export function StudioDemo() {
 
   const livePoses = TEMPLATES.filter((t) => t.live);
   const category = BACKGROUND_CATEGORIES[0]!;
-  const showBack = screen !== "splash" && screen !== "entry" && stack.length > 0 && !["analyzing", "generating", "posesGenerating"].includes(screen);
+  const showBack = screen !== "splash" && stack.length > 0 && !["analyzing", "generating", "posesGenerating"].includes(screen);
   const showHeaderFooter = screen !== "splash";
   const currentPose = poseResults[Math.min(galleryIndex, Math.max(0, poseResults.length - 1))];
 
@@ -167,7 +166,7 @@ export function StudioDemo() {
     <div className="st">
       <div className="st-shell">
         {screen === "splash" && (
-          <div className="st-splash" onClick={() => setScreen("entry")} role="button" aria-label="Enter the studio">
+          <div className="st-splash" onClick={() => setScreen("upload")} role="button" aria-label="Enter the studio">
             <div className="st-splash-brand">
               <TantuMark size={84} />
               <h1 className="st-splash-name">{T.splash.name}</h1>
@@ -192,7 +191,7 @@ export function StudioDemo() {
                   <span className="label">{T.header.back}</span>
                 </button>
               )}
-              {screen !== "entry" && screen !== "upload" && (
+              {screen !== "upload" && (
                 <button type="button" className="st-icon-button st-icon-button--new" onClick={() => setModal("restart")} aria-label={T.header.newGarment} title={T.header.newGarment}>
                   <svg viewBox="0 0 24 24" aria-hidden>
                     <path d="M8.4 5.2 5 7.4l2 3v8.4h10v-8.4l2-3-3.4-2.2-2.1 1.3a3 3 0 0 1-3 0Z" style={{ stroke: "rgba(244,236,255,0.92)", strokeWidth: 1.9 }} />
@@ -232,17 +231,6 @@ export function StudioDemo() {
                 : "center",
             }}
           >
-            {screen === "entry" && (
-              <div className="st-center" style={{ gap: 18, paddingTop: 20 }}>
-                <h1 className="st-title st-title--hero">{T.entry.title}</h1>
-                <p className="st-copy" style={{ maxWidth: 300 }}>{T.entry.copy}</p>
-                <div className="st-stack" style={{ width: "100%", maxWidth: 300 }}>
-                  <button type="button" className="st-action" onClick={() => go("upload")}>{T.entry.start}</button>
-                  <button type="button" className="st-secondary" onClick={() => go("upload")}>{T.entry.upload}</button>
-                </div>
-              </div>
-            )}
-
             {screen === "upload" && (
               <div className="st-center" style={{ gap: 18 }}>
                 <div>
