@@ -12,7 +12,8 @@
     "expo-image-manipulator": "~57.0.20",
     "expo-secure-store": "~57.0.4",
     "react-native-safe-area-context": "~5.10.0",
-    "expo-constants": "~57.0.0"
+    "expo-constants": "~57.0.0",
+    "expo-file-system": "~57.0.7"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",

@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import { File } from "expo-file-system";
 import * as SecureStore from "expo-secure-store";
 import type { GarmentView, GenerationLookView, RunView, UploadResult } from "@tantu/shared/views";
 
@@ -91,8 +92,8 @@ export interface LocalPhoto {
 /** One photograph into its slot. The file goes as multipart, the way the browser sends it. */
 export async function uploadPart(photo: LocalPhoto, slot: string, garmentId: string | null, type: string): Promise<UploadResult> {
   const form = new FormData();
-  // React Native's FormData takes a file descriptor object, not a Blob.
-  form.append("file", { uri: photo.uri, name: `${slot}.jpg`, type: "image/jpeg" } as unknown as Blob);
+  // Expo's fetch wants a real File for a multipart part, not the old {uri} descriptor.
+  form.append("file", new File(photo.uri) as unknown as Blob, `${slot}.jpg`);
   form.append("slot", slot);
   form.append("type", type);
   if (garmentId) form.append("garmentId", garmentId);
