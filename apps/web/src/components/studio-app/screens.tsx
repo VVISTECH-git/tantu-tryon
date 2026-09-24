@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- tip photographs at their own size */
 
 import { T } from "./texts";
+import { OrientationMark } from "./ShotList";
 
 /*
   The small parts every screen is built from. Presentational only: what to
@@ -107,11 +108,16 @@ export function TipsModal({ index, onIndex, onClose }: { index: number; onIndex:
         <button type="button" className="st-arrow" disabled={index === 0} onClick={() => onIndex(index - 1)} aria-label={T.gallery.previous}>
           ‹
         </button>
-        <div className="st-frame">
+        <div className="st-frame st-frame--contain">
           <span className={`st-verdict ${slide.good ? "" : "is-caution"}`} title={slide.good ? T.upload.slideGood : T.upload.slideCaution}>
             {slide.good ? "✓" : "!"}
           </span>
-          <TipDiagram index={index} />
+          <img src={slide.photo} alt="" />
+          {slide.orientation && (
+            <span style={{ position: "absolute", left: 12, bottom: 12 }}>
+              <OrientationMark orientation={slide.orientation} />
+            </span>
+          )}
         </div>
         <button type="button" className="st-arrow" disabled={index === T.upload.slides.length - 1} onClick={() => onIndex(index + 1)} aria-label={T.gallery.next}>
           ›
@@ -130,44 +136,6 @@ export function TipsModal({ index, onIndex, onClose }: { index: number; onIndex:
         {T.common.close}
       </button>
     </Modal>
-  );
-}
-
-/**
- * Real saree photographs with the labels laid over them, as the competitor
- * shows: where the body sits, where the pallu sits. Built from our own
- * photographs (public/tips), never anyone else's.
- */
-const TIP_OVERLAYS: Record<number, { body?: string; pallu?: string }> = {
-  0: { body: "8%", pallu: "68%" },
-  1: { body: "8%", pallu: "57%" },
-  2: { body: "6%", pallu: "42%" },
-};
-
-function TipDiagram({ index }: { index: number }) {
-  const overlay = TIP_OVERLAYS[index];
-  return (
-    <>
-      <img src={`/tips/t${index + 1}.jpg`} alt="" />
-      {overlay?.body && (
-        <span style={{ position: "absolute", right: 14, top: overlay.body }}>
-          <Label>{T.upload.overlayBody}</Label>
-        </span>
-      )}
-      {overlay?.pallu && (
-        <span style={{ position: "absolute", right: 14, top: overlay.pallu }}>
-          <Label>{T.upload.overlayPallu}</Label>
-        </span>
-      )}
-    </>
-  );
-}
-
-function Label({ children }: { children: React.ReactNode }) {
-  return (
-    <span style={{ display: "inline-block", padding: "4px 10px", borderRadius: 999, background: "rgba(10,10,10,0.72)", fontSize: 12, fontWeight: 600, color: "#f4efe6", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
-      {children}
-    </span>
   );
 }
 

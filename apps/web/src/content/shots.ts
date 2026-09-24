@@ -24,7 +24,12 @@ export interface Shot {
   where: string;
   /** The longer "How" text, read from the tile's How link. */
   how: string;
+  /** The sample photograph of this shot, cut from the shop's own rod photographs. */
+  sample: string;
 }
+
+/** Where the saree samples live; `avoid_*` are the "do not do this" examples. */
+export const SAREE_SAMPLE = (name: string) => `/shots/saree/${name}.jpg`;
 
 export interface GarmentTypeOption {
   value: string;
@@ -69,6 +74,7 @@ export function garmentTypeGroups(): Record<GarmentTypeOption["group"], GarmentT
 export const SAREE_SHOTS: Shot[] = [
   {
     slot: "body",
+    sample: SAREE_SAMPLE("body"),
     label: "Body",
     required: true,
     orientation: "upright",
@@ -77,6 +83,7 @@ export const SAREE_SHOTS: Shot[] = [
   },
   {
     slot: "pallu",
+    sample: SAREE_SAMPLE("pallu"),
     label: "Pallu",
     required: true,
     orientation: "sideways",
@@ -85,6 +92,7 @@ export const SAREE_SHOTS: Shot[] = [
   },
   {
     slot: "border",
+    sample: SAREE_SAMPLE("border"),
     label: "Border",
     required: false,
     orientation: "upright",
@@ -93,6 +101,7 @@ export const SAREE_SHOTS: Shot[] = [
   },
   {
     slot: "blouse",
+    sample: SAREE_SAMPLE("blouse"),
     label: "Blouse piece",
     required: false,
     orientation: "sideways",
@@ -101,6 +110,7 @@ export const SAREE_SHOTS: Shot[] = [
   },
   {
     slot: "body_motif",
+    sample: SAREE_SAMPLE("body_motif"),
     label: "Body motif",
     required: false,
     orientation: "upright",
@@ -109,6 +119,7 @@ export const SAREE_SHOTS: Shot[] = [
   },
   {
     slot: "pallu_motif",
+    sample: SAREE_SAMPLE("pallu_motif"),
     label: "Pallu motif",
     required: false,
     orientation: "sideways",
@@ -117,6 +128,7 @@ export const SAREE_SHOTS: Shot[] = [
   },
   {
     slot: "whole",
+    sample: SAREE_SAMPLE("whole"),
     label: "Whole saree",
     required: false,
     orientation: "upright",
