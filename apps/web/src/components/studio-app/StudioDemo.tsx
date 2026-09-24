@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- demo shots at their own size */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TipsModal } from "./screens";
 import { T } from "./texts";
 
@@ -14,6 +14,8 @@ import { T } from "./texts";
 export function StudioDemo() {
   const [screen, setScreen] = useState<"splash" | "upload">("splash");
   const [tips, setTips] = useState<number | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (screen !== "splash") return;
@@ -65,19 +67,45 @@ export function StudioDemo() {
                 <h1 className="st-title">{T.upload.title}</h1>
                 <p className="st-copy">{T.upload.copy}</p>
               </div>
-              <div className="st-grow" style={{ width: "100%", minHeight: "52vh" }}>
-                <div className="st-callout">
-                  {T.upload.calloutPrefix}{" "}
-                  <button type="button" className="st-link" onClick={() => setTips(0)}>
-                    {T.upload.seeTips}
-                  </button>{" "}
-                  {T.upload.calloutSuffix}
+              <input
+                ref={fileInput}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) setPreview(URL.createObjectURL(file));
+                }}
+              />
+              {preview ? (
+                <div className="st-stack" style={{ width: "100%" }}>
+                  <div className="st-frame st-frame--contain">
+                    <img src={preview} alt="Your garment" />
+                  </div>
+                  <button type="button" className="st-action" onClick={nothing}>
+                    {T.common.continue}
+                  </button>
+                  <button type="button" className="st-secondary" onClick={() => fileInput.current?.click()}>
+                    {T.upload.change}
+                  </button>
+                  <p className="st-support">This is a look at the new screens only — nothing here is analysed or uploaded. The working studio is at /app.</p>
                 </div>
-                <button type="button" className="st-action" style={{ maxWidth: 360 }} onClick={nothing}>
-                  {T.upload.dropzone}
-                </button>
-                <p className="st-support">{T.upload.dropzoneCopy}</p>
-              </div>
+              ) : (
+                <div className="st-grow" style={{ width: "100%", minHeight: "52vh" }}>
+                  <div className="st-callout">
+                    {T.upload.calloutPrefix}{" "}
+                    <button type="button" className="st-link" onClick={() => setTips(0)}>
+                      {T.upload.seeTips}
+                    </button>{" "}
+                    {T.upload.calloutSuffix}
+                  </div>
+                  <button type="button" className="st-action" style={{ maxWidth: 360 }} onClick={() => fileInput.current?.click()}>
+                    {T.upload.dropzone}
+                  </button>
+                  <p className="st-support">{T.upload.dropzoneCopy}</p>
+                </div>
+              )}
             </main>
 
             <footer className="st-footer">
