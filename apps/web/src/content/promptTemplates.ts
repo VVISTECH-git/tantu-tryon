@@ -403,6 +403,10 @@ const PART_WORDS: Record<string, (type: string) => string> = {
   // A single flat photograph as the guided flow asks for it: body above, pallu below.
   saree: (t) => `the whole ${t} laid flat, with the ${t} body in the upper part of the photograph and the pallu in the lower part, both long borders visible along the sides`,
   weave: () => "a close-up of the weave",
+  // Rod capture, close shots. Additive: the frozen wording above is untouched.
+  body_motif: (t) => `a close-up of one motif on the ${t} body, showing its exact drawing and colours`,
+  pallu_motif: () => "a close-up of the pallu's main motif or one band of its brocade, showing its exact drawing and colours",
+  whole: (t) => `the whole ${t} hanging from a rod, body at the top, pallu below it, blouse piece at the bottom, only to show how the parts sit together`,
 };
 
 const COUNT_WORDS = ["zero", "one", "two", "three", "four", "five", "six"];

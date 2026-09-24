@@ -6,9 +6,11 @@ import { CREDIT_PAISE, rupees, type Quality } from "@/content/credits";
 import { DESCRIBED_FIELDS } from "@/content/garmentWords";
 import { PACKS, inr } from "@/content/pricing";
 import { ADULT_AGES, BACKGROUNDS, CHILD_AGES, TEMPLATES, type ModelType } from "@/content/promptTemplates";
+import { DEFAULT_GARMENT_TYPE, garmentType as typeOf, requiredSlots, shotFor, type Shot } from "@/content/shots";
 import type { GenerationLook } from "@/db";
 import * as api from "./api";
 import { ConfirmModal, Copy, DownloadIcon, Modal, Question, RefreshIcon, Spinner, TipsModal, Title, YesNo } from "./screens";
+import { GarmentTypeSelect, ShotHowModal, ShotList, type ShotTile } from "./ShotList";
 import { T } from "./texts";
 import { POSE_TILES, PRIMARY_PROMPT, type GarmentView, type RunView, type Screen } from "./types";
 
@@ -27,12 +29,7 @@ interface Props {
   canDescribe: boolean;
 }
 
-interface Pending {
-  file: File;
-  preview: string;
-}
-
-type ModalKind = null | "tips" | "restart" | "regenerate" | "regeneratePose" | "tooLarge" | "limit" | "viewer";
+type ModalKind = null | "tips" | "how" | "restart" | "regenerate" | "regeneratePose" | "tooLarge" | "limit" | "viewer";
 
 const KIDS: ModelType[] = ["girl", "boy"];
 
@@ -42,7 +39,10 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   const [garment, setGarment] = useState<GarmentView | null>(null);
   const [words, setWords] = useState<Record<string, string | null>>({});
   const [warnings, setWarnings] = useState<{ title: string; body: string }[]>([]);
-  const [pending, setPending] = useState<Pending | null>(null);
+  const [garmentType, setGarmentType] = useState<string>(DEFAULT_GARMENT_TYPE);
+  const [busySlot, setBusySlot] = useState<string | null>(null);
+  const [howShot, setHowShot] = useState<Shot | null>(null);
+  const activeSlot = useRef<string>("body");
   const [look, setLook] = useState<GenerationLook>({ modelType: "woman", age: "mid-20s", background: "courtyard", quality: "standard" });
   const [batch, setBatch] = useState<string>(() => (typeof crypto !== "undefined" ? crypto.randomUUID() : String(Date.now())));
   const [primary, setPrimary] = useState<RunView | null>(null);
@@ -62,9 +62,9 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   const [code, setCode] = useState("");
   const [showCode, setShowCode] = useState(false);
   const restored = useRef(false);
+  // Two pickers for the same slot: the camera one opens the phone camera, the other the photo library.
+  const cameraInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const flatInput = useRef<HTMLInputElement>(null);
-  const [flatSlot, setFlatSlot] = useState<string>("blouse");
 
   // ── Navigation ──────────────────────────────────────────────────────────
 
@@ -117,7 +117,8 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
         setPrimary(p);
         setPoseRuns(runs.filter((r) => r.promptId !== PRIMARY_PROMPT));
         if (p) setLook(p.look);
-        const allowed: Screen[] = ["confirm", "details", "flats", "model", "background", "output", "result", "poses", "gallery", "myImages", "profile", "pricing"];
+        setGarmentType(loaded.garmentType);
+        const allowed: Screen[] = ["shots", "confirm", "details", "flats", "model", "background", "output", "result", "poses", "gallery", "myImages", "profile", "pricing"];
         setScreen(s && allowed.includes(s) ? s : p ? "result" : "confirm");
       } catch {
         // A stale link: start over quietly.
@@ -147,7 +148,6 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     setGarment(null);
     setWords({});
     setWarnings([]);
-    setPending(null);
     setPrimary(null);
     setPoseRuns([]);
     setSelectedPoses(new Set());
@@ -159,7 +159,13 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
 
   // ── Upload and analysis ─────────────────────────────────────────────────
 
-  function pickFile(event: React.ChangeEvent<HTMLInputElement>) {
+  function openPicker(shot: Shot, camera: boolean) {
+    activeSlot.current = shot.slot;
+    setError(null);
+    (camera ? cameraInput : fileInput).current?.click();
+  }
+
+  function pickShot(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
@@ -171,23 +177,47 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
       setModal("tooLarge");
       return;
     }
-    // Picking a photo goes straight into analysing — the reference has no
-    // in-between "here's your photo, press Continue" step.
-    setPending({ file, preview: URL.createObjectURL(file) });
-    void uploadAndAnalyze(file);
+    void uploadShot(file, activeSlot.current);
   }
 
-  async function uploadAndAnalyze(file: File) {
+  /** One photograph into its slot; the tile shows the quality verdict as soon as the server has looked. */
+  async function uploadShot(file: File, slot: string) {
+    setBusySlot(slot);
+    setError(null);
+    try {
+      const fresh = garment?.source === "upload" && garment.garmentType === garmentType ? garment.id : null;
+      const result = await api.uploadPart(file, slot, fresh, garmentType);
+      if (!fresh) {
+        setPrimary(null);
+        setPoseRuns([]);
+        setBatch(crypto.randomUUID());
+      }
+      setGarment(result.garment);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Upload failed.");
+    } finally {
+      setBusySlot(null);
+    }
+  }
+
+  async function clearShot(slot: string) {
+    if (!garment) return;
+    setBusySlot(slot);
+    try {
+      setGarment(await api.patchGarment(garment.id, { rotations: {}, ...({ removeSlots: [slot] } as object) }));
+    } finally {
+      setBusySlot(null);
+    }
+  }
+
+  /** Continue from the shot list: read the photographs into words, then confirm. */
+  async function analyzeNow() {
+    if (!garment) return;
     setBusy(true);
     setError(null);
     try {
-      const g = await api.uploadPart(file, "saree", garment?.source === "upload" ? garment.id : null);
-      setGarment(g);
-      setPrimary(null);
-      setPoseRuns([]);
-      setBatch(crypto.randomUUID());
       go("analyzing");
-      const analysis = await api.analyze(g.id);
+      const analysis = await api.analyze(garment.id);
       setGarment(analysis.garment);
       setWords(analysis.words);
       setWarnings(analysis.warnings);
@@ -195,7 +225,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
       setScreen("confirm");
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : T.confirm.error);
-      setScreen("upload");
+      setScreen("shots");
     } finally {
       setBusy(false);
     }
@@ -208,6 +238,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     try {
       const g = await api.startFromCode(code.trim());
       setGarment(g);
+      setGarmentType(g.garmentType);
       setPrimary(null);
       setPoseRuns([]);
       go("analyzing");
@@ -222,26 +253,6 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     } finally {
       setBusy(false);
     }
-  }
-
-  async function pickFlat(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file || !garment) return;
-    setBusy(true);
-    setError(null);
-    try {
-      setGarment(await api.uploadPart(file, flatSlot, garment.id));
-    } catch (problem) {
-      setError(problem instanceof Error ? problem.message : "Upload failed.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function clearFlat(slot: string) {
-    if (!garment) return;
-    setGarment(await api.patchGarment(garment.id, { rotations: {}, ...({ removeSlots: [slot] } as object) }));
   }
 
   async function answer(key: string, value: boolean) {
@@ -394,6 +405,13 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   // ── Derived ─────────────────────────────────────────────────────────────
 
   const flat = garment?.parts.find((p) => p.slot === "saree") ?? garment?.parts.find((p) => p.slot === "body");
+  const tiles: ShotTile[] = (garment?.parts ?? []).map((p) => ({ slot: p.slot, url: p.url, quality: p.quality ?? null }));
+  const required = requiredSlots(garmentType);
+  const missing = required.filter((slot) => !tiles.some((t) => t.slot === slot));
+  const blocked = required.filter((slot) => tiles.find((t) => t.slot === slot)?.quality?.status === "block");
+  const retakes = tiles.filter((t) => t.quality?.status === "block").length;
+  const label = (slot: string) => shotFor(garmentType, slot)?.label ?? slot;
+  const shotsReady = garment !== null && missing.length === 0 && blocked.length === 0 && busySlot === null;
   const livePoses = useMemo(() => TEMPLATES.filter((t) => t.live && t.id !== PRIMARY_PROMPT), []);
   const showBack = stack.length > 0 && !["analyzing", "generating", "posesGenerating"].includes(screen);
   const splash = screen === "splash";
@@ -460,6 +478,8 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
 
         {!splash && (
         <main className="st-main">
+          <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={pickShot} />
+          <input ref={fileInput} type="file" accept="image/*" hidden onChange={pickShot} />
           {error && <p className="st-error">{error}</p>}
 
 
@@ -471,8 +491,12 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                   {T.upload.copy}
                 </p>
               </div>
-              <input ref={fileInput} type="file" accept="image/*" hidden onChange={pickFile} />
-              <div className="st-grow" style={{ width: "100%" }}>
+              <div className="st-stack" style={{ width: "100%", gap: 8 }}>
+                <span className="st-section-title" style={{ margin: 0 }}>{T.upload.typeLabel}</span>
+                <GarmentTypeSelect value={garmentType} onChange={setGarmentType} />
+                <p className="st-support" style={{ margin: 0 }}>{T.upload.typeHelp}</p>
+              </div>
+              <div className="st-grow" style={{ width: "100%", minHeight: "30vh" }}>
                 <div className="st-callout">
                   {T.upload.calloutPrefix}{" "}
                   <button type="button" className="st-link" onClick={() => setModal("tips")}>
@@ -480,11 +504,41 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                   </button>{" "}
                   {T.upload.calloutSuffix}
                 </div>
-                <button type="button" className="st-action" style={{ maxWidth: 300 }} onClick={() => fileInput.current?.click()}>
+                <button type="button" className="st-action" style={{ maxWidth: 300 }} onClick={() => go("shots")}>
                   {T.upload.dropzone}
                 </button>
                 <p className="st-support">{T.upload.dropzoneCopy}</p>
               </div>
+            </div>
+          )}
+
+          {screen === "shots" && (
+            <div className="st-stack">
+              <Title>{T.shots.title(typeOf(garmentType).label)}</Title>
+              <Copy>{T.shots.copy}</Copy>
+              <p className="st-shots-status">
+                {T.shots.progress(required.length - missing.length, required.length)}
+                {retakes > 0 && ` · ${T.shots.retakeCount(retakes)}`}
+              </p>
+              <ShotList
+                type={garmentType}
+                tiles={tiles}
+                busySlot={busySlot}
+                onCamera={(shot) => openPicker(shot, true)}
+                onUpload={(shot) => openPicker(shot, false)}
+                onHow={(shot) => { setHowShot(shot); setModal("how"); }}
+                onClear={(shot) => void clearShot(shot.slot)}
+              />
+              <p className="st-support">{T.shots.support}</p>
+              <button type="button" className="st-action" disabled={!shotsReady || busy} onClick={() => void analyzeNow()}>
+                {missing.length > 0
+                  ? T.shots.continueMissing(missing.map(label))
+                  : blocked.length > 0
+                    ? T.shots.continueRetake(blocked.map(label))
+                    : busySlot
+                      ? T.shots.uploading
+                      : T.common.continue}
+              </button>
             </div>
           )}
 
@@ -499,7 +553,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                   <img src={flat.url} alt="Garment image" style={{ transform: `rotate(${flat.rotate}deg)` }} />
                 </div>
               )}
-<GarmentTypeSelect />
+              <GarmentTypeSelect value={garment.garmentType} onChange={() => undefined} />
               {warnings.map((w) => (
                 <div key={w.title} className="st-warning">
                   <h3>{w.title}</h3>
@@ -508,7 +562,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                     <button type="button" className="st-chip" onClick={() => setModal("tips")}>
                       {T.confirm.seeTips}
                     </button>
-                    <button type="button" className="st-chip st-chip--accent" onClick={() => { setPending(null); setScreen("upload"); }}>
+                    <button type="button" className="st-chip st-chip--accent" onClick={() => setScreen("shots")}>
                       {T.confirm.uploadBetter}
                     </button>
                   </div>
@@ -575,37 +629,18 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
             <div className="st-stack">
               <Title>{T.flats.title}</Title>
               <Copy>{T.flats.copy}</Copy>
-              <input ref={flatInput} type="file" accept="image/*" hidden onChange={(e) => void pickFlat(e)} />
-              {(["blouse", "pallu", "border"] as const).map((slot) => {
-                const part = garment.parts.find((p) => p.slot === slot);
-                const item = T.flats.items[slot];
-                if (slot === "blouse" && garment.answers.blouseSameAsBody) return null;
-                return (
-                  <div key={slot} className="st-thumb-card">
-                    <button type="button" className="st-thumb" onClick={() => { setFlatSlot(slot); flatInput.current?.click(); }}>
-                      {part ? <img src={part.url} alt="" /> : <span className="st-thumb-empty">{T.flats.empty}</span>}
-                    </button>
-                    <div className="st-stack" style={{ gap: 6 }}>
-                      <div className="st-tile-top">
-                        <span className="st-tile-label" style={{ fontSize: 14 }}>{item.label}</span>
-                        <span className="st-badge st-badge--soft">{T.flats.optional}</span>
-                      </div>
-                      <span className="st-tile-help" style={{ fontSize: 12 }}>{item.help}</span>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button type="button" className="st-chip st-chip--accent" disabled={busy} onClick={() => { setFlatSlot(slot); flatInput.current?.click(); }}>
-                          {part ? T.flats.change : T.flats.upload}
-                        </button>
-                        {part && (
-                          <button type="button" className="st-chip" disabled={busy} onClick={() => void clearFlat(slot)}>
-                            {T.flats.clear}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              <button type="button" className="st-action" disabled={busy} onClick={() => go("model")}>
+              <ShotList
+                type={garment.garmentType}
+                tiles={tiles}
+                busySlot={busySlot}
+                optionalOnly
+                hideBlouse={garment.answers.blouseSameAsBody === true}
+                onCamera={(shot) => openPicker(shot, true)}
+                onUpload={(shot) => openPicker(shot, false)}
+                onHow={(shot) => { setHowShot(shot); setModal("how"); }}
+                onClear={(shot) => void clearShot(shot.slot)}
+              />
+              <button type="button" className="st-action" disabled={busy || busySlot !== null} onClick={() => go("model")}>
                 {T.common.continue}
               </button>
             </div>
@@ -968,6 +1003,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
       </div>
 
       {modal === "tips" && <TipsModal index={tipIndex} onIndex={setTipIndex} onClose={() => setModal(null)} />}
+      {modal === "how" && howShot && <ShotHowModal shot={howShot} onClose={() => setModal(null)} />}
       {modal === "restart" && (
         <ConfirmModal icon="👗" title={T.generate.restartTitle} message={T.generate.restartMessage} confirm={T.generate.restartButton} onConfirm={resetAll} onClose={() => setModal(null)} />
       )}
@@ -1128,48 +1164,3 @@ function TantuMark() {
   );
 }
 
-/** Every garment type the reference lists, grouped. Only Saree works today. */
-const GARMENT_TYPES = {
-  Women: [
-    { value: "saree", label: "Saree", enabled: true },
-    { value: "stitched_kurta", label: "Women's Stitched Kurta", enabled: false },
-    { value: "unstitched_kurta", label: "Women's Unstitched Kurta", enabled: false },
-    { value: "womens_dress", label: "Women's Western Dress", enabled: false },
-    { value: "womens_top", label: "Women's Top", enabled: false },
-    { value: "womens_tee", label: "Women's Tee", enabled: false },
-    { value: "womens_bra", label: "Women's Bra", enabled: false },
-    { value: "womens_briefs", label: "Women's Briefs", enabled: false },
-    { value: "womens_sleepwear", label: "Women's Sleepwear", enabled: false },
-    { value: "womens_lehenga", label: "Women's Lehenga / Indian Bridal", enabled: false },
-  ],
-  Men: [
-    { value: "mens_tee", label: "Men's Tee", enabled: false },
-    { value: "mens_shirt", label: "Men's Shirt", enabled: false },
-    { value: "mens_kurta", label: "Men's Kurta", enabled: false },
-  ],
-  Kids: [
-    { value: "kids_western_wear", label: "Kids Western Wear", enabled: false },
-    { value: "kids_indian_ethnic", label: "Kids Indian Ethnic", enabled: false },
-  ],
-} as const;
-
-function GarmentTypeSelect() {
-  return (
-    <div style={{ position: "relative", width: "100%" }}>
-      <select className="st-select" defaultValue="saree" onChange={(e) => { if (e.target.value !== "saree") e.target.value = "saree"; }}>
-        {Object.entries(GARMENT_TYPES).map(([group, options]) => (
-          <optgroup key={group} label={group}>
-            {options.map((o) => (
-              <option key={o.value} value={o.value} disabled={!o.enabled}>
-                {o.label}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
-      <span className="st-select-chevron" aria-hidden>
-        <svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
-      </span>
-    </div>
-  );
-}

@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
-import { db, garments, type Garment, type GarmentPartRow } from "@/db";
+import { db, garments, type Garment, type GarmentPartRow, type PartQuality } from "@/db";
 import { garmentWordsFrom, type DescribedGarment, type GarmentWords } from "@/content/garmentWords";
 import type { Attachment } from "@/content/promptTemplates";
+import { SHEET_CELLS, SHEET_FILL, SHEET_LEAD, garmentType, requiredSlots } from "@/content/shots";
 import { buildContactSheet } from "@/lib/contactSheet";
 import { fetchBase64, fetchProduct, partsBySlot } from "@/lib/slk";
 import { assetUrl, getObject, keys, putObject, readAsset, saveUpload, storageConfigured } from "@/lib/storage";
@@ -15,18 +16,31 @@ import { assetUrl, getObject, keys, putObject, readAsset, saveUpload, storageCon
  * live on the row, so the flow can reload and the runs can point at it.
  */
 
-/** Labelled parts, in reading order. `saree` is the whole thing laid flat. */
-export const PART_ORDER = ["saree", "body", "pallu", "border", "blouse"] as const;
+/**
+ * Labelled parts, in reading order. `saree` is one flat photograph of the
+ * whole thing (the older upload path); the rest are the rod shots.
+ */
+export const PART_ORDER = ["saree", "body", "pallu", "border", "blouse", "body_motif", "pallu_motif", "whole"] as const;
 export type PartSlot = (typeof PART_ORDER)[number];
-
-export const REQUIRED_SLOTS = ["body", "pallu", "border", "blouse"] as const;
 
 export type GarmentResult = { ok: true; garment: Garment } | { ok: false; status: number; message: string };
 
-/** Enough to photograph: the whole saree flat, or at least the body and the pallu. */
+/**
+ * Enough to photograph: one flat photo of the whole saree, or every required
+ * shot for the garment type, none of them blocked by the quality check.
+ */
 export function isReady(garment: Garment): boolean {
-  const has = (slot: string) => garment.parts.some((p) => p.slot === slot);
-  return has("saree") || (has("body") && has("pallu"));
+  if (garment.parts.some((p) => p.slot === "saree")) return true;
+  return missingSlots(garment).length === 0;
+}
+
+/** The required shots still missing or blocked, for the message that says why Continue is off. */
+export function missingSlots(garment: Garment): string[] {
+  if (garment.parts.some((p) => p.slot === "saree")) return [];
+  return requiredSlots(garment.garmentType).filter((slot) => {
+    const part = garment.parts.find((p) => p.slot === slot);
+    return part === undefined || part.quality?.status === "block";
+  });
 }
 
 export async function createGarmentFromSlk(accountId: string, code: string): Promise<GarmentResult> {
@@ -59,11 +73,12 @@ export async function createGarmentFromSlk(accountId: string, code: string): Pro
   return { ok: true, garment: garment! };
 }
 
-/** An empty garment for uploads to land in. */
-export async function createUploadGarment(accountId: string): Promise<Garment> {
+/** An empty garment for uploads to land in, of the type the merchant chose before uploading. */
+export async function createUploadGarment(accountId: string, type: string): Promise<Garment> {
+  const chosen = garmentType(type);
   const [garment] = await db
     .insert(garments)
-    .values({ accountId, source: "upload", title: "Saree", words: {}, answers: {}, parts: [] })
+    .values({ accountId, source: "upload", garmentType: chosen.value, family: chosen.family, title: chosen.label, words: {}, answers: {}, parts: [] })
     .returning();
   return garment!;
 }
@@ -75,9 +90,10 @@ export async function addUploadedPart(
   bytes: Uint8Array,
   mime: string,
   size: { width: number; height: number },
+  quality?: PartQuality,
 ): Promise<Garment> {
   const key = await saveUpload(garment.id, slot, bytes, mime);
-  const part: GarmentPartRow = { slot, key, url: assetUrl(key), width: size.width, height: size.height, rotate: 0 };
+  const part: GarmentPartRow = { slot, key, url: assetUrl(key), width: size.width, height: size.height, rotate: 0, ...(quality ? { quality } : {}) };
   const parts = [...garment.parts.filter((p) => p.slot !== slot), part];
   return updateGarment(garment.id, { parts });
 }
@@ -101,7 +117,8 @@ export async function updateGarment(
   id: string,
   patch: Partial<Pick<Garment, "words" | "answers" | "parts" | "title">>,
 ): Promise<Garment> {
-  const resetSheet = patch.parts !== undefined;
+  // The blouse answer decides whether the blouse cell is on the sheet, so it resets it too.
+  const resetSheet = patch.parts !== undefined || patch.answers !== undefined;
   const [row] = await db
     .update(garments)
     .set({ ...patch, updatedAt: new Date(), ...(resetSheet ? { sheetKey: null } : {}) })
@@ -123,14 +140,40 @@ export function wordsFor(garment: Garment): GarmentWords {
   return garmentWordsFrom(garment.design, garment.words as DescribedGarment);
 }
 
-/** The parts the prompt will name, in reading order. */
+/** Every part present, in reading order. */
 export function presentSlots(garment: Garment): PartSlot[] {
   return PART_ORDER.filter((slot) => garment.parts.some((p) => p.slot === slot));
 }
 
+/**
+ * The parts that go on the sheet and are named in the prompt: at most four.
+ *
+ * One flat photo of the whole saree stands alone. Otherwise body, pallu and
+ * border lead, and the remaining cells go to the first of blouse piece (only
+ * when it is a separate fabric), pallu motif, body motif, whole hang that
+ * exist. The rest stay on the record for a later regeneration.
+ */
+export function sheetSlots(garment: Garment): PartSlot[] {
+  // A photograph the quality check blocked stays off the sheet: a blurred
+  // border would be copied blurred. Required slots cannot be blocked here,
+  // because `isReady` gates the call; this only drops optional ones.
+  const present = new Set(
+    presentSlots(garment).filter((slot) => garment.parts.find((p) => p.slot === slot)?.quality?.status !== "block"),
+  );
+  if (present.has("saree")) return ["saree"];
+  const chosen: PartSlot[] = SHEET_LEAD.filter((slot) => present.has(slot));
+  for (const slot of SHEET_FILL) {
+    if (chosen.length >= SHEET_CELLS) break;
+    if (!present.has(slot)) continue;
+    if (slot === "blouse" && garment.answers.blouseSameAsBody) continue;
+    chosen.push(slot);
+  }
+  return chosen;
+}
+
 export function attachmentsFor(garment: Garment): Attachment[] {
   const stem = garment.productCode ?? garment.id.slice(0, 8);
-  return presentSlots(garment).map((slot) => ({ slot, file: `${stem}-${slot}.png` }));
+  return sheetSlots(garment).map((slot) => ({ slot, file: `${stem}-${slot}.png` }));
 }
 
 async function partBase64(part: GarmentPartRow): Promise<string> {
@@ -150,9 +193,9 @@ export async function sheetFor(garment: Garment): Promise<{ data: string; key: s
   }
 
   const parts = await Promise.all(
-    presentSlots(garment).map(async (slot) => {
+    sheetSlots(garment).map(async (slot) => {
       const part = garment.parts.find((p) => p.slot === slot)!;
-      return { key: slot, label: slot.toUpperCase(), data: await partBase64(part), rotate: part.rotate };
+      return { key: slot, label: slot.toUpperCase().replace("_", " "), data: await partBase64(part), rotate: part.rotate };
     }),
   );
   if (parts.length === 0) throw new Error("This garment has no photographs yet.");
