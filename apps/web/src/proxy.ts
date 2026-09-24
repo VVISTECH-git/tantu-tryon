@@ -12,7 +12,7 @@ import { COOKIE } from "@/lib/session";
  * trace for API calls made without signing in.
  */
 
-const PUBLIC_API = [/^\/api\/auth\//, /^\/api\/poses\//, /^\/api\/products\/\d+$/, /^\/api\/products\/\d+\/(sheet|image)/, /^\/api\/assets\//, /^\/api\/admin\/set-password$/];
+const PUBLIC_API = [/^\/api\/auth\//, /^\/api\/poses\//, /^\/api\/products\/\d+$/, /^\/api\/products\/\d+\/(sheet|image)/, /^\/api\/assets\//];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
