@@ -41,9 +41,6 @@ type Screen =
 
 type ModalKind = null | "tips" | "how" | "restart" | "regenerate" | "regeneratePose" | "viewer";
 
-/** What the reader would have written for the sample saree; the demo has no reader. */
-const DEMO_WORDS = "body: green, Kalamkari peacocks and flowers · pallu: gold zari bands · border: red and gold zari · blouse: plain red";
-
 /** The demo has no server, so a picked photo is simply "looks good". */
 const DEMO_OK: PartQuality = { status: "ok", reasons: [], metrics: { sharpness: 0, brightness: 0, dark: 0, bright: 0, width: 0, height: 0 } };
 
@@ -311,12 +308,6 @@ export function StudioDemo() {
                 <p className="st-copy">{T.confirm.copy(typeOf(garmentType).label, tiles.length)}</p>
                 <ShotStrip type={garmentType} tiles={tiles} onEdit={() => setScreen("shots")} />
                 <GarmentTypeSelect value={garmentType} onChange={() => undefined} />
-                <div className="st-words">
-                  <span className="st-words-text">{T.confirm.readFromPhotos} {DEMO_WORDS}</span>
-                  <div className="st-words-actions">
-                    <button type="button" className="st-chip st-chip--accent">{T.details.words.edit}</button>
-                  </div>
-                </div>
                 <button type="button" className="st-action" onClick={() => go("flats")}>{T.confirm.continue}</button>
               </div>
             )}

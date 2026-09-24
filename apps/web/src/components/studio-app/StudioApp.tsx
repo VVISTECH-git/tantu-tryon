@@ -3,7 +3,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREDIT_PAISE, rupees, type Quality } from "@/content/credits";
-import { DESCRIBED_FIELDS } from "@/content/garmentWords";
 import { PACKS, inr } from "@/content/pricing";
 import { ADULT_AGES, BACKGROUNDS, CHILD_AGES, TEMPLATES, type ModelType } from "@/content/promptTemplates";
 import { DEFAULT_GARMENT_TYPE, garmentType as typeOf, requiredSlots, shotFor, type Shot } from "@/content/shots";
@@ -37,7 +36,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   const [screen, setScreen] = useState<Screen>("splash");
   const [stack, setStack] = useState<Screen[]>([]);
   const [garment, setGarment] = useState<GarmentView | null>(null);
-  const [words, setWords] = useState<Record<string, string | null>>({});
+  const [, setWords] = useState<Record<string, string | null>>({});
   const [warnings, setWarnings] = useState<{ title: string; body: string }[]>([]);
   const [garmentType, setGarmentType] = useState<string>(DEFAULT_GARMENT_TYPE);
   const [busySlot, setBusySlot] = useState<string | null>(null);
@@ -57,7 +56,6 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   const [tipIndex, setTipIndex] = useState(0);
   const [viewer, setViewer] = useState<RunView | null>(null);
   const [regenTarget, setRegenTarget] = useState<RunView | null>(null);
-  const [editingWords, setEditingWords] = useState(false);
   const [myImages, setMyImages] = useState<RunView[] | null>(null);
   const [code, setCode] = useState("");
   const [showCode, setShowCode] = useState(false);
@@ -255,29 +253,6 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     }
   }
 
-  async function saveWords(overrides: Record<string, string>) {
-    if (!garment) return;
-    const g = await api.patchGarment(garment.id, { words: overrides });
-    setGarment(g);
-    const { words: w } = await api.getGarment(g.id);
-    setWords(w);
-  }
-
-  async function readAgain() {
-    if (!garment) return;
-    setBusy(true);
-    try {
-      const analysis = await api.analyze(garment.id);
-      setGarment(analysis.garment);
-      setWords(analysis.words);
-      if (analysis.readerError) setError(analysis.readerError);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // ── Generation ──────────────────────────────────────────────────────────
-
   async function generatePrimary(fresh = false) {
     if (!garment) return;
     const key = fresh ? `again-${crypto.randomUUID()}` : `${batch}-${PRIMARY_PROMPT}`;
@@ -398,15 +373,6 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   // ── Derived ─────────────────────────────────────────────────────────────
 
   const tiles: ShotTile[] = (garment?.parts ?? []).map((p) => ({ slot: p.slot, url: p.url, quality: p.quality ?? null }));
-  const wordsLine = (["body", "pallu", "border", "blouse"] as const)
-    .map((part) => {
-      const colour = words[`${part}Colour`];
-      const desc = words[`${part}Desc`];
-      if (!colour && !desc) return null;
-      return `${part}: ${[colour, desc].filter(Boolean).join(", ")}`;
-    })
-    .filter(Boolean)
-    .join(" · ");
   const required = requiredSlots(garmentType);
   const missing = required.filter((slot) => !tiles.some((t) => t.slot === slot));
   const blocked = required.filter((slot) => tiles.find((t) => t.slot === slot)?.quality?.status === "block");
@@ -565,21 +531,6 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                   </div>
                 </div>
               ))}
-              <div className="st-words">
-                <span className="st-words-text">
-                  {wordsLine ? `${T.confirm.readFromPhotos} ${wordsLine}` : T.confirm.noWords}
-                </span>
-                <div className="st-words-actions">
-                  {canDescribe && (
-                    <button type="button" className="st-chip" disabled={busy} onClick={() => void readAgain()}>
-                      {busy ? "…" : T.details.words.readAgain}
-                    </button>
-                  )}
-                  <button type="button" className="st-chip st-chip--accent" onClick={() => setEditingWords(true)}>
-                    {T.details.words.edit}
-                  </button>
-                </div>
-              </div>
               <button type="button" className="st-action" onClick={() => go("flats")}>
                 {T.confirm.continue}
               </button>
@@ -965,15 +916,6 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
 
       {modal === "tips" && <TipsModal index={tipIndex} onIndex={setTipIndex} onClose={() => setModal(null)} />}
       {modal === "how" && howShot && <ShotHowModal shot={howShot} onClose={() => setModal(null)} />}
-      {editingWords && garment && (
-        <Modal title={T.details.words.label} onClose={() => setEditingWords(false)} wide>
-          <p className="st-modal-message" style={{ textAlign: "left" }}>{T.details.words.help}</p>
-          <WordsEditor garment={garment} words={words} onSave={async (o) => { await saveWords(o); setEditingWords(false); }} />
-          <button type="button" className="st-secondary" onClick={() => setEditingWords(false)}>
-            {T.common.close}
-          </button>
-        </Modal>
-      )}
       {modal === "restart" && (
         <ConfirmModal icon="👗" title={T.generate.restartTitle} message={T.generate.restartMessage} confirm={T.generate.restartButton} onConfirm={resetAll} onClose={() => setModal(null)} />
       )}
@@ -1059,34 +1001,6 @@ function ModelCard({ type, age, selected, onClick }: { type: ModelType; age: str
       <span className="st-model-label">{noun}</span>
       <span className="st-model-help">{age}</span>
     </button>
-  );
-}
-
-function WordsEditor({
-  garment,
-  words,
-  onSave,
-}: {
-  garment: GarmentView;
-  words: Record<string, string | null>;
-  onSave: (overrides: Record<string, string>) => Promise<void>;
-}) {
-  const [draft, setDraft] = useState<Record<string, string>>({ ...garment.words });
-  function set(key: string, value: string) {
-    const next = { ...draft };
-    if (value.trim()) next[key] = value;
-    else delete next[key];
-    setDraft(next);
-  }
-  return (
-    <div className="st-stack" style={{ gap: 8 }}>
-      {DESCRIBED_FIELDS.filter((f) => !["fibre", "craft", "borderWidth"].includes(f.key)).map((f) => (
-        <label key={f.key} style={{ display: "grid", gap: 4, textAlign: "left" }}>
-          <span className="st-muted" style={{ fontSize: 11 }}>{f.label}</span>
-          <input className="st-input" value={draft[f.key] ?? words[f.key] ?? ""} placeholder={f.hint} onChange={(e) => set(f.key, e.target.value)} onBlur={() => void onSave(draft)} />
-        </label>
-      ))}
-    </div>
   );
 }
 
