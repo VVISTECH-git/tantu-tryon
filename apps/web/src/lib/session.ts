@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { accounts, db, loginAttempts, sessions, type Account } from "@/db";
@@ -6,13 +6,15 @@ import { accounts, db, loginAttempts, sessions, type Account } from "@/db";
 /**
  * Who is using the app.
  *
- * Version one has one door: a shared passcode. Getting it right mints a
- * session for the shared account — 32 random bytes in an httpOnly cookie,
- * only their SHA-256 kept in the database. Fast hash on purpose: the token
- * is unguessable, so key stretching would only slow every request.
+ * A username and a password, checked against `accounts`. Getting them right
+ * mints a session — 32 random bytes in an httpOnly cookie, only their
+ * SHA-256 kept in the database. Fast hash on purpose: the token is
+ * unguessable, so key stretching would only slow every request; the
+ * password itself is the slow one, see `hashPassword`/`passwordMatches`.
  *
- * Per-merchant sign-in later is a second login route that finds or creates
- * an `accounts` row and calls `startSession` with it. Nothing below changes.
+ * A new merchant signing up on their own is a second path that creates an
+ * `accounts` row with `setPassword`, then calls `startSession`. Nothing
+ * below changes for that.
  *
  * The phone app cannot hold an httpOnly cookie, so it gets the same token
  * back in the login response and sends it as `Authorization: Bearer …`.
@@ -21,7 +23,6 @@ import { accounts, db, loginAttempts, sessions, type Account } from "@/db";
 
 export const COOKIE = "tantu_session";
 const TTL_MS = 30 * 24 * 60 * 60 * 1000;
-const SHARED_ACCOUNT_NAME = "house";
 
 function fingerprint(token: string): string {
   return createHash("sha256").update(token).digest("base64url");
@@ -37,27 +38,38 @@ function cookieOptions() {
   } as const;
 }
 
-/** The shared account, created on first use so the database needs no seed to work. */
-export async function sharedAccount(): Promise<Account> {
-  const [existing] = await db.select().from(accounts).where(eq(accounts.kind, "shared")).limit(1);
-  if (existing) return existing;
-  const [created] = await db.insert(accounts).values({ name: SHARED_ACCOUNT_NAME, kind: "shared" }).returning();
-  return created!;
+const SCRYPT_KEYLEN = 64;
+
+/** A password, salted and hashed with scrypt. Stored as `salt:hash`, both hex. */
+export function hashPassword(plain: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(plain, salt, SCRYPT_KEYLEN).toString("hex");
+  return `${salt}:${hash}`;
 }
 
-/**
- * Whether the passcode is right, without leaking how wrong it was.
- *
- * Both sides are hashed first so the comparison is constant-time whatever
- * the lengths. An empty configured passcode never matches: a deployment that
- * forgot to set one is closed, not open.
- */
-export function passcodeMatches(offered: string): boolean {
-  const expected = process.env.STUDIO_PASSCODE ?? "";
-  if (!expected) return false;
-  const a = createHash("sha256").update(offered).digest();
-  const b = createHash("sha256").update(expected).digest();
-  return timingSafeEqual(a, b);
+/** Whether a password matches a stored `salt:hash`, in constant time for a given hash. */
+export function passwordMatches(offered: string, stored: string | null): boolean {
+  if (!stored) return false;
+  const [salt, hash] = stored.split(":");
+  if (!salt || !hash) return false;
+  const expected = Buffer.from(hash, "hex");
+  const actual = scryptSync(offered, salt, expected.length);
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+/** The account for a username, or null. Username is matched case-insensitively. */
+export async function accountByUsername(username: string): Promise<Account | null> {
+  const [row] = await db
+    .select()
+    .from(accounts)
+    .where(sql`lower(${accounts.username}) = lower(${username})`)
+    .limit(1);
+  return row ?? null;
+}
+
+/** Set or change an account's login credentials. */
+export async function setPassword(accountId: string, username: string, plain: string): Promise<void> {
+  await db.update(accounts).set({ username, passwordHash: hashPassword(plain) }).where(eq(accounts.id, accountId));
 }
 
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;

@@ -32,15 +32,23 @@ const now = () => timestamp({ withTimezone: true }).notNull().defaultNow();
  * anyway so that switching on per-merchant sign-in later is a new login route
  * that creates rows here, and nothing downstream changes.
  */
-export const accounts = pgTable("accounts", {
-  id: uuid().primaryKey().defaultRandom(),
-  name: text().notNull(),
-  /** `shared` for the passcode account; `merchant` once people sign up. */
-  kind: text().notNull().default("merchant"),
-  phone: text(),
-  email: text(),
-  createdAt: now(),
-});
+export const accounts = pgTable(
+  "accounts",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    name: text().notNull(),
+    /** `shared` for the first seeded account; `merchant` once people sign up on their own. */
+    kind: text().notNull().default("merchant"),
+    /** Login name. Null on an account nobody can sign into directly (kept for later API-only use). */
+    username: text(),
+    /** scrypt, salted, `salt:hash` — see `lib/session.ts` hashPassword/passwordMatches. Null until set. */
+    passwordHash: text(),
+    phone: text(),
+    email: text(),
+    createdAt: now(),
+  },
+  (t) => [uniqueIndex("accounts_username").on(t.username)],
+);
 
 /**
  * A sign-in. The browser holds 32 random bytes in a cookie; only their hash is
