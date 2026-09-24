@@ -55,7 +55,14 @@ export function ShotList({ type, tiles, busySlot, optionalOnly, hideBlouse, onCa
         return (
           <div key={shot.slot} className={`st-shot ${state === "block" ? "st-shot--blocked" : state === "warn" ? "st-shot--warned" : ""}`}>
             <button type="button" className="st-shot-thumb" onClick={() => (tile?.url ? onUpload(shot) : onCamera(shot))} aria-label={`${shot.label} photo`}>
-              {tile?.url ? <img src={tile.url} alt="" /> : <span aria-hidden>+</span>}
+              {tile?.url ? (
+                <img src={tile.url} alt="" />
+              ) : (
+                <>
+                  <img src={shot.sample} alt="" className="st-shot-sample" />
+                  <span className="st-shot-plus" aria-hidden>+</span>
+                </>
+              )}
               {busy && <span className="st-shot-busy" aria-hidden />}
             </button>
             <div className="st-shot-body">
@@ -127,6 +134,9 @@ export function ShotHowModal({ shot, onClose }: { shot: Shot; onClose: () => voi
   return (
     <Modal title={`${T.shots.howTitle} ${shot.label.toLowerCase()}`} onClose={onClose}>
       <div className="st-how">
+        <div className={`st-how-photo st-how-photo--${shot.orientation}`}>
+          <img src={shot.sample} alt="" />
+        </div>
         <OrientationMark orientation={shot.orientation} large />
         <p className="st-how-where">{shot.where}</p>
         <p className="st-how-copy">{shot.how}</p>
