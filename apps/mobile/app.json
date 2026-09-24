@@ -42,6 +42,7 @@
     ],
     "extra": {
       "apiBase": "https://tantu-tryon.vercel.app"
-    }
+    },
+    "owner": "vvistechs-team"
   }
 }
