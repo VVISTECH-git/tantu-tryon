@@ -2,16 +2,18 @@
 /* eslint-disable @next/next/no-img-element -- demo shots at their own size */
 
 import { useEffect, useState } from "react";
+import { TipsModal } from "./screens";
 import { T } from "./texts";
 
 /**
  * The new studio, as a look: the splash, then the upload screen.
  *
- * Nothing here is wired. Every button is there to be pressed and compared,
- * not to do anything. The working studio lives at /app behind the passcode.
+ * Only See Tips is wired (it opens the tips carousel). Every other button is
+ * there to be pressed and compared. The working studio lives at /app.
  */
 export function StudioDemo() {
   const [screen, setScreen] = useState<"splash" | "upload">("splash");
+  const [tips, setTips] = useState<number | null>(null);
 
   useEffect(() => {
     if (screen !== "splash") return;
@@ -66,7 +68,7 @@ export function StudioDemo() {
               <div className="st-grow" style={{ width: "100%", minHeight: "52vh" }}>
                 <div className="st-callout">
                   {T.upload.calloutPrefix}{" "}
-                  <button type="button" className="st-link" onClick={nothing}>
+                  <button type="button" className="st-link" onClick={() => setTips(0)}>
                     {T.upload.seeTips}
                   </button>{" "}
                   {T.upload.calloutSuffix}
@@ -94,6 +96,7 @@ export function StudioDemo() {
           </>
         )}
       </div>
+      {tips !== null && <TipsModal index={tips} onIndex={setTips} onClose={() => setTips(null)} />}
     </div>
   );
 }
