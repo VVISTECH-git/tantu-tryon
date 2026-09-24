@@ -218,6 +218,23 @@ function Studio() {
     }
   }
 
+  async function signOut() {
+    setBusy(true);
+    try {
+      await api.logout();
+    } finally {
+      setGarment(null);
+      setPrimary(null);
+      setWarnings([]);
+      setOpened(new Set());
+      setBalance(null);
+      setUsername("");
+      setPassword("");
+      setBusy(false);
+      setScreen("signin");
+    }
+  }
+
   function startOver() {
     setGarment(null);
     setPrimary(null);
@@ -249,8 +266,13 @@ function Studio() {
           <Text style={s.brand}>
             Tantu <Text style={s.brandSub}>Try-On</Text>
           </Text>
-          <View style={s.chip}>
-            <Text style={s.chipText}>{balance === null ? "…" : `${api.rupees(balance)} left`}</Text>
+          <View style={s.row}>
+            <View style={s.chip}>
+              <Text style={s.chipText}>{balance === null ? "…" : `${api.rupees(balance)} left`}</Text>
+            </View>
+            <Pressable onPress={() => void signOut()} hitSlop={8}>
+              <Text style={s.link}>Sign out</Text>
+            </Pressable>
           </View>
         </View>
       )}
