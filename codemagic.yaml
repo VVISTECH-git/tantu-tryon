@@ -41,17 +41,11 @@ workflows:
   # ANDROID — signed APK + AAB
   # =========================================================================
   android-workflow:
-    name: Tantu Android (APK + AAB)
+    name: Android (APK + AAB)
     instance_type: mac_mini_m2
     max_build_duration: 60
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: main
-          include: true
-          source: true
-      cancel_previous_builds: true
+    # Started by hand for now: a push starts only the iPhone build, so the two
+    # never queue behind each other on the one free machine.
     environment:
       node: 22.14.0
       java: 17
@@ -101,10 +95,11 @@ workflows:
 
   # =========================================================================
   # iOS — signed IPA → TestFlight (internal testers install from the
-  # TestFlight app on the iPhone, the same way as slk-mobile)
+  # TestFlight app on the iPhone). Named "iOS (Ad Hoc)" to read the same as
+  # slk-mobile's workflow in the Codemagic build list.
   # =========================================================================
   ios-workflow:
-    name: Tantu iOS (TestFlight)
+    name: iOS (Ad Hoc)
     instance_type: mac_mini_m2
     max_build_duration: 90
     triggering:
