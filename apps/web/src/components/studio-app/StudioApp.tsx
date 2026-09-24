@@ -511,19 +511,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                   <img src={flat.url} alt="Garment image" style={{ transform: `rotate(${flat.rotate}deg)` }} />
                 </div>
               )}
-              <div className="st-section-title">{T.confirm.groups.women}</div>
-              <div className="st-grid-2">
-                <button type="button" className="st-choice is-selected">
-                  <span className="st-choice-label">Saree</span>
-                  <span className="st-choice-help">Detected</span>
-                </button>
-                {["Women's Stitched Kurta", "Women's Unstitched Kurta", "Women's Lehenga / Indian Bridal"].map((name) => (
-                  <button key={name} type="button" className="st-choice" disabled>
-                    <span className="st-choice-label">{name}</span>
-                    <span className="st-badge st-badge--soft">{T.confirm.soon}</span>
-                  </button>
-                ))}
-              </div>
+<GarmentTypeSelect />
               {warnings.map((w) => (
                 <div key={w.title} className="st-warning">
                   <h3>{w.title}</h3>
@@ -1145,5 +1133,51 @@ function TantuMark() {
       />
       <path d="M78 12 l2.6 6.4 L87 21 l-6.4 2.6 L78 30 l-2.6 -6.4 L69 21 l6.4 -2.6 Z" fill="#f4efe6" />
     </svg>
+  );
+}
+
+/** Every garment type the reference lists, grouped. Only Saree works today. */
+const GARMENT_TYPES = {
+  Women: [
+    { value: "saree", label: "Saree", enabled: true },
+    { value: "stitched_kurta", label: "Women's Stitched Kurta", enabled: false },
+    { value: "unstitched_kurta", label: "Women's Unstitched Kurta", enabled: false },
+    { value: "womens_dress", label: "Women's Western Dress", enabled: false },
+    { value: "womens_top", label: "Women's Top", enabled: false },
+    { value: "womens_tee", label: "Women's Tee", enabled: false },
+    { value: "womens_bra", label: "Women's Bra", enabled: false },
+    { value: "womens_briefs", label: "Women's Briefs", enabled: false },
+    { value: "womens_sleepwear", label: "Women's Sleepwear", enabled: false },
+    { value: "womens_lehenga", label: "Women's Lehenga / Indian Bridal", enabled: false },
+  ],
+  Men: [
+    { value: "mens_tee", label: "Men's Tee", enabled: false },
+    { value: "mens_shirt", label: "Men's Shirt", enabled: false },
+    { value: "mens_kurta", label: "Men's Kurta", enabled: false },
+  ],
+  Kids: [
+    { value: "kids_western_wear", label: "Kids Western Wear", enabled: false },
+    { value: "kids_indian_ethnic", label: "Kids Indian Ethnic", enabled: false },
+  ],
+} as const;
+
+function GarmentTypeSelect() {
+  return (
+    <div style={{ position: "relative", width: "100%" }}>
+      <select className="st-select" defaultValue="saree" onChange={(e) => { if (e.target.value !== "saree") e.target.value = "saree"; }}>
+        {Object.entries(GARMENT_TYPES).map(([group, options]) => (
+          <optgroup key={group} label={group}>
+            {options.map((o) => (
+              <option key={o.value} value={o.value} disabled={!o.enabled}>
+                {o.label}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      <span className="st-select-chevron" aria-hidden>
+        <svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </span>
+    </div>
   );
 }
