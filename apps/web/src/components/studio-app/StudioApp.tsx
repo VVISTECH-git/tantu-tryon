@@ -171,15 +171,17 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
       setModal("tooLarge");
       return;
     }
+    // Picking a photo goes straight into analysing — the reference has no
+    // in-between "here's your photo, press Continue" step.
     setPending({ file, preview: URL.createObjectURL(file) });
+    void uploadAndAnalyze(file);
   }
 
-  async function uploadAndAnalyze() {
-    if (!pending) return;
+  async function uploadAndAnalyze(file: File) {
     setBusy(true);
     setError(null);
     try {
-      const g = await api.uploadPart(pending.file, "saree", garment?.source === "upload" ? garment.id : null);
+      const g = await api.uploadPart(file, "saree", garment?.source === "upload" ? garment.id : null);
       setGarment(g);
       setPrimary(null);
       setPoseRuns([]);
@@ -470,33 +472,19 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                 </p>
               </div>
               <input ref={fileInput} type="file" accept="image/*" hidden onChange={pickFile} />
-              {pending ? (
-                <div className="st-stack" style={{ width: "100%" }}>
-                  <div className="st-frame st-frame--contain">
-                    <img src={pending.preview} alt="Your garment" />
-                  </div>
-                  <button type="button" className="st-action" disabled={busy} onClick={() => void uploadAndAnalyze()}>
-                    {busy ? T.common.wait : T.common.continue}
-                  </button>
-                  <button type="button" className="st-secondary" disabled={busy} onClick={() => fileInput.current?.click()}>
-                    {T.upload.change}
-                  </button>
+              <div className="st-grow" style={{ width: "100%" }}>
+                <div className="st-callout">
+                  {T.upload.calloutPrefix}{" "}
+                  <button type="button" className="st-link" onClick={() => setModal("tips")}>
+                    {T.upload.seeTips}
+                  </button>{" "}
+                  {T.upload.calloutSuffix}
                 </div>
-              ) : (
-                <div className="st-grow" style={{ width: "100%" }}>
-                  <div className="st-callout">
-                    {T.upload.calloutPrefix}{" "}
-                    <button type="button" className="st-link" onClick={() => setModal("tips")}>
-                      {T.upload.seeTips}
-                    </button>{" "}
-                    {T.upload.calloutSuffix}
-                  </div>
-                  <button type="button" className="st-action" style={{ maxWidth: 300 }} onClick={() => fileInput.current?.click()}>
-                    {T.upload.dropzone}
-                  </button>
-                  <p className="st-support">{T.upload.dropzoneCopy}</p>
-                </div>
-              )}
+                <button type="button" className="st-action" style={{ maxWidth: 300 }} onClick={() => fileInput.current?.click()}>
+                  {T.upload.dropzone}
+                </button>
+                <p className="st-support">{T.upload.dropzoneCopy}</p>
+              </div>
             </div>
           )}
 

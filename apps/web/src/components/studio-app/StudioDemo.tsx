@@ -119,10 +119,9 @@ export function StudioDemo() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    // Picking a photo goes straight into analysing — the reference has no
+    // in-between "here's your photo, press Continue" step.
     setPending({ preview: URL.createObjectURL(file) });
-  }
-
-  function afterUpload() {
     go("analyzing");
     timer.current = setTimeout(() => setScreen("confirm"), 1400);
   }
@@ -234,34 +233,24 @@ export function StudioDemo() {
                   <p className="st-copy" style={{ marginTop: 6 }}>{T.upload.copy}</p>
                 </div>
                 <input ref={fileInput} type="file" accept="image/*" hidden onChange={pickFile} />
-                {pending ? (
-                  <div className="st-stack" style={{ width: "100%" }}>
-                    <div className="st-frame st-frame--contain">
-                      <img src={pending.preview} alt="Your garment" />
-                    </div>
-                    <button type="button" className="st-action" onClick={afterUpload}>{T.common.continue}</button>
-                    <button type="button" className="st-secondary" onClick={() => fileInput.current?.click()}>{T.upload.change}</button>
+                <div className="st-grow" style={{ width: "100%", minHeight: "52vh" }}>
+                  <div className="st-callout">
+                    {T.upload.calloutPrefix}{" "}
+                    <button
+                      type="button"
+                      className="st-link"
+                      onClick={() => {
+                        setTipIndex(0);
+                        setModal("tips");
+                      }}
+                    >
+                      {T.upload.seeTips}
+                    </button>{" "}
+                    {T.upload.calloutSuffix}
                   </div>
-                ) : (
-                  <div className="st-grow" style={{ width: "100%", minHeight: "52vh" }}>
-                    <div className="st-callout">
-                      {T.upload.calloutPrefix}{" "}
-                      <button
-                        type="button"
-                        className="st-link"
-                        onClick={() => {
-                          setTipIndex(0);
-                          setModal("tips");
-                        }}
-                      >
-                        {T.upload.seeTips}
-                      </button>{" "}
-                      {T.upload.calloutSuffix}
-                    </div>
-                    <button type="button" className="st-action" style={{ maxWidth: 360 }} onClick={() => fileInput.current?.click()}>{T.upload.dropzone}</button>
-                    <p className="st-support">{T.upload.dropzoneCopy}</p>
-                  </div>
-                )}
+                  <button type="button" className="st-action" style={{ maxWidth: 360 }} onClick={() => fileInput.current?.click()}>{T.upload.dropzone}</button>
+                  <p className="st-support">{T.upload.dropzoneCopy}</p>
+                </div>
               </div>
             )}
 
