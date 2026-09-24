@@ -20,7 +20,7 @@ import { C, R } from "./src/theme";
 /**
  * The Tantu phone app: the shop floor's half of the studio.
  *
- * Sign in with the shared passcode, pick the garment type, photograph the
+ * Sign in with a username and password, pick the garment type, photograph the
  * saree on the rod one tile at a time, confirm, add optional shots, press
  * Generate. Same server, same shot list and same rules as the browser; the
  * phone adds the camera and keeps working when the shop's network is slow.
@@ -40,7 +40,8 @@ export default function App() {
 
 function Studio() {
   const [screen, setScreen] = useState<Screen>("splash");
-  const [passcode, setPasscode] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [balance, setBalance] = useState<number | null>(null);
   const [garmentType, setGarmentType] = useState(DEFAULT_GARMENT_TYPE);
   const [garment, setGarment] = useState<GarmentView | null>(null);
@@ -87,14 +88,14 @@ function Studio() {
   }, [screen]);
 
   async function signIn() {
-    if (!passcode.trim()) return;
+    if (!username.trim() || !password) return;
     setBusy(true);
     setError(null);
     try {
-      await api.login(passcode.trim());
+      await api.login(username.trim(), password);
       const me = await api.account();
       setBalance(me.balancePaise);
-      setPasscode("");
+      setPassword("");
       setScreen("type");
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "Could not sign in.");
@@ -270,18 +271,29 @@ function Studio() {
         {screen === "signin" && (
           <View style={s.stack}>
             <Text style={s.title}>Tantu</Text>
-            <Text style={s.copy}>Enter the studio passcode.</Text>
+            <Text style={s.copy}>Sign in to begin.</Text>
             <TextInput
               style={s.input}
-              value={passcode}
-              onChangeText={setPasscode}
-              placeholder="Passcode"
+              value={username}
+              onChangeText={setUsername}
+              placeholder="Username"
+              placeholderTextColor={C.textMuted}
+              autoCapitalize="none"
+              autoComplete="username"
+              returnKeyType="next"
+            />
+            <TextInput
+              style={s.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password"
               placeholderTextColor={C.textMuted}
               secureTextEntry
               autoCapitalize="none"
+              autoComplete="password"
               onSubmitEditing={() => void signIn()}
             />
-            <Action label={busy ? "Please wait…" : "Sign in"} disabled={busy || !passcode.trim()} onPress={() => void signIn()} />
+            <Action label={busy ? "Please wait…" : "Sign in"} disabled={busy || !username.trim() || !password} onPress={() => void signIn()} />
             <Text style={s.support}>{api.API_BASE.replace(/^https?:\/\//, "")}</Text>
           </View>
         )}

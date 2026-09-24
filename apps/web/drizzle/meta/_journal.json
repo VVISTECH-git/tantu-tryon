@@ -15,6 +15,13 @@
       "when": 1790242542846,
       "tag": "0001_garment-type-and-family",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790271112640,
+      "tag": "0002_account-username-password",
+      "breakpoints": true
     }
   ]
 }

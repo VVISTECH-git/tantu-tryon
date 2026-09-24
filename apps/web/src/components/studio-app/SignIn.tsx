@@ -3,10 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-/** The door, in the shell's own clothes. One field, one button. */
+/** The door, in the shell's own clothes. Username, password, one button. */
 export function SignIn({ next }: { next: string }) {
   const router = useRouter();
-  const [passcode, setPasscode] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,7 +19,7 @@ export function SignIn({ next }: { next: string }) {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ passcode }),
+        body: JSON.stringify({ username, password }),
       });
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(payload.error ?? "Could not sign in.");
@@ -48,25 +49,34 @@ export function SignIn({ next }: { next: string }) {
             <div>
               <h1 className="st-title st-title--hero">Your AI Fashion Shoot Studio</h1>
               <p className="st-copy" style={{ marginTop: 10, maxWidth: 300 }}>
-                Enter the studio passcode to begin.
+                Sign in to begin.
               </p>
             </div>
             <form onSubmit={submit} className="st-stack" style={{ width: "100%", maxWidth: 300 }}>
               <input
-                type="password"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                placeholder="Passcode"
-                autoComplete="current-password"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Username"
+                autoComplete="username"
+                autoCapitalize="none"
                 autoFocus
                 className="st-input"
                 style={{ minHeight: 48, textAlign: "center", fontSize: 16 }}
               />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                autoComplete="current-password"
+                className="st-input"
+                style={{ minHeight: 48, textAlign: "center", fontSize: 16 }}
+              />
               {error && <p className="st-error">{error}</p>}
-              <button type="submit" className="st-action" disabled={busy || !passcode}>
-                {busy ? "Please wait..." : "Start"}
+              <button type="submit" className="st-action" disabled={busy || !username || !password}>
+                {busy ? "Please wait..." : "Sign in"}
               </button>
-              <p className="st-support">Sign-in with a phone number is coming soon.</p>
             </form>
           </div>
         </main>

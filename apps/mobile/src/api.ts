@@ -59,11 +59,11 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   return payload;
 }
 
-export async function login(passcode: string): Promise<{ name: string }> {
+export async function login(username: string, password: string): Promise<{ name: string }> {
   const out = await call<{ ok: true; account: { id: string; name: string }; token?: string }>("/api/auth/login", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ passcode }),
+    body: JSON.stringify({ username, password }),
   });
   if (!out.token) throw new ApiError("The server did not return a session for the phone.", 500);
   await storeToken(out.token);
