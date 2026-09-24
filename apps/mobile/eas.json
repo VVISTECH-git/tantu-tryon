@@ -3,14 +3,12 @@
   "build": {
     "preview": {
       "distribution": "internal",
-      "channel": "preview",
       "ios": { "simulator": false },
       "android": { "buildType": "apk" },
       "env": { "EXPO_PUBLIC_API_BASE": "https://tantu-tryon.vercel.app" }
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production",
       "env": { "EXPO_PUBLIC_API_BASE": "https://tantu-tryon.vercel.app" }
     }
   },
