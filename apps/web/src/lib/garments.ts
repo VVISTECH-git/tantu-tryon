@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import sharp from "sharp";
 import { db, garments, type Garment, type GarmentPartRow, type PartQuality } from "@/db";
 import { garmentWordsFrom, type DescribedGarment, type GarmentWords } from "@/content/garmentWords";
 import type { Attachment } from "@/content/promptTemplates";
@@ -172,6 +173,9 @@ export function sheetSlots(garment: Garment): PartSlot[] {
     presentSlots(garment).filter((slot) => garment.parts.find((p) => p.slot === slot)?.quality?.status !== "block"),
   );
   if (present.has("saree")) return ["saree"];
+  // No border close-up: the BORDER cell is cut from the edges of the body
+  // photo, which was framed with both borders in. See `derivedBorder`.
+  if (!present.has("border") && present.has("body")) present.add("border");
   const chosen: PartSlot[] = SHEET_LEAD.filter((slot) => present.has(slot));
   for (const slot of SHEET_FILL) {
     if (chosen.length >= SHEET_CELLS) break;
@@ -185,6 +189,30 @@ export function sheetSlots(garment: Garment): PartSlot[] {
 export function attachmentsFor(garment: Garment): Attachment[] {
   const stem = garment.productCode ?? garment.id.slice(0, 8);
   return sheetSlots(garment).map((slot) => ({ slot, file: `${stem}-${slot}.png` }));
+}
+
+/**
+ * The BORDER cell when no close-up was taken: the two long edges of the body
+ * photo, each a strip about an eighth of the width, stood side by side at
+ * full height. Both borders are shown so a wider hem border is not lost.
+ * Enough for colour, width and a plain or zari-line design; a border with
+ * figures of its own wants the close-up.
+ */
+export async function derivedBorder(bodyBase64: string, rotate: 0 | 90 | 180 | 270 = 0, height = 1000): Promise<string> {
+  const upright = sharp(Buffer.from(bodyBase64, "base64")).rotate(rotate);
+  const { width = 0, height: h = 0 } = await upright.metadata();
+  const buf = await upright.toBuffer();
+  const strip = Math.max(40, Math.round(width * 0.13));
+  const scale = height / h;
+  const stripW = Math.round(strip * scale);
+  const gap = Math.round(height * 0.02);
+  const left = await sharp(buf).extract({ left: 0, top: 0, width: strip, height: h }).resize({ width: stripW, height }).png().toBuffer();
+  const right = await sharp(buf).extract({ left: width - strip, top: 0, width: strip, height: h }).resize({ width: stripW, height }).png().toBuffer();
+  const out = await sharp({ create: { width: stripW * 2 + gap, height, channels: 3, background: "#ffffff" } })
+    .composite([{ input: left, left: 0, top: 0 }, { input: right, left: stripW + gap, top: 0 }])
+    .png()
+    .toBuffer();
+  return out.toString("base64");
 }
 
 async function partBase64(part: GarmentPartRow): Promise<string> {
@@ -205,8 +233,12 @@ export async function sheetFor(garment: Garment): Promise<{ data: string; key: s
 
   const parts = await Promise.all(
     sheetSlots(garment).map(async (slot) => {
-      const part = garment.parts.find((p) => p.slot === slot)!;
-      return { key: slot, label: slot.toUpperCase().replace("_", " "), data: await partBase64(part), rotate: part.rotate };
+      const part = garment.parts.find((p) => p.slot === slot);
+      if (!part && slot === "border") {
+        const body = garment.parts.find((p) => p.slot === "body")!;
+        return { key: slot, label: "BORDER", data: await derivedBorder(await partBase64(body), body.rotate) };
+      }
+      return { key: slot, label: slot.toUpperCase().replace("_", " "), data: await partBase64(part!), rotate: part!.rotate };
     }),
   );
   if (parts.length === 0) throw new Error("This garment has no photographs yet.");

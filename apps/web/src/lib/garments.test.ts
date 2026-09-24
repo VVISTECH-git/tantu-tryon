@@ -66,14 +66,14 @@ describe("sheet cells", () => {
     expect(sheetSlots(garment(all, { blouseSameAsBody: true }))).toEqual(["body", "pallu", "border", "pallu_motif"]);
   });
 
-  it("frees a missing border's cell to the same list", () => {
+  it("derives the border from the body photo when no close-up was taken", () => {
     const parts = ["body", "pallu", "body_motif", "whole"].map((s) => part(s));
-    expect(sheetSlots(garment(parts))).toEqual(["body", "pallu", "body_motif", "whole"]);
+    expect(sheetSlots(garment(parts))).toEqual(["body", "pallu", "border", "body_motif"]);
   });
 
-  it("keeps a blocked optional photograph off the sheet", () => {
+  it("derives the border in place of a blocked close-up", () => {
     const parts = [part("body"), part("pallu"), part("border", block), part("whole")];
-    expect(sheetSlots(garment(parts))).toEqual(["body", "pallu", "whole"]);
+    expect(sheetSlots(garment(parts))).toEqual(["body", "pallu", "border", "whole"]);
   });
 
   it("never exceeds four cells", () => {

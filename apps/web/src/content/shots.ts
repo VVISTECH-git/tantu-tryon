@@ -26,6 +26,10 @@ export interface Shot {
   how: string;
   /** The sample photograph of this shot, cut from the shop's own rod photographs. */
   sample: string;
+  /** The framing diagram, when the shot has one: where the frame goes on the saree. */
+  frame?: string;
+  /** What each thing inside the frame tells us; shown on the How sheet. */
+  gives?: string;
 }
 
 /** Where the saree samples live; `avoid_*` are the "do not do this" examples. */
@@ -75,29 +79,35 @@ export const SAREE_SHOTS: Shot[] = [
   {
     slot: "body",
     sample: SAREE_SAMPLE("body"),
+    frame: SAREE_SAMPLE("frame_body"),
     label: "Body",
     required: true,
     orientation: "upright",
-    where: "Eye level, one big step back, one border in the frame",
-    how: "Hold the phone upright. Stand one big step back from the rod, phone at eye level, pointing straight ahead. The part above the join fills the frame, with one border running along the edge.",
+    where: "Eye level, both borders in, edge to edge",
+    how: "Hold the phone upright. Stand a step and a half back from the rod, phone at eye level, pointing straight ahead. Both borders inside the frame, edge to edge, with two or three full repeats of the motif. Stop above the join: no pallu in this frame.",
+    gives: "This one photo gives the body print, the top border and the bottom border, and whether the two borders differ.",
   },
   {
     slot: "pallu",
     sample: SAREE_SAMPLE("pallu"),
+    frame: SAREE_SAMPLE("frame_pallu"),
     label: "Pallu",
     required: true,
-    orientation: "sideways",
-    where: "Waist height, the join at the top of the frame",
-    how: "Turn the phone sideways. Stand in the same spot, phone at waist height, pointing straight ahead. The line where the pallu meets the body sits at the top of the frame and the brocade fills the rest.",
+    orientation: "upright",
+    where: "Waist height, a band of body at the top, the end edge at the bottom",
+    how: "Hold the phone upright. Same spot, phone at waist height, pointing straight ahead. A thin band of body at the top of the frame, both borders inside, and the end edge of the pallu at the bottom.",
+    gives: "This one photo gives the pallu design, the line where it joins the body, its end edge, and often the blouse colour below it.",
   },
   {
     slot: "border",
     sample: SAREE_SAMPLE("border"),
+    frame: SAREE_SAMPLE("frame_border"),
     label: "Border",
     required: false,
     orientation: "upright",
-    where: "Step in to half a metre, border running up the frame",
-    how: "Hold the phone upright. Step in to about half a metre at chest height. The border runs top to bottom through the frame with a hand's width of body beside it. Any point along the length will do.",
+    where: "Only if the border has a design of its own. Half a metre, at the side",
+    how: "Hold the phone upright. Stand at the side of the saree, half a metre from the fabric, chest height, straight on. The border runs top to bottom through the middle of the frame and takes about a third of it: the fabric's outer edge on one side, a hand's width of body on the other, two or three full repeats of the border motif. If the two borders differ, shoot the wider one.",
+    gives: "Without this, the border is cut from the edges of the body photo. That is enough for a plain or zari-line border; take this when the border has figures of its own.",
   },
   {
     slot: "blouse",
