@@ -177,3 +177,48 @@ export function GarmentTypeSelect({ value, onChange }: { value: string; onChange
     </div>
   );
 }
+
+/**
+ * The confirm screen's strip: every photograph that was uploaded, in shot
+ * order, each with the check's verdict. A garment from an SLK code has no
+ * verdicts, so its photographs show plain. One flat photo shows alone.
+ */
+export function ShotStrip({ type, tiles, onEdit }: { type: string; tiles: ShotTile[]; onEdit?: () => void }) {
+  const flat = tiles.find((t) => t.slot === "saree");
+  if (flat?.url) {
+    return (
+      <div className="st-frame st-frame--contain" style={{ maxHeight: 300 }}>
+        <img src={flat.url} alt="" />
+      </div>
+    );
+  }
+  const shots = shotsFor(type);
+  const order = (slot: string) => {
+    const i = shots.findIndex((s) => s.slot === slot);
+    return i === -1 ? 99 : i;
+  };
+  const present = tiles.filter((t) => t.url).sort((a, b) => order(a.slot) - order(b.slot));
+  return (
+    <div className="st-strip">
+      {present.map((tile) => {
+        const shot = shots.find((s) => s.slot === tile.slot);
+        const state = tile.quality?.status ?? null;
+        return (
+          <button type="button" key={tile.slot} className="st-strip-item" onClick={onEdit} aria-label={shot?.label ?? tile.slot}>
+            <span className={`st-strip-thumb ${state === "block" ? "is-block" : state === "warn" ? "is-warn" : ""}`}>
+              <img src={tile.url!} alt="" />
+              {state && <span className={`st-strip-dot st-check--${state}`} aria-hidden />}
+            </span>
+            <span className="st-strip-label">{shot?.label ?? tile.slot}</span>
+          </button>
+        );
+      })}
+      {onEdit && (
+        <button type="button" className="st-strip-item st-strip-item--add" onClick={onEdit}>
+          <span className="st-strip-thumb"><span aria-hidden>+</span></span>
+          <span className="st-strip-label">{T.confirm.addMore}</span>
+        </button>
+      )}
+    </div>
+  );
+}

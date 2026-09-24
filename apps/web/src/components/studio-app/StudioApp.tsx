@@ -10,7 +10,7 @@ import { DEFAULT_GARMENT_TYPE, garmentType as typeOf, requiredSlots, shotFor, ty
 import type { GenerationLook } from "@/db";
 import * as api from "./api";
 import { ConfirmModal, Copy, DownloadIcon, Modal, Question, RefreshIcon, Spinner, TipsModal, Title, YesNo } from "./screens";
-import { GarmentTypeSelect, ShotHowModal, ShotList, type ShotTile } from "./ShotList";
+import { GarmentTypeSelect, ShotHowModal, ShotList, ShotStrip, type ShotTile } from "./ShotList";
 import { T } from "./texts";
 import { POSE_TILES, PRIMARY_PROMPT, type GarmentView, type RunView, type Screen } from "./types";
 
@@ -404,7 +404,6 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
 
   // ── Derived ─────────────────────────────────────────────────────────────
 
-  const flat = garment?.parts.find((p) => p.slot === "saree") ?? garment?.parts.find((p) => p.slot === "body");
   const tiles: ShotTile[] = (garment?.parts ?? []).map((p) => ({ slot: p.slot, url: p.url, quality: p.quality ?? null }));
   const required = requiredSlots(garmentType);
   const missing = required.filter((slot) => !tiles.some((t) => t.slot === slot));
@@ -547,12 +546,8 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
           {screen === "confirm" && garment && (
             <div className="st-stack">
               <Title>{T.confirm.title}</Title>
-              <Copy>{T.confirm.copy}</Copy>
-              {flat && (
-                <div className="st-frame st-frame--contain" style={{ maxHeight: 300 }}>
-                  <img src={flat.url} alt="Garment image" style={{ transform: `rotate(${flat.rotate}deg)` }} />
-                </div>
-              )}
+              <Copy>{T.confirm.copy(typeOf(garment.garmentType).label, tiles.filter((t) => t.url).length)}</Copy>
+              <ShotStrip type={garment.garmentType} tiles={tiles} onEdit={garment.source === "upload" ? () => setScreen("shots") : undefined} />
               <GarmentTypeSelect value={garment.garmentType} onChange={() => undefined} />
               {warnings.map((w) => (
                 <div key={w.title} className="st-warning">

@@ -72,8 +72,9 @@ export const T = {
     uploading: "Checking the photo…",
   },
   confirm: {
-    title: "Confirm garment type",
-    copy: "We auto-detected the garment type below. Please change it if it’s incorrect, because this affects your final result.",
+    title: "Confirm your photos",
+    copy: (type: string, n: number) => `${n === 1 ? "1 photo" : `${n} photos`} of a ${type.toLowerCase()}. Tap a photo to change it. The type you chose is below; change it if it is wrong, it affects the result.`,
+    addMore: "Add more",
     analyzing: "Analyzing your garment. This may take a few seconds.",
     analyzingMobile: "Keep this screen open and your phone unlocked.",
     preparing: "Preparing garment details. This may take a few seconds.",
@@ -87,7 +88,7 @@ export const T = {
   details: {
     title: "Garment details",
     copy: "Review the main garment details. Change them if needed.",
-    borders: { label: "Borders", help: "Does this saree have borders along the long edges (किनारा / काठ)? Select yes if such borders are visible." },
+    borders: { label: "Borders", help: "Does this saree have borders along the long edges? Select yes if such borders are visible." },
     bordersIdentical: { label: "Both Borders Identical?", help: "Some sarees have one border, usually at the bottom hem, that is bigger than the top border. Select NO if that is the case here." },
     blouseSame: { label: "Blouse piece same as body?", help: "A self blouse is cut from the saree body fabric. Select NO if the blouse piece is a different fabric or colour." },
     words: { label: "The saree in words", help: "What the AI read from your photo. Correct any colour that is wrong; the render follows these words.", edit: "Edit", done: "Done", readAgain: "Read from photo" },
