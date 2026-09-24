@@ -327,7 +327,7 @@ export function StudioDemo() {
                   onHow={(shot) => { setHowShot(shot); setModal("how"); }}
                   onClear={(shot) => clearShot(shot.slot)}
                 />
-                <button type="button" className="st-action" onClick={() => go("background")}>{T.common.continue}</button>
+                <button type="button" className="st-action" onClick={() => go("output")}>{T.common.continue}</button>
               </div>
             )}
 
