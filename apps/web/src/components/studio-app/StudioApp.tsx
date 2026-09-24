@@ -131,7 +131,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   // re-run in development (which cancels the first timer) simply sets another.
   useEffect(() => {
     if (screen !== "splash") return;
-    const timer = setTimeout(() => setScreen((current) => (current === "splash" ? "entry" : current)), 2200);
+    const timer = setTimeout(() => setScreen((current) => (current === "splash" ? "upload" : current)), 2200);
     return () => clearTimeout(timer);
   }, [screen]);
 
@@ -216,7 +216,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
       setScreen("confirm");
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "The lookup failed.");
-      setScreen("entry");
+      setScreen("upload");
     } finally {
       setBusy(false);
     }
@@ -393,7 +393,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
 
   const flat = garment?.parts.find((p) => p.slot === "saree") ?? garment?.parts.find((p) => p.slot === "body");
   const livePoses = useMemo(() => TEMPLATES.filter((t) => t.live && t.id !== PRIMARY_PROMPT), []);
-  const showBack = screen !== "entry" && stack.length > 0 && !["analyzing", "generating", "posesGenerating"].includes(screen);
+  const showBack = stack.length > 0 && !["analyzing", "generating", "posesGenerating"].includes(screen);
   const splash = screen === "splash";
   const gallery = poseRuns;
   const current = gallery[Math.min(galleryIndex, Math.max(0, gallery.length - 1))];
@@ -404,7 +404,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     <div className="st">
       <div className="st-shell">
         {splash && (
-          <div className="st-splash" onClick={() => setScreen("entry")} role="button" aria-label="Enter the studio">
+          <div className="st-splash" onClick={() => setScreen("upload")} role="button" aria-label="Enter the studio">
             <div className="st-splash-brand">
               <TantuMark />
               <h1 className="st-splash-name">{T.splash.name}</h1>
@@ -428,7 +428,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                 <span className="label">{T.header.back}</span>
               </button>
             )}
-            {garment && screen !== "entry" && screen !== "upload" && (
+            {garment && screen !== "upload" && (
               <button type="button" className="st-icon-button st-icon-button--new" onClick={() => setModal("restart")} aria-label={T.header.newGarment} title={T.header.newGarment}>
                 <svg viewBox="0 0 24 24" aria-hidden>
                   <path d="M8.4 5.2 5 7.4l2 3v8.4h10v-8.4l2-3-3.4-2.2-2.1 1.3a3 3 0 0 1-3 0Z" style={{ stroke: "rgba(244,236,255,0.92)", strokeWidth: 1.9 }} />
@@ -460,47 +460,6 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
         <main className="st-main">
           {error && <p className="st-error">{error}</p>}
 
-          {screen === "entry" && (
-            <div className="st-center" style={{ gap: 26, paddingTop: 10 }}>
-              <div className="st-hero-shots" aria-hidden>
-                <div className="st-hero-shot">
-                  <img src="/poses/saree/SAR-P15/thumbnail.png" alt="" />
-                </div>
-                <div className="st-hero-shot">
-                  <img src="/poses/saree/SAR-P15/master-reference.png" alt="" />
-                </div>
-                <div className="st-hero-shot">
-                  <img src="/poses/saree/SAR-P04/silhouette.png" alt="" style={{ objectFit: "contain", padding: 8, background: "#f4efe6" }} />
-                </div>
-              </div>
-              <div style={{ maxWidth: 300 }}>
-                <Title hero>{T.entry.title}</Title>
-                <p className="st-copy" style={{ marginTop: 10 }}>
-                  {T.entry.copy}
-                </p>
-              </div>
-              <div className="st-stack" style={{ width: "100%", maxWidth: 300 }}>
-                <button type="button" className="st-action" onClick={() => go("upload")}>
-                  {T.entry.start}
-                </button>
-                <button type="button" className="st-secondary" onClick={() => go("upload")}>
-                  {T.entry.upload}
-                </button>
-                {!showCode ? (
-                  <button type="button" className="st-link" style={{ fontSize: 13 }} onClick={() => setShowCode(true)}>
-                    {T.entry.slkLink}
-                  </button>
-                ) : (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input className="st-input" inputMode="numeric" placeholder={T.entry.slkPlaceholder} value={code} onChange={(e) => setCode(e.target.value)} />
-                    <button type="button" className="st-chip st-chip--accent" disabled={busy || !code.trim()} onClick={() => void fromCode()}>
-                      {T.entry.slkFind}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {screen === "upload" && (
             <div className="st-center" style={{ gap: 18 }}>
