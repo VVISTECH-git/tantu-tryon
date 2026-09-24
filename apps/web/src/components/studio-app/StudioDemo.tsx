@@ -74,7 +74,7 @@ export function StudioDemo() {
   const [tiles, setTiles] = useState<ShotTile[]>([]);
   const [howShot, setHowShot] = useState<Shot | null>(null);
   const activeSlot = useRef<string>("body");
-  const [look, setLook] = useState<Look>({ modelType: "woman", age: "late 20s", background: BACKGROUNDS[0]!.id, quality: "high" });
+  const [look, setLook] = useState<Look>({ modelType: "woman", age: "late 20s", background: BACKGROUNDS[0]!.id, quality: "standard" });
   const [balance, setBalance] = useState(4000);
   const [primaryDone, setPrimaryDone] = useState(false);
   const [primaryRating, setPrimaryRating] = useState<"up" | "neutral" | "down" | null>(null);
@@ -327,7 +327,9 @@ export function StudioDemo() {
                   onHow={(shot) => { setHowShot(shot); setModal("how"); }}
                   onClear={(shot) => clearShot(shot.slot)}
                 />
-                <button type="button" className="st-action" onClick={() => go("output")}>{T.common.continue}</button>
+                <button type="button" className="st-action" disabled={balance < CREDIT_PAISE[look.quality]} onClick={generatePrimary}>
+                  {T.generate.action} · {rupees(CREDIT_PAISE[look.quality])}
+                </button>
               </div>
             )}
 
