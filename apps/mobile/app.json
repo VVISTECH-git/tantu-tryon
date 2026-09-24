@@ -44,7 +44,13 @@
           "photosPermission": "Tantu picks saree photos from your library."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Tantu uses the camera to photograph the saree on the rod, with a guide showing where each shot goes."
+        }
+      ]
     ],
     "extra": {
       "apiBase": "https://tantu-tryon.vercel.app",
