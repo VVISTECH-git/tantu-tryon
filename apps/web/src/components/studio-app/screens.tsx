@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- tip photographs at their own size */
 
 import { T } from "./texts";
 
@@ -95,9 +96,8 @@ export function ConfirmModal({
 }
 
 /**
- * The saree tips, as a carousel. The frames are drawn, not photographed:
- * a diagram of where the body and the pallu should sit says the same
- * thing as a sample photo and belongs to nobody else.
+ * The saree tips, as a carousel: a photograph per slide with the body and
+ * pallu labelled on it, a tick or a warning badge, arrows and dots.
  */
 export function TipsModal({ index, onIndex, onClose }: { index: number; onIndex: (i: number) => void; onClose: () => void }) {
   const slide = T.upload.slides[index]!;
@@ -133,40 +133,39 @@ export function TipsModal({ index, onIndex, onClose }: { index: number; onIndex:
   );
 }
 
+/**
+ * Real saree photographs with the labels laid over them, as the competitor
+ * shows: where the body sits, where the pallu sits. Built from our own
+ * photographs (public/tips), never anyone else's.
+ */
+const TIP_OVERLAYS: Record<number, { body?: string; pallu?: string }> = {
+  0: { body: "8%", pallu: "52%" },
+  1: { body: "8%", pallu: "32%" },
+  2: { body: "4%", pallu: "50%" },
+};
+
 function TipDiagram({ index }: { index: number }) {
-  const body = "repeating-linear-gradient(45deg, rgba(240,141,66,0.35) 0 6px, rgba(240,141,66,0.12) 6px 12px)";
-  const pallu = "repeating-radial-gradient(circle at 50% 50%, rgba(107,52,179,0.55) 0 4px, rgba(107,52,179,0.18) 4px 12px)";
-  const border = "linear-gradient(180deg, #f0b17e, #db7124)";
-  if (index === 4) {
-    return (
-      <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "rgba(255,255,255,0.03)" }}>
-        <div style={{ width: "42%", height: "78%", borderRadius: "40% 40% 20% 20% / 30% 30% 10% 10%", background: pallu, opacity: 0.8 }} />
-        <span style={{ position: "absolute", bottom: 10, fontSize: 11, color: "rgba(244,239,230,0.6)" }}>Mannequin drape</span>
-      </div>
-    );
-  }
-  // How much of the frame the saree fills, and how the two halves split.
-  const inset = index === 3 ? "22% 30%" : index === 2 ? "3% 6%" : "6% 12%";
-  const bodyShare = index === 1 ? "28%" : "50%";
+  const overlay = TIP_OVERLAYS[index];
   return (
-    <div style={{ position: "absolute", inset, display: "grid", gridTemplateColumns: "6px 1fr 6px", borderRadius: 6, overflow: "hidden", boxShadow: "0 0 0 1px rgba(255,255,255,0.15)" }}>
-      <div style={{ background: border }} />
-      <div style={{ display: "grid", gridTemplateRows: `${bodyShare} 1fr` }}>
-        <div style={{ position: "relative", background: body }}>
+    <>
+      <img src={`/tips/t${index + 1}.jpg`} alt="" />
+      {overlay?.body && (
+        <span style={{ position: "absolute", left: 14, top: overlay.body }}>
           <Label>{T.upload.overlayBody}</Label>
-        </div>
-        <div style={{ position: "relative", background: pallu }}>
+        </span>
+      )}
+      {overlay?.pallu && (
+        <span style={{ position: "absolute", left: 14, top: overlay.pallu }}>
           <Label>{T.upload.overlayPallu}</Label>
-        </div>
-      </div>
-      <div style={{ background: border }} />
-    </div>
+        </span>
+      )}
+    </>
   );
 }
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <span style={{ position: "absolute", left: 8, top: 8, padding: "3px 8px", borderRadius: 999, background: "rgba(10,10,10,0.7)", fontSize: 11, fontWeight: 600, color: "#f4efe6" }}>
+    <span style={{ display: "inline-block", padding: "4px 10px", borderRadius: 999, background: "rgba(10,10,10,0.72)", fontSize: 12, fontWeight: 600, color: "#f4efe6", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
       {children}
     </span>
   );
