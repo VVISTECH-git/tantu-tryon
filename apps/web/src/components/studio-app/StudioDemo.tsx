@@ -82,7 +82,7 @@ export function StudioDemo() {
   const [howShot, setHowShot] = useState<Shot | null>(null);
   const activeSlot = useRef<string>("body");
   const [answers, setAnswers] = useState<Answers>({ borders: true, bordersIdentical: false, blouseSame: true });
-  const [look, setLook] = useState<Look>({ modelType: "woman", age: "mid-20s", background: BACKGROUNDS[0]!.id, quality: "high" });
+  const [look, setLook] = useState<Look>({ modelType: "woman", age: "late 20s", background: BACKGROUNDS[0]!.id, quality: "high" });
   const [balance, setBalance] = useState(4000);
   const [primaryDone, setPrimaryDone] = useState(false);
   const [primaryRating, setPrimaryRating] = useState<"up" | "neutral" | "down" | null>(null);
@@ -352,7 +352,7 @@ export function StudioDemo() {
                   onHow={(shot) => { setHowShot(shot); setModal("how"); }}
                   onClear={(shot) => clearShot(shot.slot)}
                 />
-                <button type="button" className="st-action" onClick={() => go("model")}>{T.common.continue}</button>
+                <button type="button" className="st-action" onClick={() => go("background")}>{T.common.continue}</button>
               </div>
             )}
 
