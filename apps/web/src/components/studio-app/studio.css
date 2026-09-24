@@ -264,27 +264,30 @@
 .st-splash-mark { width: 84px; height: 84px; }
 .st-splash-name { margin: 0; font-size: 40px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: var(--st-text); }
 .st-splash-tagline { margin: 0; font-size: 18px; font-weight: 600; color: var(--st-text-soft); }
-.st-splash-shots { position: relative; width: 100%; max-width: 460px; height: 640px; margin-top: 34px; }
+.st-splash-shots { position: relative; width: 100%; max-width: 460px; height: 620px; margin-top: 34px; }
 /*
-  Five cards laid out with real gaps between them — the top pair, the bottom
-  pair and the centre card each clear the others with room to spare. Nothing
-  here should ever hide another card's image, only its own tilt and shadow.
+  Five cards, tucked close the way the reference shows: the centre card's
+  tilted corners overlap the four outer cards, but only at the corners. Every
+  face in these photographs sits in the top third, centred left-to-right —
+  the overlap here stays in the outer 20% of each card's width and the
+  bottom half of the top pair / top half of the bottom pair, so no face is
+  ever the part that gets covered.
 */
 .st-splash-shot { position: absolute; width: 140px; aspect-ratio: 3 / 4; border-radius: 20px; overflow: hidden; background: #1d1d1f; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: var(--st-shadow); transform: rotate(var(--rot)); }
 .st-splash-shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.st-splash-shot:nth-child(1) { left: 0; top: 20px; --rot: -10deg; }
+.st-splash-shot:nth-child(1) { left: 0; top: 10px; --rot: -10deg; }
 .st-splash-shot:nth-child(2) { right: 0; top: 0; --rot: 9deg; }
-.st-splash-shot:nth-child(3) { left: 50%; top: 220px; width: 172px; margin-left: -86px; --rot: -2deg; z-index: 2; }
-.st-splash-shot:nth-child(4) { left: 4%; bottom: 0; --rot: 7deg; }
-.st-splash-shot:nth-child(5) { right: 4%; bottom: 10px; --rot: -8deg; }
+.st-splash-shot:nth-child(3) { left: 50%; top: 190px; width: 178px; margin-left: -89px; --rot: -2deg; z-index: 2; }
+.st-splash-shot:nth-child(4) { left: 3%; bottom: 0; --rot: 7deg; }
+.st-splash-shot:nth-child(5) { right: 3%; bottom: 4px; --rot: -8deg; }
 @media (max-height: 780px) {
   .st-splash { padding-top: 36px; }
-  .st-splash-shots { height: 500px; }
+  .st-splash-shots { height: 480px; }
   .st-splash-shot { width: 108px; }
-  .st-splash-shot:nth-child(1) { top: 16px; }
-  .st-splash-shot:nth-child(3) { width: 132px; margin-left: -66px; top: 172px; }
+  .st-splash-shot:nth-child(1) { top: 8px; }
+  .st-splash-shot:nth-child(3) { width: 138px; margin-left: -69px; top: 146px; }
   .st-splash-shot:nth-child(4) { bottom: 0; }
-  .st-splash-shot:nth-child(5) { bottom: 8px; }
+  .st-splash-shot:nth-child(5) { bottom: 4px; }
 }
 
 /* Footer with three chips in a row, as the signed-in upload screen shows it. */
