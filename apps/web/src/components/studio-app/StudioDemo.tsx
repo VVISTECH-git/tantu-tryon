@@ -578,7 +578,9 @@ export function StudioDemo() {
           <footer className="st-footer">
             <div className="st-footer-row">
               <span className="st-footer-chip st-footer-chip--balance">{T.footer.balance(rupees(balance))}</span>
-              <span className="st-footer-chip st-footer-chip--buy">{T.footer.buy}</span>
+              <span className={`st-footer-chip ${balance <= 0 ? "st-footer-chip--recharge" : "st-footer-chip--buy"}`}>
+                {balance <= 0 ? T.footer.recharge : T.footer.buy}
+              </span>
               <span className="st-footer-chip st-footer-chip--gallery">{T.myImages.title}</span>
             </div>
           </footer>

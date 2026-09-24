@@ -181,6 +181,6 @@ export const T = {
     ask: "Ask for this pack",
     note: "Online payment is coming. Until then a pack is set up with you by hand.",
   },
-  footer: { balance: (v: string) => `Balance ${v}`, recharge: "Recharge", buy: "Buy" },
+  footer: { balance: (v: string) => `${v} left`, recharge: "Recharge", buy: "Buy" },
   common: { continue: "Continue", cancel: "Cancel", ok: "OK", yes: "Yes", no: "No", close: "Close", wait: "Please wait...", loading: "Loading images..." },
 } as const;

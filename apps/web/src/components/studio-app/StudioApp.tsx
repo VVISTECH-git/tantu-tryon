@@ -952,13 +952,17 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
             <button type="button" className="st-footer-chip st-footer-chip--balance" onClick={() => go("profile")}>
               {T.footer.balance(rupees(balance))}
             </button>
-            <button type="button" className="st-footer-chip st-footer-chip--recharge" onClick={() => go("pricing")}>
-              {T.footer.recharge}
+            <button
+              type="button"
+              className={`st-footer-chip ${balance <= 0 ? "st-footer-chip--recharge" : "st-footer-chip--buy"}`}
+              onClick={() => go("pricing")}
+            >
+              {balance <= 0 ? T.footer.recharge : T.footer.buy}
+            </button>
+            <button type="button" className="st-footer-chip st-footer-chip--gallery" onClick={() => void openMyImages()}>
+              {T.myImages.title}
             </button>
           </div>
-          <button type="button" className="st-buy" onClick={() => go("pricing")}>
-            {T.footer.buy}
-          </button>
         </footer>
         )}
       </div>
