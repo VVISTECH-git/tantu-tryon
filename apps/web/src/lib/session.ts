@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { accounts, db, loginAttempts, sessions, type Account } from "@/db";
 
 /**
@@ -13,6 +13,10 @@ import { accounts, db, loginAttempts, sessions, type Account } from "@/db";
  *
  * Per-merchant sign-in later is a second login route that finds or creates
  * an `accounts` row and calls `startSession` with it. Nothing below changes.
+ *
+ * The phone app cannot hold an httpOnly cookie, so it gets the same token
+ * back in the login response and sends it as `Authorization: Bearer …`.
+ * One table, one expiry, one revoke for both.
  */
 
 export const COOKIE = "tantu_session";
@@ -73,7 +77,8 @@ export async function recordFailure(ip: string): Promise<void> {
   await db.insert(loginAttempts).values({ ip });
 }
 
-export async function startSession(accountId: string): Promise<void> {
+/** Mint a session; the token is set as the cookie and returned for clients that cannot keep cookies. */
+export async function startSession(accountId: string): Promise<string> {
   const token = randomBytes(32).toString("base64url");
   await db.insert(sessions).values({
     tokenHash: fingerprint(token),
@@ -81,11 +86,19 @@ export async function startSession(accountId: string): Promise<void> {
     expiresAt: new Date(Date.now() + TTL_MS),
   });
   (await cookies()).set(COOKIE, token, cookieOptions());
+  return token;
+}
+
+/** The session token on this request: the bearer header first (the phone), else the cookie (the browser). */
+export async function requestToken(): Promise<string | null> {
+  const auth = (await headers()).get("authorization");
+  if (auth?.toLowerCase().startsWith("bearer ")) return auth.slice(7).trim() || null;
+  return (await cookies()).get(COOKIE)?.value ?? null;
 }
 
 export async function endSession(): Promise<void> {
   const jar = await cookies();
-  const token = jar.get(COOKIE)?.value;
+  const token = await requestToken();
   if (token) {
     await db
       .update(sessions)
@@ -102,7 +115,7 @@ export async function endSession(): Promise<void> {
  * query, so a stale token cannot become an account through a missing `if`.
  */
 export async function currentAccount(): Promise<Account | null> {
-  const token = (await cookies()).get(COOKIE)?.value;
+  const token = await requestToken();
   if (!token) return null;
   const [row] = await db
     .select({ account: accounts })

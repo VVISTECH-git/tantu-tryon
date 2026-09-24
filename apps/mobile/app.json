@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Tantu",
+    "slug": "tantu-tryon",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vvistech.tantu"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f0f10",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.vvistech.tantu"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "scheme": "tantu",
+    "backgroundColor": "#0f0f10",
+    "splash": {
+      "backgroundColor": "#0f0f10",
+      "resizeMode": "contain",
+      "image": "./assets/splash-icon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Tantu uses the camera to photograph the saree on the rod.",
+          "photosPermission": "Tantu picks saree photos from your library."
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "extra": {
+      "apiBase": "https://tantu-tryon.vercel.app"
+    }
+  }
+}
