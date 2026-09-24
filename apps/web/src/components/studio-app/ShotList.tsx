@@ -165,12 +165,21 @@ export function ShotHowModal({ shot, onClose }: { shot: Shot; onClose: () => voi
   return (
     <Modal title={`${T.shots.howTitle} ${shot.label.toLowerCase()}`} onClose={onClose}>
       <div className="st-how">
-        <div className={`st-how-photo st-how-photo--${shot.orientation}`}>
+        {shot.frame && (
+          <>
+            <div className="st-how-photo st-how-photo--frame">
+              <img src={shot.frame} alt="" />
+            </div>
+            <p className="st-how-note">{T.shots.frameCaption}</p>
+          </>
+        )}
+        <div className={`st-how-photo st-how-photo--${shot.orientation} ${shot.frame ? "st-how-photo--small" : ""}`}>
           <img src={shot.sample} alt="" />
         </div>
         <OrientationMark orientation={shot.orientation} large />
         <p className="st-how-where">{shot.where}</p>
         <p className="st-how-copy">{shot.how}</p>
+        {shot.gives && <p className="st-how-copy">{shot.gives}</p>}
         {shot.required ? <p className="st-how-note">{T.shots.requiredNote}</p> : <p className="st-how-note">{T.shots.optionalNote}</p>}
       </div>
       <button type="button" className="st-action st-action--compact" onClick={onClose}>

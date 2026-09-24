@@ -399,3 +399,8 @@
 .st-words { display: grid; gap: 8px; padding: 10px 12px; border-radius: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--st-border); }
 .st-words-text { font-size: 13px; line-height: 1.45; color: var(--st-text-soft); }
 .st-words-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* The framing diagram on the How sheet, with the real photo smaller under it. */
+.st-how-photo--frame { aspect-ratio: 4 / 5; max-height: 46vh; background: #fff; }
+.st-how-photo--frame img { object-fit: contain; }
+.st-how-photo--small { width: 46%; max-height: none; }
