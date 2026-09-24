@@ -105,9 +105,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     const s = params.get("s") as Screen | null;
     if (!g) {
       restored.current = true;
-      // The splash, then the studio. A tap skips the wait.
-      const timer = setTimeout(() => setScreen((current) => (current === "splash" ? "entry" : current)), 2200);
-      return () => clearTimeout(timer);
+      return;
     }
     void (async () => {
       try {
@@ -129,6 +127,14 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
       }
     })();
   }, []);
+
+  // The splash, then the studio. A tap skips the wait. Its own effect, so a
+  // re-run in development (which cancels the first timer) simply sets another.
+  useEffect(() => {
+    if (screen !== "splash") return;
+    const timer = setTimeout(() => setScreen((current) => (current === "splash" ? "entry" : current)), 2200);
+    return () => clearTimeout(timer);
+  }, [screen]);
 
   async function refreshBalance() {
     try {
