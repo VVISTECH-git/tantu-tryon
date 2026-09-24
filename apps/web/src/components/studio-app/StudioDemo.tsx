@@ -207,11 +207,7 @@ export function StudioDemo() {
               </div>
             </div>
             <div className="st-header-actions">
-              <div className="st-lang" role="group" aria-label="Language">
-                <span className="is-active">English</span>
-                <span>/</span>
-                <span>हिन्दी</span>
-              </div>
+              <span className="st-status-chip">{T.status.trial}</span>
               <button type="button" className="st-icon-button st-icon-button--profile" aria-label={T.profile.title}>
                 <svg viewBox="0 0 24 24" aria-hidden>
                   <circle cx="12" cy="8" r="3.6" />
