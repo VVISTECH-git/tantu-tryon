@@ -15,8 +15,15 @@ interface GeminiPart {
   inline_data?: { data?: string; mime_type?: string };
 }
 
-const STANDARD_MODEL = "gemini-2.5-flash-image";
+/**
+ * gemini-2.5-flash-image is retired on 2 October 2026; 3.1 Flash Image is its
+ * replacement and, unlike 2.5, takes an output size. Pro is the same id it
+ * has been since the preview closed.
+ */
+const STANDARD_MODEL = "gemini-3.1-flash-image";
 const HIGH_MODEL = "gemini-3-pro-image";
+
+export const GEMINI_MODELS = { standard: STANDARD_MODEL, high: HIGH_MODEL } as const;
 
 /** Transient failures worth one more try before the pose is written off. */
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
@@ -134,5 +141,151 @@ export class GeminiProvider implements TryOnProvider {
     }
 
     throw new Error(lastError || "Gemini returned no image.");
+  }
+}
+
+// ── One image, one call ─────────────────────────────────────────────────────
+
+export type ImageSize = "1K" | "2K";
+
+export interface GenerateImageOptions {
+  /** The whole prompt, already composed. Sent first. */
+  prompt: string;
+  /** Reference images in the order the prompt refers to them. Raw base64 or data URLs. */
+  images: { data: string; mime?: string }[];
+  /** A Gemini image model id. Defaults to the standard model. */
+  model?: string;
+  /** Portrait catalogue frame unless told otherwise. */
+  aspectRatio?: string;
+  /** Only Gemini 3 image models accept a size; older ones return 400 if it is sent. */
+  imageSize?: ImageSize;
+  signal?: AbortSignal;
+}
+
+export interface GeneratedImage {
+  data: string;
+  mime: string;
+  model: string;
+  ms: number;
+  /** Google's own reason when it declined, so the caller can tell a refusal from a hiccup. */
+  finishReason?: string;
+}
+
+/**
+ * The plain path the guided flow uses: a composed prompt and its images in,
+ * one PNG out.
+ *
+ * Separate from `GeminiProvider.render`, which is shaped around the older
+ * RenderRequest and never set a generationConfig — which is why every Lab
+ * image came back square when the prompt asked for a portrait. This one sends
+ * the aspect ratio and size the way the v1beta schema describes them.
+ *
+ * Billing note for callers: a 200 with no image is still charged. This
+ * function does not retry those, and it says which kind of failure it saw so
+ * the ledger can record the cost honestly.
+ */
+export async function generateImage(options: GenerateImageOptions): Promise<GeneratedImage> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not set. Add it to .env.local — get one at https://aistudio.google.com/apikey.");
+  }
+  if (!options.prompt.trim()) throw new Error("An empty prompt was about to be sent.");
+  if (options.images.length === 0) throw new Error("No reference images to work from.");
+
+  const model = options.model || process.env.GEMINI_IMAGE_MODEL || STANDARD_MODEL;
+  const parts: GeminiPart[] = [{ text: options.prompt }];
+  for (const image of options.images) {
+    const data = image.data.replace(/^data:[^;]+;base64,/, "");
+    parts.push({ inline_data: { mime_type: image.mime ?? guessMime(data), data } });
+  }
+
+  const imageConfig: Record<string, string> = { aspectRatio: options.aspectRatio ?? "3:4" };
+  // 2.5-generation models reject imageSize outright; only send it where it is understood.
+  if (options.imageSize && /gemini-3/.test(model)) imageConfig.imageSize = options.imageSize;
+
+  const body = JSON.stringify({
+    contents: [{ parts }],
+    generationConfig: { responseModalities: ["IMAGE"], imageConfig },
+  });
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const started = Date.now();
+  let lastError = "";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (options.signal?.aborted) throw new Error("Stopped before it finished.");
+    if (attempt > 0) await sleep(1500 * attempt);
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      signal: options.signal,
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      if (res.status === 429 && /limit['"\s:]*0|free_tier/i.test(text)) {
+        throw new GeminiError(
+          "Gemini refused the request: the image models have no free API tier. Enable billing on this key's Google Cloud project.",
+          "unbilled",
+        );
+      }
+      lastError = `Gemini request failed: ${res.status} ${text.slice(0, 400)}`;
+      if (RETRYABLE.has(res.status)) continue;
+      // A 4xx before generation costs nothing.
+      throw new GeminiError(lastError, "rejected");
+    }
+
+    const json = (await res.json()) as {
+      candidates?: Array<{ content?: { parts?: GeminiPart[] }; finishReason?: string }>;
+      promptFeedback?: { blockReason?: string };
+    };
+    const candidate = json.candidates?.[0];
+    for (const part of candidate?.content?.parts ?? []) {
+      const inline = part.inlineData ?? part.inline_data;
+      if (inline?.data) {
+        const mime = part.inlineData?.mimeType ?? part.inline_data?.mime_type ?? "image/png";
+        return { data: inline.data, mime, model, ms: Date.now() - started };
+      }
+    }
+
+    const reason = candidate?.finishReason ?? json.promptFeedback?.blockReason;
+    // A 200 without an image was billed. The same request gets the same
+    // answer, so this is not retried; the caller changes something first.
+    throw new GeminiError(
+      reason
+        ? `Gemini returned no image (finishReason: ${reason}).`
+        : "Gemini returned no image — it may have declined this combination of photographs.",
+      reason && FINAL_REFUSALS.has(reason) ? "refused" : "empty",
+      reason,
+    );
+  }
+
+  throw new GeminiError(lastError || "Gemini returned no image.", "rejected");
+}
+
+/**
+ * What kind of failure, for the money.
+ *
+ *   refused   200, the model declined — billed
+ *   empty     200, nothing came back — billed
+ *   rejected  4xx/5xx before generation — not billed
+ *   unbilled  the key's project has no billing — not billed, and nothing will work until it does
+ */
+export type GeminiFailureKind = "refused" | "empty" | "rejected" | "unbilled";
+
+export class GeminiError extends Error {
+  constructor(
+    message: string,
+    readonly kind: GeminiFailureKind,
+    readonly finishReason?: string,
+  ) {
+    super(message);
+    this.name = "GeminiError";
+  }
+
+  /** Whether Google charged for the call that produced this error. */
+  get billed(): boolean {
+    return this.kind === "refused" || this.kind === "empty";
   }
 }

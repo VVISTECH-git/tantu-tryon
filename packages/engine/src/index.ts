@@ -9,6 +9,8 @@ export { composePrompt, referenceLegend, componentLegend } from "./compose";
 export { PLAYBOOK_PROMPTS } from "./playbook";
 export { guessMime, toRawBase64, toDataUrl } from "./mime";
 export { getProvider, configuredProviders, PROVIDER_IDS } from "./providers/index";
+export { generateImage, GeminiError, GEMINI_MODELS } from "./providers/gemini";
+export type { GenerateImageOptions, GeneratedImage, ImageSize, GeminiFailureKind } from "./providers/gemini";
 export { renderPoses, validateRequest } from "./render";
 export type { RenderOptions } from "./render";
 // Per-pose generation recipes. Server-only: running one calls a provider.

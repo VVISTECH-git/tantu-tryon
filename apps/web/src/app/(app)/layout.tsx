@@ -16,7 +16,8 @@ export const dynamic = "force-dynamic";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <AppHeader engines={configuredProviders()} />
+      {/* Anthropic reads photographs into words but generates nothing, so the engine list does not know it; the badge should. */}
+      <AppHeader engines={[...configuredProviders(), ...(process.env.ANTHROPIC_API_KEY ? ["claude"] : [])]} />
       {children}
     </>
   );

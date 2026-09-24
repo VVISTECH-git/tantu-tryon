@@ -1,3 +1,5 @@
+import { fetchProduct, normaliseSlot } from "@/lib/slk";
+
 export const runtime = "nodejs";
 
 /**
@@ -7,98 +9,18 @@ export const runtime = "nodejs";
  * SLK's endpoint is secret-gated, and a secret that reaches the browser is not
  * a secret. This route holds it and returns only the product.
  *
- * It is also the seam where SLK's shape becomes Tantu's. SLK speaks of
- * consignments, colourways and slots; Tantu only wants a garment and its four
- * parts, named the way its own recipe names them.
+ * It is also the seam where SLK's shape becomes Tantu's: SLK speaks of
+ * consignments, colourways and slots; Tantu only wants a garment and its
+ * parts, named the way its own recipe names them (`lib/slk.ts`).
  */
-
-interface SlkImage {
-  slot: string | null;
-  url: string;
-  width: number | null;
-  height: number | null;
-  alt: string;
-}
-
-interface SlkProduct {
-  productCode: string;
-  title: string;
-  description: string | null;
-  /**
-   * Every attribute SLK holds on the design, by name — fibreType, weaveStructure,
-   * audienceType, palluDesign, blouseStyle and the rest. Open-ended on purpose:
-   * SLK resolves whatever lookups the design carries, so a new attribute there
-   * arrives here without a change on this side.
-   */
-  design: { code: string; name: string } & Record<string, string | null>;
-  qty: number;
-  images: SlkImage[];
-}
-
-/**
- * SLK's photograph slots, in Tantu's vocabulary.
- *
- * They already agree — both call them Body, Pallu, Border and Blouse, because
- * both are describing the same saree. Mapped explicitly anyway so that a slot
- * renamed on one side shows up as an unmapped extra rather than silently
- * arriving in the wrong place on the other.
- */
-const SLOT_MAP: Record<string, string> = {
-  body: "body",
-  pallu: "pallu",
-  border: "border",
-  blouse: "blouse",
-  "blouse piece": "blouse",
-  "full drape": "full-drape",
-  "full saree": "full-drape",
-  weave: "weave",
-  "weave detail": "weave",
-};
-
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ code: string }> },
-) {
-  const base = process.env.SLK_API_BASE;
-  const secret = process.env.SLK_READ_SECRET;
-
-  if (!base || !secret) {
-    return Response.json(
-      { error: "Product lookup is not configured." },
-      { status: 503 },
-    );
-  }
-
+export async function GET(_request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  if (!/^\d{1,12}$/.test(code)) {
-    return Response.json({ error: "That is not an SLK product code." }, { status: 400 });
-  }
+  const lookup = await fetchProduct(code);
+  if (!lookup.ok) return Response.json({ error: lookup.message }, { status: lookup.status, headers: CORS });
 
-  let response: Response;
-  try {
-    response = await fetch(`${base}/api/v1/products/${code}`, {
-      headers: { Authorization: `Bearer ${secret}` },
-      cache: "no-store",
-    });
-  } catch {
-    return Response.json({ error: "Could not reach SLK." }, { status: 502 });
-  }
-
-  if (response.status === 404) {
-    return Response.json({ error: `No product carries the code ${code}.` }, { status: 404 });
-  }
-  if (!response.ok) {
-    // The upstream message may name the secret or the query; say less.
-    return Response.json(
-      { error: `SLK refused the lookup (${response.status}).` },
-      { status: 502 },
-    );
-  }
-
-  const product = (await response.json()) as SlkProduct;
-
+  const { product } = lookup;
   const parts = product.images.map((image) => ({
-    slot: SLOT_MAP[(image.slot ?? "").trim().toLowerCase()] ?? null,
+    slot: normaliseSlot(image.slot),
     label: image.slot ?? "Unlabelled",
     url: image.url,
     width: image.width,
@@ -114,9 +36,7 @@ export async function GET(
       design: product.design,
       parts,
       /** The four the recipe needs, and whether this product has them. */
-      missing: ["body", "pallu", "border", "blouse"].filter(
-        (needed) => !parts.some((p) => p.slot === needed),
-      ),
+      missing: ["body", "pallu", "border", "blouse"].filter((needed) => !parts.some((p) => p.slot === needed)),
     },
     { headers: CORS },
   );
@@ -125,12 +45,9 @@ export async function GET(
 /**
  * Readable from anywhere.
  *
- * A standalone HTML page — opened from a file, or served from somewhere other
- * than this app — is the fastest way to try a change, and the browser blocks
- * it from reading this route without these headers. What is behind the route
- * is already public and read-only: a product's title and the addresses of
- * photographs that R2 serves openly. The credential that reaches SLK stays on
- * this side and is not exposed by opening this up.
+ * What is behind the route is already public and read-only: a product's title
+ * and the addresses of photographs that R2 serves openly. The credential that
+ * reaches SLK stays on this side.
  */
 const CORS = {
   "Cache-Control": "no-store",
