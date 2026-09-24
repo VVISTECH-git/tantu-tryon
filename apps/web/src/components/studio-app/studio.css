@@ -394,3 +394,8 @@
 .st-shot-more-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .st-shot-more-chip { display: inline-flex; align-items: center; gap: 6px; }
 .st-shot-more-chip span { color: var(--st-accent-strong); font-weight: 700; }
+
+/* Confirm screen: one line of what the reader saw, with Edit. */
+.st-words { display: grid; gap: 8px; padding: 10px 12px; border-radius: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--st-border); }
+.st-words-text { font-size: 13px; line-height: 1.45; color: var(--st-text-soft); }
+.st-words-actions { display: flex; gap: 6px; flex-wrap: wrap; }

@@ -6,7 +6,7 @@ import { CREDIT_PAISE, QUALITY_LABEL, rupees, type Quality } from "@/content/cre
 import { ADULT_AGES, BACKGROUNDS, CHILD_AGES, MODEL_TYPES, TEMPLATES, type ModelType } from "@/content/promptTemplates";
 import { DEFAULT_GARMENT_TYPE, garmentType as typeOf, requiredSlots, shotFor, type Shot } from "@/content/shots";
 import type { PartQuality } from "@/db";
-import { ConfirmModal, Question, TipsModal, YesNo } from "./screens";
+import { ConfirmModal, TipsModal } from "./screens";
 import { GarmentTypeSelect, ShotHowModal, ShotList, ShotStrip, type ShotTile } from "./ShotList";
 import { T } from "./texts";
 import { POSE_TILES } from "./types";
@@ -28,7 +28,6 @@ type Screen =
   | "shots"
   | "analyzing"
   | "confirm"
-  | "details"
   | "flats"
   | "model"
   | "background"
@@ -42,14 +41,11 @@ type Screen =
 
 type ModalKind = null | "tips" | "how" | "restart" | "regenerate" | "regeneratePose" | "viewer";
 
+/** What the reader would have written for the sample saree; the demo has no reader. */
+const DEMO_WORDS = "body: green, Kalamkari peacocks and flowers · pallu: gold zari bands · border: red and gold zari · blouse: plain red";
+
 /** The demo has no server, so a picked photo is simply "looks good". */
 const DEMO_OK: PartQuality = { status: "ok", reasons: [], metrics: { sharpness: 0, brightness: 0, dark: 0, bright: 0, width: 0, height: 0 } };
-
-interface Answers {
-  borders: boolean;
-  bordersIdentical: boolean;
-  blouseSame: boolean;
-}
 
 interface Look {
   modelType: ModelType;
@@ -81,7 +77,6 @@ export function StudioDemo() {
   const [tiles, setTiles] = useState<ShotTile[]>([]);
   const [howShot, setHowShot] = useState<Shot | null>(null);
   const activeSlot = useRef<string>("body");
-  const [answers, setAnswers] = useState<Answers>({ borders: true, bordersIdentical: false, blouseSame: true });
   const [look, setLook] = useState<Look>({ modelType: "woman", age: "late 20s", background: BACKGROUNDS[0]!.id, quality: "high" });
   const [balance, setBalance] = useState(4000);
   const [primaryDone, setPrimaryDone] = useState(false);
@@ -316,24 +311,13 @@ export function StudioDemo() {
                 <p className="st-copy">{T.confirm.copy(typeOf(garmentType).label, tiles.length)}</p>
                 <ShotStrip type={garmentType} tiles={tiles} onEdit={() => setScreen("shots")} />
                 <GarmentTypeSelect value={garmentType} onChange={() => undefined} />
-                <button type="button" className="st-action" onClick={() => go("details")}>{T.confirm.continue}</button>
-              </div>
-            )}
-
-            {screen === "details" && (
-              <div className="st-stack">
-                <h1 className="st-title">{T.details.title}</h1>
-                <p className="st-copy">{T.details.copy}</p>
-                <Question label={T.details.borders.label} help={T.details.borders.help}>
-                  <YesNo value={answers.borders} onChange={(v) => setAnswers((a) => ({ ...a, borders: v }))} />
-                </Question>
-                <Question label={T.details.bordersIdentical.label} help={T.details.bordersIdentical.help}>
-                  <YesNo value={answers.bordersIdentical} onChange={(v) => setAnswers((a) => ({ ...a, bordersIdentical: v }))} />
-                </Question>
-                <Question label={T.details.blouseSame.label} help={T.details.blouseSame.help}>
-                  <YesNo value={answers.blouseSame} onChange={(v) => setAnswers((a) => ({ ...a, blouseSame: v }))} />
-                </Question>
-                <button type="button" className="st-action" onClick={() => go("flats")}>{T.common.continue}</button>
+                <div className="st-words">
+                  <span className="st-words-text">{T.confirm.readFromPhotos} {DEMO_WORDS}</span>
+                  <div className="st-words-actions">
+                    <button type="button" className="st-chip st-chip--accent">{T.details.words.edit}</button>
+                  </div>
+                </div>
+                <button type="button" className="st-action" onClick={() => go("flats")}>{T.confirm.continue}</button>
               </div>
             )}
 
@@ -346,7 +330,7 @@ export function StudioDemo() {
                   tiles={tiles}
                   busySlot={null}
                   optionalOnly
-                  hideBlouse={answers.blouseSame}
+                  hideBlouse={false}
                   onCamera={(shot) => openPicker(shot, true)}
                   onUpload={(shot) => openPicker(shot, false)}
                   onHow={(shot) => { setHowShot(shot); setModal("how"); }}

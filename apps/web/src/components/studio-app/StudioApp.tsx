@@ -9,7 +9,7 @@ import { ADULT_AGES, BACKGROUNDS, CHILD_AGES, TEMPLATES, type ModelType } from "
 import { DEFAULT_GARMENT_TYPE, garmentType as typeOf, requiredSlots, shotFor, type Shot } from "@/content/shots";
 import type { GenerationLook } from "@/db";
 import * as api from "./api";
-import { ConfirmModal, Copy, DownloadIcon, Modal, Question, RefreshIcon, Spinner, TipsModal, Title, YesNo } from "./screens";
+import { ConfirmModal, Copy, DownloadIcon, Modal, RefreshIcon, Spinner, TipsModal, Title } from "./screens";
 import { GarmentTypeSelect, ShotHowModal, ShotList, ShotStrip, type ShotTile } from "./ShotList";
 import { T } from "./texts";
 import { POSE_TILES, PRIMARY_PROMPT, type GarmentView, type RunView, type Screen } from "./types";
@@ -118,7 +118,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
         setPoseRuns(runs.filter((r) => r.promptId !== PRIMARY_PROMPT));
         if (p) setLook(p.look);
         setGarmentType(loaded.garmentType);
-        const allowed: Screen[] = ["shots", "confirm", "details", "flats", "model", "background", "output", "result", "poses", "gallery", "myImages", "profile", "pricing"];
+        const allowed: Screen[] = ["shots", "confirm", "flats", "model", "background", "output", "result", "poses", "gallery", "myImages", "profile", "pricing"];
         setScreen(s && allowed.includes(s) ? s : p ? "result" : "confirm");
       } catch {
         // A stale link: start over quietly.
@@ -253,13 +253,6 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     } finally {
       setBusy(false);
     }
-  }
-
-  async function answer(key: string, value: boolean) {
-    if (!garment) return;
-    const next = { ...garment.answers, [key]: value } as Record<string, boolean>;
-    setGarment({ ...garment, answers: next });
-    await api.patchGarment(garment.id, { answers: next });
   }
 
   async function saveWords(overrides: Record<string, string>) {
@@ -405,6 +398,15 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   // ── Derived ─────────────────────────────────────────────────────────────
 
   const tiles: ShotTile[] = (garment?.parts ?? []).map((p) => ({ slot: p.slot, url: p.url, quality: p.quality ?? null }));
+  const wordsLine = (["body", "pallu", "border", "blouse"] as const)
+    .map((part) => {
+      const colour = words[`${part}Colour`];
+      const desc = words[`${part}Desc`];
+      if (!colour && !desc) return null;
+      return `${part}: ${[colour, desc].filter(Boolean).join(", ")}`;
+    })
+    .filter(Boolean)
+    .join(" · ");
   const required = requiredSlots(garmentType);
   const missing = required.filter((slot) => !tiles.some((t) => t.slot === slot));
   const blocked = required.filter((slot) => tiles.find((t) => t.slot === slot)?.quality?.status === "block");
@@ -563,59 +565,23 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                   </div>
                 </div>
               ))}
-              <button type="button" className="st-action" onClick={() => go("details")}>
-                {T.confirm.continue}
-              </button>
-            </div>
-          )}
-
-          {screen === "details" && garment && (
-            <div className="st-stack">
-              <Title>{T.details.title}</Title>
-              <Copy>{T.details.copy}</Copy>
-              <Question label={T.details.borders.label} help={T.details.borders.help}>
-                <YesNo value={garment.answers.borders ?? true} onChange={(v) => void answer("borders", v)} />
-              </Question>
-              <Question label={T.details.bordersIdentical.label} help={T.details.bordersIdentical.help}>
-                <YesNo value={garment.answers.bordersIdentical ?? true} onChange={(v) => void answer("bordersIdentical", v)} />
-              </Question>
-              <Question label={T.details.blouseSame.label} help={T.details.blouseSame.help}>
-                <YesNo value={garment.answers.blouseSameAsBody ?? true} onChange={(v) => void answer("blouseSameAsBody", v)} />
-              </Question>
-              <div className="st-question">
-                <div className="st-section-head">
-                  <div className="st-question-label">{T.details.words.label}</div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    {canDescribe && (
-                      <button type="button" className="st-chip" disabled={busy} onClick={() => void readAgain()}>
-                        {busy ? "…" : T.details.words.readAgain}
-                      </button>
-                    )}
-                    <button type="button" className="st-chip st-chip--accent" onClick={() => setEditingWords((e) => !e)}>
-                      {editingWords ? T.details.words.done : T.details.words.edit}
+              <div className="st-words">
+                <span className="st-words-text">
+                  {wordsLine ? `${T.confirm.readFromPhotos} ${wordsLine}` : T.confirm.noWords}
+                </span>
+                <div className="st-words-actions">
+                  {canDescribe && (
+                    <button type="button" className="st-chip" disabled={busy} onClick={() => void readAgain()}>
+                      {busy ? "…" : T.details.words.readAgain}
                     </button>
-                  </div>
+                  )}
+                  <button type="button" className="st-chip st-chip--accent" onClick={() => setEditingWords(true)}>
+                    {T.details.words.edit}
+                  </button>
                 </div>
-                <div className="st-question-hint">{T.details.words.help}</div>
-                {!editingWords ? (
-                  <div className="st-list" style={{ gap: 6 }}>
-                    {(["body", "pallu", "border", "blouse"] as const).map((part) => {
-                      const colour = words[`${part}Colour`];
-                      const desc = words[`${part}Desc`];
-                      return (
-                        <div key={part} style={{ fontSize: 13, lineHeight: 1.4 }}>
-                          <b style={{ textTransform: "capitalize" }}>{part}</b>{" "}
-                          {colour ? <span style={{ color: "#f0b17e" }}>{colour}</span> : <span className="st-muted">colour?</span>} <span className="st-soft">{desc}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <WordsEditor garment={garment} words={words} onSave={saveWords} />
-                )}
               </div>
               <button type="button" className="st-action" onClick={() => go("flats")}>
-                {T.common.continue}
+                {T.confirm.continue}
               </button>
             </div>
           )}
@@ -999,6 +965,15 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
 
       {modal === "tips" && <TipsModal index={tipIndex} onIndex={setTipIndex} onClose={() => setModal(null)} />}
       {modal === "how" && howShot && <ShotHowModal shot={howShot} onClose={() => setModal(null)} />}
+      {editingWords && garment && (
+        <Modal title={T.details.words.label} onClose={() => setEditingWords(false)} wide>
+          <p className="st-modal-message" style={{ textAlign: "left" }}>{T.details.words.help}</p>
+          <WordsEditor garment={garment} words={words} onSave={async (o) => { await saveWords(o); setEditingWords(false); }} />
+          <button type="button" className="st-secondary" onClick={() => setEditingWords(false)}>
+            {T.common.close}
+          </button>
+        </Modal>
+      )}
       {modal === "restart" && (
         <ConfirmModal icon="👗" title={T.generate.restartTitle} message={T.generate.restartMessage} confirm={T.generate.restartButton} onConfirm={resetAll} onClose={() => setModal(null)} />
       )}
