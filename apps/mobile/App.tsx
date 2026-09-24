@@ -4,6 +4,7 @@ import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { ShotCamera, type CapturedPhoto } from "./src/ShotCamera";
 import {
   DEFAULT_GARMENT_TYPE,
   garmentType as typeOf,
@@ -46,6 +47,7 @@ function Studio() {
   const [garmentType, setGarmentType] = useState(DEFAULT_GARMENT_TYPE);
   const [garment, setGarment] = useState<GarmentView | null>(null);
   const [busySlot, setBusySlot] = useState<string | null>(null);
+  const [cameraShot, setCameraShot] = useState<Shot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<{ title: string; body: string }[]>([]);
@@ -114,18 +116,26 @@ function Studio() {
 
   // ── Photographs ─────────────────────────────────────────────────────────
 
-  async function pick(shot: Shot, camera: boolean) {
+  /** The photo library only; the shutter goes through Tantu's own camera screen (ShotCamera) instead of the OS one. */
+  async function pickFromLibrary(shot: Shot) {
     setError(null);
-    const permission = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      setError(camera ? "Allow the camera in Settings to photograph the saree." : "Allow photo access in Settings to pick a photo.");
+      setError("Allow photo access in Settings to pick a photo.");
       return;
     }
     const options: ImagePicker.ImagePickerOptions = { mediaTypes: ["images"], quality: 1, exif: false, allowsEditing: false };
-    const result = camera ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
+    const result = await ImagePicker.launchImageLibraryAsync(options);
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
     await upload(shot, { uri: asset.uri, width: asset.width, height: asset.height });
+  }
+
+  async function shotCaptured(photo: CapturedPhoto) {
+    const shot = cameraShot;
+    setCameraShot(null);
+    if (!shot) return;
+    await upload(shot, photo);
   }
 
   /** Shrink to a 2000px long side as the browser does, then send. */
@@ -348,8 +358,8 @@ function Studio() {
               busySlot={busySlot}
               opened={opened}
               onOpen={(slot) => setOpened((prev) => new Set(prev).add(slot))}
-              onCamera={(shot) => void pick(shot, true)}
-              onUpload={(shot) => void pick(shot, false)}
+              onCamera={(shot) => setCameraShot(shot)}
+              onUpload={(shot) => void pickFromLibrary(shot)}
               onClear={(shot) => void clear(shot)}
               onHow={setHowShot}
             />
@@ -425,8 +435,8 @@ function Studio() {
               optionalOnly
               opened={opened}
               onOpen={(slot) => setOpened((prev) => new Set(prev).add(slot))}
-              onCamera={(shot) => void pick(shot, true)}
-              onUpload={(shot) => void pick(shot, false)}
+              onCamera={(shot) => setCameraShot(shot)}
+              onUpload={(shot) => void pickFromLibrary(shot)}
               onClear={(shot) => void clear(shot)}
               onHow={setHowShot}
             />
@@ -513,6 +523,10 @@ function Studio() {
             </Pressable>
           )}
         </Pressable>
+      </Modal>
+
+      <Modal visible={cameraShot !== null} animationType="slide" onRequestClose={() => setCameraShot(null)}>
+        {cameraShot && <ShotCamera shot={cameraShot} onCapture={(photo) => void shotCaptured(photo)} onClose={() => setCameraShot(null)} />}
       </Modal>
     </SafeAreaView>
   );
