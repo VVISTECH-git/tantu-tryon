@@ -552,8 +552,14 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                 onHow={(shot) => { setHowShot(shot); setModal("how"); }}
                 onClear={(shot) => void clearShot(shot.slot)}
               />
-              <button type="button" className="st-action" disabled={busy || busySlot !== null} onClick={() => go("output")}>
-                {T.common.continue}
+              {balance < CREDIT_PAISE[look.quality] && <p className="st-support">{T.output.exhausted}</p>}
+              <button
+                type="button"
+                className="st-action"
+                disabled={busy || busySlot !== null || balance < CREDIT_PAISE[look.quality]}
+                onClick={() => void generatePrimary()}
+              >
+                {T.generate.action} · {rupees(CREDIT_PAISE[look.quality])}
               </button>
             </div>
           )}
