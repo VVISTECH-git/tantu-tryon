@@ -1167,7 +1167,7 @@ const SPLASH_SHOTS = [
   "/splash/b_2.jpg",
   "/splash/b_3.jpg",
   "/splash/b_4.jpg",
-  "https://pub-344134bc87ed4d1b8a06ac24789cf1da.r2.dev/products/f0e2cc26-f9f1-4398-9989-afc99227c741/b783d2e8-630b-4b5b-b479-a326071ae91f-1790216063370.jpg",
+  "/splash/b_5.jpg",
 ];
 
 /** Tantu's mark: a thread looping into a T, in the studio's orange, with a spark. */
