@@ -1,63 +1,96 @@
-# Codemagic builds for the Tantu phone app (apps/mobile, Expo).
+# Codemagic CI/CD for the Tantu phone app (apps/mobile, Expo / React Native).
+# ---------------------------------------------------------------------------
+# Same shape as slk-mobile's file, which already builds and ships on this
+# account: Android (APK + AAB) and iOS (IPA → TestFlight), both on mac_mini_m2,
+# started by a push to main. The native projects are generated on the build
+# machine with `expo prebuild`, so no android/ or ios/ folder is committed.
 #
-# One workflow, Android, producing an installable APK for the shop's phones
-# and an AAB for the Play Store. It runs Expo's prebuild to generate the
-# native project on the build machine, so no android/ folder is committed.
+# The app talks to the live server by default (apps/mobile/app.json →
+# extra.apiBase). Set EXPO_PUBLIC_API_BASE in a variable group to override.
 #
-# Before the first run, in Codemagic → the app → Environment variables, add
-# a group called `tantu_android` with:
-#   CM_KEYSTORE           the release keystore, base64 (Codemagic's
-#                         "Code signing identities" page can generate one)
-#   CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS, CM_KEY_PASSWORD
-#   EXPO_PUBLIC_API_BASE  https://tantu-tryon.vercel.app
+# ONE-TIME SETUP in the Codemagic UI (nothing here needs a password in the repo):
+#   • Add this GitHub repo (VVISTECH-git/tantu-tryon) as a Codemagic app; it
+#     reads this file.
+#   • Android signing: the existing keystore reference `slk` (Teams → Code
+#     signing identities → Android keystores) signs this app too. To keep the
+#     apps apart later, upload a second keystore and change the name below.
+#   • iOS signing: the existing App Store Connect integration "VVIS Codemagic"
+#     and a `signing` variable group holding the secure var
+#     CERTIFICATE_PRIVATE_KEY, exactly as slk-mobile/docs/ios-signing.md
+#     describes (one persistent distribution certificate, reused).
+#   • App Store Connect: create the app record "Tantu" with bundle id
+#     com.vvistech.tantu before the first iOS build, so TestFlight has
+#     somewhere to put the IPA. The workflow registers the bundle id itself.
+# ---------------------------------------------------------------------------
+
+definitions:
+  install: &install
+    name: Install pnpm and dependencies
+    script: |
+      corepack enable
+      corepack prepare pnpm@11.24.0 --activate
+      pnpm install --frozen-lockfile
+  typecheck: &typecheck
+    name: Typecheck the app and its shared package
+    script: |
+      pnpm --filter @tantu/shared typecheck
+      pnpm --filter @tantu/mobile typecheck
+
 workflows:
-  tantu-android:
-    name: Tantu · Android
+  # =========================================================================
+  # ANDROID — signed APK + AAB
+  # =========================================================================
+  android-workflow:
+    name: Tantu Android (APK + AAB)
+    instance_type: mac_mini_m2
     max_build_duration: 60
-    instance_type: linux_x2
-    environment:
-      groups:
-        - tantu_android
-      node: 22.14.0
-      java: 17
-      vars:
-        PACKAGE_NAME: "com.vvistech.tantu"
     triggering:
       events:
         - push
       branch_patterns:
         - pattern: main
           include: true
+          source: true
       cancel_previous_builds: true
+    environment:
+      node: 22.14.0
+      java: 17
+      android_signing:
+        - slk
+      vars:
+        PACKAGE_NAME: "com.vvistech.tantu"
     scripts:
-      - name: Install pnpm and dependencies
-        script: |
-          corepack enable
-          corepack prepare pnpm@11.24.0 --activate
-          pnpm install --frozen-lockfile
+      - *install
+      - *typecheck
       - name: Generate the native Android project
         script: |
           cd apps/mobile
           npx expo prebuild --platform android --no-install --clean
-      - name: Set up release signing
-        script: |
-          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/apps/mobile/android/app/release.keystore"
-          cat >> "$CM_BUILD_DIR/apps/mobile/android/gradle.properties" <<EOF
-          TANTU_UPLOAD_STORE_FILE=release.keystore
-          TANTU_UPLOAD_STORE_PASSWORD=$CM_KEYSTORE_PASSWORD
-          TANTU_UPLOAD_KEY_ALIAS=$CM_KEY_ALIAS
-          TANTU_UPLOAD_KEY_PASSWORD=$CM_KEY_PASSWORD
-          EOF
-          # Point the release build at the keystore instead of Expo's debug one.
-          sed -i 's/signingConfig signingConfigs.debug/signingConfig signingConfigs.release/' apps/mobile/android/app/build.gradle
-          sed -i '/signingConfigs {/a\        release {\n            storeFile file(TANTU_UPLOAD_STORE_FILE)\n            storePassword TANTU_UPLOAD_STORE_PASSWORD\n            keyAlias TANTU_UPLOAD_KEY_ALIAS\n            keyPassword TANTU_UPLOAD_KEY_PASSWORD\n        }' apps/mobile/android/app/build.gradle
-      - name: Build APK and AAB
+      - name: Point the release build at the Codemagic keystore
         script: |
           cd apps/mobile/android
-          ./gradlew assembleRelease bundleRelease --no-daemon
+          cat >> gradle.properties <<EOF
+          TANTU_STORE_FILE=$CM_KEYSTORE_PATH
+          TANTU_STORE_PASSWORD=$CM_KEYSTORE_PASSWORD
+          TANTU_KEY_ALIAS=$CM_KEY_ALIAS
+          TANTU_KEY_PASSWORD=$CM_KEY_PASSWORD
+          EOF
+          # Expo's template signs release with the debug key; swap in ours.
+          sed -i '' 's/signingConfig signingConfigs.debug/signingConfig signingConfigs.release/' app/build.gradle
+          sed -i '' '/signingConfigs {/a\
+                  release {\
+                      storeFile file(TANTU_STORE_FILE)\
+                      storePassword TANTU_STORE_PASSWORD\
+                      keyAlias TANTU_KEY_ALIAS\
+                      keyPassword TANTU_KEY_PASSWORD\
+                  }' app/build.gradle
+      - name: Build APK + AAB
+        script: |
+          cd apps/mobile/android
+          ./gradlew assembleRelease bundleRelease --no-daemon -PversionCode=$BUILD_NUMBER
     artifacts:
-      - apps/mobile/android/app/build/outputs/apk/release/*.apk
-      - apps/mobile/android/app/build/outputs/bundle/release/*.aab
+      - apps/mobile/android/app/build/outputs/**/*.apk
+      - apps/mobile/android/app/build/outputs/bundle/**/*.aab
     publishing:
       email:
         recipients:
@@ -65,3 +98,71 @@ workflows:
         notify:
           success: true
           failure: true
+
+  # =========================================================================
+  # iOS — signed IPA → TestFlight (internal testers install from the
+  # TestFlight app on the iPhone, the same way as slk-mobile)
+  # =========================================================================
+  ios-workflow:
+    name: Tantu iOS (TestFlight)
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+      cancel_previous_builds: true
+    integrations:
+      app_store_connect: "VVIS Codemagic"
+    environment:
+      node: 22.14.0
+      xcode: latest
+      cocoapods: default
+      groups:
+        - signing # holds the secure var CERTIFICATE_PRIVATE_KEY (see slk-mobile/docs/ios-signing.md)
+      vars:
+        BUNDLE_ID: "com.vvistech.tantu"
+        XCODE_WORKSPACE: "apps/mobile/ios/Tantu.xcworkspace"
+        XCODE_SCHEME: "Tantu"
+    scripts:
+      - *install
+      - *typecheck
+      - name: Generate the native iOS project and install pods
+        script: |
+          cd apps/mobile
+          npx expo prebuild --platform ios --clean
+      - name: Set up code signing
+        # One persistent distribution certificate, reused every build; the
+        # bundle id and provisioning profile are created on the first run.
+        script: |
+          set -ex
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --certificate-key @env:CERTIFICATE_PRIVATE_KEY \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: Build IPA
+        script: |
+          # Codemagic's ever-rising build counter keeps every TestFlight upload higher than the last.
+          agvtool new-version -all $BUILD_NUMBER || true
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      email:
+        recipients:
+          - bhanuboddu09@gmail.com
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
