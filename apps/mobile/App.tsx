@@ -2,11 +2,12 @@ import { StatusBar } from "expo-status-bar";
 import * as ImagePicker from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, BackHandler, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
 import { TANTU_MARK_GRADIENT, TANTU_MARK_PATHS, TANTU_MARK_VIEWBOX } from "@tantu/shared/brand";
 import { ShotCamera, type CapturedPhoto } from "./src/ShotCamera";
+import { CropView } from "./src/CropView";
 import {
   DEFAULT_GARMENT_TYPE,
   garmentType as typeOf,
@@ -57,10 +58,12 @@ function Studio() {
   const [accountBack, setAccountBack] = useState<Screen>("type");
   const [garmentType, setGarmentType] = useState(DEFAULT_GARMENT_TYPE);
   const [productId, setProductId] = useState("");
+  const [lateId, setLateId] = useState("");
   const [saved, setSaved] = useState<api.SavedProduct[] | null>(null);
   const [garment, setGarment] = useState<GarmentView | null>(null);
   const [busySlot, setBusySlot] = useState<string | null>(null);
   const [cameraShot, setCameraShot] = useState<Shot | null>(null);
+  const [cropPick, setCropPick] = useState<{ shot: Shot; photo: api.LocalPhoto } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<{ title: string; body: string }[]>([]);
@@ -124,6 +127,42 @@ function Studio() {
     }
   }
 
+  /**
+   * One step back from each screen. From the first screen there is nowhere
+   * to go, so Android's back button leaves the app as usual; everywhere else
+   * it steps back instead of closing the app mid-product.
+   */
+  function backFrom(from: Screen): Screen | null {
+    switch (from) {
+      case "shots":
+      case "saved":
+        return "type";
+      case "confirm":
+        return "shots";
+      case "flats":
+        return "confirm";
+      case "result":
+        return "flats";
+      case "account":
+        return accountBack;
+      default:
+        return null;
+    }
+  }
+  const backTarget = backFrom(screen);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (cameraShot || cropPick || viewing || howShot || typeOpen) return false;
+      if (screen === "analyzing" || screen === "generating") return true;
+      const to = backFrom(screen);
+      if (!to) return false;
+      setScreen(to);
+      return true;
+    });
+    return () => sub.remove();
+  });
+
   // Not while analyzing or generating: those screens move on by themselves when the call returns.
   function openAccount() {
     if (screen === "analyzing" || screen === "generating" || screen === "account") return;
@@ -154,7 +193,7 @@ function Studio() {
     const result = await ImagePicker.launchImageLibraryAsync(options);
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
-    await upload(shot, { uri: asset.uri, width: asset.width, height: asset.height, mimeType: asset.mimeType ?? undefined });
+    setCropPick({ shot, photo: { uri: asset.uri, width: asset.width, height: asset.height, mimeType: asset.mimeType ?? undefined } });
   }
 
   async function shotCaptured(photo: CapturedPhoto) {
@@ -294,6 +333,22 @@ function Studio() {
     }
   }
 
+  async function saveLateId() {
+    if (!garment || !lateId.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const g = await api.setProductId(garment.id, lateId.trim());
+      setGarment(g);
+      setProductId(g.productCode ?? "");
+      setLateId("");
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not save the product ID.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function showSaved() {
     setScreen("saved");
     setSaved(null);
@@ -380,6 +435,19 @@ function Studio() {
 
       <ScrollView contentContainerStyle={s.main} keyboardShouldPersistTaps="handled">
         {error && screen !== "signin" && <Text style={s.error}>{error}</Text>}
+
+        {backTarget && screen !== "account" && (
+          <View style={s.navRow}>
+            <Pressable onPress={() => setScreen(backTarget)} hitSlop={10} accessibilityLabel="Back">
+              <Text style={s.navBack}>‹ Back</Text>
+            </Pressable>
+            {garment?.productCode && screen !== "saved" && screen !== "shots" ? (
+              <View style={s.navId}>
+                <Text style={s.navIdText}>{garment.productCode}</Text>
+              </View>
+            ) : null}
+          </View>
+        )}
 
         {screen === "splash" && <Splash onSkip={() => setScreen("signin")} deviceW={deviceW} />}
 
@@ -508,7 +576,6 @@ function Studio() {
                 </Pressable>
               ))
             )}
-            <Secondary label="Back" onPress={() => setScreen("type")} />
           </View>
         )}
 
@@ -519,6 +586,24 @@ function Studio() {
               <View style={s.savedUnder}>
                 <Text style={s.savedUnderText}>Saving under product ID</Text>
                 <Text style={s.savedUnderId}>{garment.productCode}</Text>
+              </View>
+            ) : garment ? (
+              <View style={s.lateId}>
+                <Text style={s.lateIdTitle}>This record has no product ID</Text>
+                <Text style={s.support}>It was saved before IDs were asked for. Give it one so its photos are tracked.</Text>
+                <View style={[s.row, { gap: 8 }]}>
+                  <TextInput
+                    style={[s.input, { flex: 1 }]}
+                    value={lateId}
+                    onChangeText={setLateId}
+                    placeholder="Product ID"
+                    placeholderTextColor={C.textMuted}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    onSubmitEditing={() => void saveLateId()}
+                  />
+                  <Chip label="Save ID" accent disabled={busy || !lateId.trim()} onPress={() => void saveLateId()} />
+                </View>
               </View>
             ) : null}
             <Text style={s.copy}>Hang it once. Only the phone moves.</Text>
@@ -532,6 +617,7 @@ function Studio() {
               busySlot={busySlot}
               opened={opened}
               onOpen={(slot) => setOpened((prev) => new Set(prev).add(slot))}
+              onFold={(slot) => setOpened((prev) => { const next = new Set(prev); next.delete(slot); return next; })}
               onCamera={(shot) => setCameraShot(shot)}
               onUpload={(shot) => void pickFromLibrary(shot)}
               onClear={(shot) => void clear(shot)}
@@ -623,6 +709,7 @@ function Studio() {
               optionalOnly
               opened={opened}
               onOpen={(slot) => setOpened((prev) => new Set(prev).add(slot))}
+              onFold={(slot) => setOpened((prev) => { const next = new Set(prev); next.delete(slot); return next; })}
               onCamera={(shot) => setCameraShot(shot)}
               onUpload={(shot) => void pickFromLibrary(shot)}
               onClear={(shot) => void clear(shot)}
@@ -715,6 +802,21 @@ function Studio() {
             </ScrollView>
           </View>
         </Pressable>
+      </Modal>
+
+      {/* A photo from the library, cropped (or not) before it is saved */}
+      <Modal visible={cropPick !== null} animationType="slide" onRequestClose={() => setCropPick(null)} statusBarTranslucent>
+        {cropPick && (
+          <CropView
+            photo={cropPick.photo}
+            onCancel={() => setCropPick(null)}
+            onDone={(p) => {
+              const pick = cropPick;
+              setCropPick(null);
+              void upload(pick.shot, { uri: p.uri, width: p.width, height: p.height, mimeType: p.mimeType });
+            }}
+          />
+        )}
       </Modal>
 
       {/* A captured photo, full screen */}
@@ -846,6 +948,7 @@ function ShotList({
   optionalOnly,
   opened,
   onOpen,
+  onFold,
   onCamera,
   onUpload,
   onClear,
@@ -858,6 +961,7 @@ function ShotList({
   optionalOnly?: boolean;
   opened: Set<string>;
   onOpen: (slot: string) => void;
+  onFold?: (slot: string) => void;
   onCamera: (shot: Shot) => void;
   onUpload: (shot: Shot) => void;
   onClear: (shot: Shot) => void;
@@ -929,6 +1033,11 @@ function ShotList({
                 <Pressable onPress={() => onHow(shot)}>
                   <Text style={s.link}>How</Text>
                 </Pressable>
+                {!shot.required && !p && onFold && (
+                  <Pressable onPress={() => onFold(shot.slot)} hitSlop={6}>
+                    <Text style={s.link}>Hide</Text>
+                  </Pressable>
+                )}
               </View>
             </View>
           </View>
@@ -1022,6 +1131,12 @@ const s = StyleSheet.create({
   plus: { color: C.text, fontSize: 26 },
   plusAbs: { position: "absolute", textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
+  navRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: -4 },
+  navBack: { color: C.accentPale, fontSize: 15, fontWeight: "600" },
+  navId: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: R.pill, borderWidth: 1, borderColor: "rgba(240,141,66,0.35)", backgroundColor: "rgba(240,141,66,0.1)" },
+  navIdText: { color: C.accentPale, fontSize: 12, fontWeight: "700" },
+  lateId: { gap: 8, padding: 14, borderRadius: R.md, borderWidth: 1, borderColor: C.warnBorder, backgroundColor: "rgba(224,162,58,0.08)" },
+  lateIdTitle: { color: C.warn, fontSize: 14, fontWeight: "700", textAlign: "center" },
   savedUnder: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 7, borderRadius: R.pill, borderWidth: 1, borderColor: "rgba(240,141,66,0.35)", backgroundColor: "rgba(240,141,66,0.1)" },
   savedUnderText: { color: C.textSoft, fontSize: 12 },
   savedUnderId: { color: C.accentPale, fontSize: 14, fontWeight: "700" },

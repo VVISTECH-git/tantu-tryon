@@ -105,7 +105,7 @@ export const T = {
     clear: "Clear",
     empty: "No image",
     items: {
-      blouse: { label: "Blouse piece image", help: "Upload a blouse piece image if available. If you skip it, we will create a matching blouse for you." },
+      blouse: { label: "Blouse piece image", help: "Upload a blouse piece image if available. If you skip it, the model wears a plain blouse in the colour of the saree's border." },
       pallu: { label: "Pallu close-up", help: "A closer photo of the pallu end keeps its motif exact in every pose." },
       border: { label: "Border close-up", help: "A straight run of the border, edge parallel to the frame, keeps its width and design true." },
     },
