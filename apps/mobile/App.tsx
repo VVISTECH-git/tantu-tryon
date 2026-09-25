@@ -349,6 +349,24 @@ function Studio() {
     }
   }
 
+  async function openWithoutId() {
+    setBusy(true);
+    setError(null);
+    try {
+      const g = await api.openWithoutProductId(garmentType);
+      setGarment(g);
+      setProductId("");
+      setPrimary(null);
+      setWarnings([]);
+      batch.current = api.newKey();
+      setScreen("shots");
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not start.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function showSaved() {
     setScreen("saved");
     setSaved(null);
@@ -546,6 +564,9 @@ function Studio() {
             </Pressable>
             <Text style={s.support}>Saree is live. The other types are coming soon.</Text>
             <Action label={busy ? "Opening…" : "Continue to photos"} disabled={busy || !productId.trim()} onPress={() => void openProduct()} />
+            <Pressable onPress={() => void openWithoutId()} disabled={busy} hitSlop={8} style={{ alignSelf: "center" }}>
+              <Text style={s.link}>Continue without product ID</Text>
+            </Pressable>
             <Secondary label="Saved products" onPress={() => void showSaved()} />
           </View>
         )}
