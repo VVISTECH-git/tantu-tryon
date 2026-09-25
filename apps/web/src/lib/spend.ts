@@ -1,6 +1,7 @@
 import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { creditLedger, db, generations, settings, type GenerationLook } from "@/db";
 import { CREDIT_PAISE, rupees } from "@/content/credits";
+import { savedPrices, usdFor, type ImageSize } from "@/lib/imageModels";
 
 export { CREDIT_PAISE, rupees };
 
@@ -29,12 +30,6 @@ export { CREDIT_PAISE, rupees };
 
 // ── Prices ────────────────────────────────────────────────────────────────────
 
-/** Google's list price per image, USD, by model and output size (verified 2026-09-24). */
-const LIST_USD: Record<string, Record<"1K" | "2K", number>> = {
-  "gemini-3.1-flash-image": { "1K": 0.067, "2K": 0.101 },
-  "gemini-3-pro-image": { "1K": 0.134, "2K": 0.134 },
-  "gemini-2.5-flash-image": { "1K": 0.039, "2K": 0.039 },
-};
 /** Input tokens for a prompt and a sheet: small, but not nothing. */
 const INPUT_USD = 0.002;
 
@@ -42,9 +37,13 @@ export function imageSizeFor(quality: GenerationLook["quality"]): "1K" | "2K" {
   return quality === "high" ? "2K" : "1K";
 }
 
-/** Our estimated cost for one call, in paise, at the given rate. */
-export function listCostPaise(model: string, size: "1K" | "2K", ratePaisePerUsd: number): number {
-  const usd = (LIST_USD[model]?.[size] ?? 0.134) + INPUT_USD;
+/**
+ * Our estimated cost for one call, in paise: the last price read from
+ * Google's page (see lib/imageModels.ts), or Pro's price for a model it does
+ * not know, so an unknown model is over- rather than under-counted.
+ */
+export async function listCostPaise(model: string, size: ImageSize, ratePaisePerUsd: number): Promise<number> {
+  const usd = (usdFor(await savedPrices(), model, size) ?? 0.134) + INPUT_USD;
   return Math.round(usd * ratePaisePerUsd);
 }
 
@@ -87,7 +86,7 @@ export async function limits(): Promise<Limits> {
   return {
     dailyCapPaise: daily ? Number(daily) : envNumber("SPEND_CAP_DAILY_INR", 500) * 100,
     monthlyCapPaise: monthly ? Number(monthly) : envNumber("SPEND_CAP_MONTHLY_INR", 5000) * 100,
-    ratePaisePerUsd: rate ? Number(rate) : envNumber("USD_INR", 88) * 100,
+    ratePaisePerUsd: rate ? Number(rate) : envNumber("USD_INR", 96) * 100,
     paused: paused === "true",
     perAccountRunning: 3,
     globalRunning: 6,
@@ -109,6 +108,7 @@ export interface ReserveInput {
   promptText: string;
   look: GenerationLook;
   model: string;
+  size: ImageSize;
 }
 
 export type ReserveResult =
@@ -130,8 +130,7 @@ export async function reserveGeneration(input: ReserveInput): Promise<ReserveRes
   }
 
   const lim = await limits();
-  const size = imageSizeFor(input.look.quality);
-  const costPaise = listCostPaise(input.model, size, lim.ratePaisePerUsd);
+  const costPaise = await listCostPaise(input.model, input.size, lim.ratePaisePerUsd);
   const creditsPaise = CREDIT_PAISE[input.look.quality];
 
   return db.transaction(async (tx) => {

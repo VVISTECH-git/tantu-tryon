@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAccount } from "@/lib/session";
+import { setImageOption } from "@/lib/imageModels";
 import { grantCredits, setSetting } from "@/lib/spend";
 
 /** Server Actions carry no cookie check of their own, so each one asks for the account first. */
@@ -20,10 +21,14 @@ export async function setCapsAction(form: FormData) {
   };
   const daily = paise("daily");
   const monthly = paise("monthly");
-  const rate = paise("rate");
   if (daily) await setSetting("spend_cap_daily_paise", String(daily));
   if (monthly) await setSetting("spend_cap_monthly_paise", String(monthly));
-  if (rate) await setSetting("usd_inr_paise", String(rate));
+  revalidatePath("/admin/spend");
+}
+
+export async function setImageModelAction(form: FormData) {
+  await requireAccount();
+  await setImageOption(String(form.get("option") ?? ""));
   revalidatePath("/admin/spend");
 }
 

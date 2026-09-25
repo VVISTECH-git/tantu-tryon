@@ -1,8 +1,9 @@
 import { desc, eq } from "drizzle-orm";
 import { db, garments, generations } from "@/db";
 import { requirePage } from "@/lib/page-auth";
+import { IMAGE_OPTIONS, chosenImageOption, livePrices, liveRate } from "@/lib/imageModels";
 import { balancePaise, rupees, spendSummary, sweepStale } from "@/lib/spend";
-import { grantAction, setCapsAction, togglePauseAction } from "./actions";
+import { grantAction, setCapsAction, setImageModelAction, togglePauseAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,8 @@ export const dynamic = "force-dynamic";
 export default async function SpendPage() {
   const account = await requirePage("/admin/spend");
   await sweepStale();
+  // Read fresh on every visit: Google's price page and today's dollar rate.
+  const [prices, rate, chosen] = await Promise.all([livePrices(), liveRate(), chosenImageOption()]);
   const summary = await spendSummary();
   const balance = await balancePaise(account.id);
   const recent = await db
@@ -45,7 +48,53 @@ export default async function SpendPage() {
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
       <p className="label">Admin</p>
-      <h1 className="mt-1 text-[24px] font-semibold tracking-tight">Spend</h1>
+      <h1 className="mt-1 text-[24px] font-semibold tracking-tight">Settings</h1>
+
+      <form action={setImageModelAction} className="mt-6 rounded-xl border border-line bg-surface p-5">
+        <h2 className="text-[15px] font-semibold">Image model</h2>
+        <p className="mt-1 text-[13px] text-ink-soft">
+          Every everyday image is made with the model you pick here. Prices are Google&apos;s, per image, converted at ${"1"} = ₹{rate.value.toFixed(2)}.
+        </p>
+        <p className="mt-1 text-[12.5px] text-ink-faint">
+          <Freshness label="Prices" reading={prices} /> · <Freshness label="Dollar rate" reading={rate} />
+        </p>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-[13.5px]">
+            <thead className="text-left text-[12px] uppercase tracking-wide text-ink-faint">
+              <tr>
+                <th className="py-1.5 pr-2">Use</th>
+                <th>Model</th>
+                <th className="text-right">Normal</th>
+                <th className="text-right">Batch</th>
+              </tr>
+            </thead>
+            <tbody>
+              {IMAGE_OPTIONS.map((o) => {
+                const p = prices.value[o.id];
+                const inr = (usd: number | null | undefined) => (usd == null ? "–" : `₹${(usd * rate.value).toFixed(2)}`);
+                const usd = (v: number | null | undefined) => (v == null ? "" : `$${v}`);
+                return (
+                  <tr key={o.id} className={`border-t border-line-soft ${o.selectable ? "" : "text-ink-faint"}`}>
+                    <td className="py-2 pr-2">
+                      <input type="radio" name="option" value={o.id} defaultChecked={o.id === chosen.id} disabled={!o.selectable} aria-label={`${o.name} ${o.detail}`} />
+                    </td>
+                    <td>
+                      <b className={o.id === chosen.id ? "text-accent" : ""}>{o.name}</b> <span className="text-ink-soft">· {o.detail}</span>
+                      {o.id === chosen.id && <span className="ml-2 text-[12px] text-good">in use</span>}
+                    </td>
+                    <td className="text-right tabular-nums whitespace-nowrap">{inr(p?.normal)} <span className="text-[11.5px] text-ink-faint">{usd(p?.normal)}</span></td>
+                    <td className="text-right tabular-nums whitespace-nowrap">{inr(p?.batch)} <span className="text-[11.5px] text-ink-faint">{usd(p?.batch)}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-2 text-[12.5px] text-ink-faint">Batch is half price but Google returns the image within 24 hours, so the app uses Normal.</p>
+        <button type="submit" className="mt-3 rounded-lg border border-line px-4 py-2 text-[14px] hover:border-ink-faint">
+          Save model
+        </button>
+      </form>
 
       <section className="mt-6 grid gap-4 sm:grid-cols-3">
         <Card label="Today" value={rupees(summary.todayPaise)} sub={`of ${rupees(limits.dailyCapPaise)} cap`} pct={pct(summary.todayPaise, limits.dailyCapPaise)} />
@@ -78,7 +127,6 @@ export default async function SpendPage() {
           <div className="mt-3 grid grid-cols-2 gap-3">
             <Field name="daily" label="Per day" value={limits.dailyCapPaise / 100} />
             <Field name="monthly" label="Per month" value={limits.monthlyCapPaise / 100} />
-            <Field name="rate" label="₹ per $" value={limits.ratePaisePerUsd / 100} />
           </div>
           <button type="submit" className="mt-3 rounded-lg border border-line px-4 py-2 text-[14px] hover:border-ink-faint">
             Save caps
@@ -148,6 +196,19 @@ export default async function SpendPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+function Freshness({ label, reading }: { label: string; reading: { source: "live" | "saved" | "hand"; at: string; problem?: string } }) {
+  const when = (iso: string) => {
+    const d = new Date(iso);
+    return Number.isNaN(+d) ? iso : d.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  };
+  if (reading.source === "live") return <span>{label} read live at {when(reading.at)}</span>;
+  return (
+    <span className="text-turmeric" title={reading.problem}>
+      {label}: could not be read just now ({reading.problem}); showing {reading.source === "saved" ? `the reading from ${when(reading.at)}` : `the list checked on ${reading.at}`}
+    </span>
   );
 }
 

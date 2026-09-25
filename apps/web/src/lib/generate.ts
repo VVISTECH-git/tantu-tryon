@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, generations, type Garment, type Generation, type GenerationLook } from "@/db";
 import { TEMPLATES, composePrompt, defaultRules, type ModelType, type BackgroundId, type Selections } from "@/content/promptTemplates";
 import { attachmentsFor, sheetFor, wordsFor } from "@/lib/garments";
+import { chosenImageOption, type ImageSize } from "@/lib/imageModels";
 import { finishGeneration, imageSizeFor, reserveGeneration, type ReserveResult } from "@/lib/spend";
 import { renderUrl, saveRender } from "@/lib/storage";
 
@@ -49,10 +50,16 @@ export function selectionsFor(look: GenerationLook): Selections {
   };
 }
 
-export function modelFor(quality: GenerationLook["quality"]): string {
-  return quality === "high"
-    ? process.env.GEMINI_IMAGE_MODEL_HIGH || GEMINI_MODELS.high
-    : process.env.GEMINI_IMAGE_MODEL || GEMINI_MODELS.standard;
+/**
+ * The model and size for a generation. Everyday (standard) images use the
+ * row picked on the admin settings page; HD stays on Pro at 2K. An env
+ * override still wins, for trying a model without touching the database.
+ */
+export async function modelFor(quality: GenerationLook["quality"]): Promise<{ model: string; size: ImageSize }> {
+  if (quality === "high") return { model: process.env.GEMINI_IMAGE_MODEL_HIGH || GEMINI_MODELS.high, size: imageSizeFor(quality) };
+  if (process.env.GEMINI_IMAGE_MODEL) return { model: process.env.GEMINI_IMAGE_MODEL, size: "1K" };
+  const option = await chosenImageOption();
+  return { model: option.model, size: option.priceSize === "2K" ? "2K" : "1K" };
 }
 
 export function toOutput(row: Generation): GenerateOutput {
@@ -76,7 +83,7 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
   }
 
   const prompt = composePrompt(template, wordsFor(input.garment), selectionsFor(input.look), attachmentsFor(input.garment));
-  const model = modelFor(input.look.quality);
+  const { model, size } = await modelFor(input.look.quality);
 
   // The sheet first: building it costs nothing, and a garment whose
   // photographs cannot be fetched should fail before any money moves.
@@ -96,6 +103,7 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
     promptText: prompt,
     look: input.look,
     model,
+    size,
   });
   if (!reserved.ok) return { ok: false, status: reserved.status, message: reserved.message };
 
@@ -110,7 +118,7 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
       images: [{ data: sheet.data, mime: "image/png" }],
       model,
       aspectRatio: "3:4",
-      imageSize: imageSizeFor(input.look.quality),
+      imageSize: size,
       signal: input.signal,
     });
     const stem = input.garment.productCode ?? input.garment.title.replace(/[^A-Za-z0-9]+/g, "-").slice(0, 40);

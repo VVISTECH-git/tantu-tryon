@@ -205,7 +205,7 @@ export const T = {
     logout: "Logout",
     trial: "Trial",
     gallery: "Gallery",
-    spend: "Spend and caps (admin)",
+    spend: "Settings: model, prices, spend (admin)",
   },
   pricing: {
     title: "Plans",

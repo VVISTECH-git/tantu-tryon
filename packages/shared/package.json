@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./shots": "./src/shots.ts",
-    "./views": "./src/views.ts"
+    "./views": "./src/views.ts",
+    "./brand": "./src/brand.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

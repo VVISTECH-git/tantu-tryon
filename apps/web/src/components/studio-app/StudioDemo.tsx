@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- demo shots at their own size */
 
+import { TANTU_MARK_GRADIENT, TANTU_MARK_PATHS, TANTU_MARK_VIEWBOX } from "@tantu/shared/brand";
 import { useEffect, useRef, useState } from "react";
 import { CREDIT_PAISE, QUALITY_LABEL, rupees, type Quality } from "@/content/credits";
 import { ADULT_AGES, BACKGROUNDS, CHILD_AGES, MODEL_TYPES, TEMPLATES, type ModelType } from "@/content/promptTemplates";
@@ -737,18 +738,16 @@ function swatch(id: string): string {
 
 function TantuMark({ size }: { size: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 96 96" aria-hidden>
+    <svg width={size} height={size} viewBox={TANTU_MARK_VIEWBOX} aria-hidden>
       <defs>
         <linearGradient id={`tantu-mark-${size}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#f6a15a" />
-          <stop offset="1" stopColor="#db7124" />
+          <stop offset="0" stopColor={TANTU_MARK_GRADIENT[0]} />
+          <stop offset="1" stopColor={TANTU_MARK_GRADIENT[1]} />
         </linearGradient>
       </defs>
-      <path
-        d="M22 30 H74 a6 6 0 0 1 0 12 H56 V64 a10 10 0 0 1 -20 0 V54 a6 6 0 0 1 12 0 v8 a2 2 0 0 0 4 0 V42 H22 a6 6 0 0 1 0 -12 Z"
-        fill={`url(#tantu-mark-${size})`}
-      />
-      <path d="M78 12 l2.6 6.4 L87 21 l-6.4 2.6 L78 30 l-2.6 -6.4 L69 21 l6.4 -2.6 Z" fill="#f4efe6" />
+      {TANTU_MARK_PATHS.map((d, i) => (
+        <path key={i} d={d} fill={`url(#tantu-mark-${size})`} />
+      ))}
     </svg>
   );
 }

@@ -3,7 +3,9 @@ import * as ImagePicker from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
+import { TANTU_MARK_GRADIENT, TANTU_MARK_PATHS, TANTU_MARK_VIEWBOX } from "@tantu/shared/brand";
 import { ShotCamera, type CapturedPhoto } from "./src/ShotCamera";
 import {
   DEFAULT_GARMENT_TYPE,
@@ -580,20 +582,31 @@ function Studio() {
  * centred over them, two more along the bottom, each tilted a few degrees.
  * Sized off the device width the way the web version caps at 440px.
  */
+/**
+ * The web splash (studio.css .st-splash-shots), card for card: the same five
+ * photographs at the same sizes, offsets and tilts, so the outer four tuck
+ * under the centre card the way they do in the browser. The web switches to
+ * a smaller set below 780px of height; here the web's full-size set is scaled
+ * down just enough to fit the screen below the mark, never above web size.
+ */
 function Splash({ onSkip, deviceW }: { onSkip: () => void; deviceW: number }) {
-  const W = Math.min(deviceW - 40, 380);
-  const H = 440;
-  const small = 100;
+  const { height: winH } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const W = Math.min(deviceW - 40, 440);
+  const above = 310; // padding, mark, name, tagline and the gap above the cards
+  const k = Math.max(0.72, Math.min(1, (winH - insets.top - insets.bottom - above) / 560));
+  const H = 560 * k;
+  const small = 130 * k;
   const smallH = (small * 4) / 3;
-  const big = 142;
+  const big = 186 * k;
   const bigH = (big * 4) / 3;
   const photo = (n: number) => `${api.API_BASE}/splash/b_${n}.jpg`;
   const cards: { src: string; style: object; z?: number }[] = [
-    { src: photo(1), style: { left: 0, top: 8, width: small, height: smallH, transform: [{ rotate: "-10deg" }] } },
+    { src: photo(1), style: { left: 0, top: 12 * k, width: small, height: smallH, transform: [{ rotate: "-10deg" }] } },
     { src: photo(2), style: { right: 0, top: 0, width: small, height: smallH, transform: [{ rotate: "9deg" }] } },
-    { src: photo(3), style: { left: W / 2 - big / 2, top: 116, width: big, height: bigH, transform: [{ rotate: "-2deg" }] }, z: 2 },
+    { src: photo(3), style: { left: W / 2 - big / 2, top: 150 * k, width: big, height: bigH, transform: [{ rotate: "-2deg" }] }, z: 2 },
     { src: photo(4), style: { left: W * 0.03, top: H - smallH, width: small, height: smallH, transform: [{ rotate: "7deg" }] } },
-    { src: photo(5), style: { right: W * 0.03, top: H - smallH - 4, width: small, height: smallH, transform: [{ rotate: "-8deg" }] } },
+    { src: photo(5), style: { right: W * 0.03, top: H - smallH - 6 * k, width: small, height: smallH, transform: [{ rotate: "-8deg" }] } },
   ];
   return (
     <Pressable style={s.splash} onPress={onSkip}>
@@ -602,21 +615,36 @@ function Splash({ onSkip, deviceW }: { onSkip: () => void; deviceW: number }) {
           <View style={[s.splashGlow, s.splashGlowOuter]} pointerEvents="none" />
           <View style={[s.splashGlow, s.splashGlowMid]} pointerEvents="none" />
           <View style={[s.splashGlow, s.splashGlowInner]} pointerEvents="none" />
-          <View style={s.splashMark}>
-            <Text style={s.splashMarkGlyph}>T</Text>
-          </View>
+          <TantuMark size={84} />
         </View>
         <Text style={s.splashName}>Tantu</Text>
         <Text style={s.splashTagline}>AI Studio for Fashion Brands</Text>
       </View>
       <View style={{ width: W, height: H, marginTop: 30 }}>
         {cards.map((c, i) => (
-          <View key={i} style={[s.splashShot, c.style, c.z ? { zIndex: c.z } : null]}>
+          <View key={i} style={[s.splashShot, c.style, c.z ? { zIndex: c.z, elevation: 10 } : null]}>
             <Image source={{ uri: c.src }} style={s.fill} resizeMode="cover" />
           </View>
         ))}
       </View>
     </Pressable>
+  );
+}
+
+/** The script T, the same drawing the web uses (packages/shared/src/brand.ts). */
+function TantuMark({ size }: { size: number }) {
+  return (
+    <Svg width={size} height={size} viewBox={TANTU_MARK_VIEWBOX}>
+      <Defs>
+        <LinearGradient id="tantu-mark" x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor={TANTU_MARK_GRADIENT[0]} />
+          <Stop offset="1" stopColor={TANTU_MARK_GRADIENT[1]} />
+        </LinearGradient>
+      </Defs>
+      {TANTU_MARK_PATHS.map((d, i) => (
+        <Path key={i} d={d} fill="url(#tantu-mark)" />
+      ))}
+    </Svg>
   );
 }
 
@@ -854,8 +882,6 @@ const s = StyleSheet.create({
   splashGlowOuter: { width: 190, height: 190, marginLeft: -95, marginTop: -95, borderRadius: 95, backgroundColor: "rgba(240,141,66,0.06)" },
   splashGlowMid: { width: 130, height: 130, marginLeft: -65, marginTop: -65, borderRadius: 65, backgroundColor: "rgba(240,141,66,0.08)" },
   splashGlowInner: { width: 80, height: 80, marginLeft: -40, marginTop: -40, borderRadius: 40, backgroundColor: "rgba(240,141,66,0.10)" },
-  splashMark: { width: 84, height: 84, borderRadius: 22, backgroundColor: C.actionTop, alignItems: "center", justifyContent: "center" },
-  splashMarkGlyph: { color: "#fff8f1", fontSize: 40, fontWeight: "800" },
   splashName: { color: C.text, fontSize: 40, fontWeight: "700", letterSpacing: -0.5 },
   splashTagline: { color: C.textSoft, fontSize: 18, fontWeight: "600" },
   splashShot: { position: "absolute", borderRadius: 18, overflow: "hidden", backgroundColor: "#1d1d1f", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
