@@ -133,7 +133,12 @@ const gemini: Reader = {
   },
 };
 
-const READERS: Reader[] = [claude, openai, gemini];
+/*
+  Gemini Flash first, on the prepaid Google key that also pays for the
+  images: a few seconds and paise per read. Claude used to come first, so
+  every read went to Opus, slow and costly, on another bill (25 Sep).
+*/
+const READERS: Reader[] = [gemini, openai, claude];
 
 export function canDescribe(): boolean {
   return READERS.some((r) => r.configured());
@@ -145,7 +150,9 @@ export type DescribeResult =
 
 /** Read a labelled sheet (raw base64 PNG) into garment words with whichever reader answers first. */
 export async function describeSheet(sheetBase64: string, mime = "image/png"): Promise<DescribeResult> {
-  const readers = READERS.filter((r) => r.configured());
+  // Only the first configured reader: a failed Gemini read must not quietly
+  // fall through to a dearer model. The words can be typed instead.
+  const readers = READERS.filter((r) => r.configured()).slice(0, 1);
   if (readers.length === 0) {
     return { ok: false, status: 503, message: "No engine key on this deployment, so the photographs cannot be read. Fill the words in by hand." };
   }
