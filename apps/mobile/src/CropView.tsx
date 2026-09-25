@@ -2,6 +2,7 @@ import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Image, PanResponder, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as api from "./api";
 import { C, R } from "./theme";
 
 /**
@@ -27,12 +28,14 @@ type Grip = "tl" | "tr" | "bl" | "br" | "move";
 const MIN = 60;
 const HANDLE = 44;
 
-export function CropView({ photo, onDone, onCancel }: { photo: Photo; onDone: (photo: Photo) => void; onCancel: () => void }) {
+export function CropView({ photo, onDone, onCancel, detect = true }: { photo: Photo; onDone: (photo: Photo) => void; onCancel: () => void; detect?: boolean }) {
   const { width: winW, height: winH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [finding, setFinding] = useState(detect);
+  const [found, setFound] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
 
   // The size as displayed: RN applies the photo's orientation tag, so this
   // is the upright size the crop box is drawn over.
@@ -60,9 +63,25 @@ export function CropView({ photo, onDone, onCancel }: { photo: Photo; onDone: (p
   const [box, setBox] = useState<Box>({ x: 0, y: 0, w: 0, h: 0 });
   const boxRef = useRef(box);
   boxRef.current = box;
+  // The starting box: around the saree when the server found it clearly,
+  // otherwise the whole photo, as before.
   useEffect(() => {
-    if (dispW && dispH) setBox({ x: 0, y: 0, w: dispW, h: dispH });
-  }, [dispW, dispH]);
+    if (!detect) return;
+    let live = true;
+    void api.detectFabric(photo.uri).then((b) => {
+      if (!live) return;
+      setFound(b);
+      setFinding(false);
+    });
+    return () => {
+      live = false;
+    };
+  }, [photo.uri, detect]);
+  useEffect(() => {
+    if (!dispW || !dispH) return;
+    if (found) setBox({ x: found.x * dispW, y: found.y * dispH, w: found.w * dispW, h: found.h * dispH });
+    else setBox({ x: 0, y: 0, w: dispW, h: dispH });
+  }, [dispW, dispH, found]);
 
   const responders = useMemo(() => {
     const make = (grip: Grip) => {
@@ -160,7 +179,7 @@ export function CropView({ photo, onDone, onCancel }: { photo: Photo; onDone: (p
 
       <View style={[s.topBar, { paddingTop: insets.top + 12 }]}>
         <Text style={s.title}>Crop the photo</Text>
-        <Text style={s.hint}>Drag a corner to keep just the fabric</Text>
+        <Text style={s.hint}>{finding ? "Finding the saree…" : found ? "Box set around the saree. Adjust if needed." : "Drag a corner to keep just the fabric"}</Text>
       </View>
 
       <View style={[s.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
