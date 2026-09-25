@@ -1,4 +1,5 @@
 import { StatusBar } from "expo-status-bar";
+import * as Updates from "expo-updates";
 import * as ImagePicker from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -8,6 +9,8 @@ import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
 import { TANTU_MARK_GRADIENT, TANTU_MARK_PATHS, TANTU_MARK_VIEWBOX } from "@tantu/shared/brand";
 import { ShotCamera, type CapturedPhoto } from "./src/ShotCamera";
 import { CropView } from "./src/CropView";
+import { ZoomImage } from "./src/ZoomImage";
+import { QrScan } from "./src/QrScan";
 import {
   DEFAULT_GARMENT_TYPE,
   garmentType as typeOf,
@@ -62,6 +65,8 @@ function Studio() {
   const [grantRupees, setGrantRupees] = useState("100");
   const [platformNote, setPlatformNote] = useState<string | null>(null);
   const [accountBack, setAccountBack] = useState<Screen>("type");
+  const [scanning, setScanning] = useState(false);
+
   // A product opened from Saved products goes Back to that list, not to the product ID screen.
   const [shotsBack, setShotsBack] = useState<Screen>("type");
   const [garmentType, setGarmentType] = useState(DEFAULT_GARMENT_TYPE);
@@ -69,6 +74,24 @@ function Studio() {
   const [lateId, setLateId] = useState("");
   const [saved, setSaved] = useState<api.SavedProduct[] | null>(null);
   const [garment, setGarment] = useState<GarmentView | null>(null);
+  // A newer update is fetched and applied on this open, not the next one, so
+  // the phone never needs the open-close-reopen routine. Only while nothing
+  // is in hand (splash, sign-in, product ID screen): never mid-product.
+  const idle = useRef(true);
+  idle.current = (screen === "splash" || screen === "signin" || screen === "type") && garment === null;
+  useEffect(() => {
+    if (__DEV__ || !Updates.isEnabled) return;
+    void (async () => {
+      try {
+        const check = await Updates.checkForUpdateAsync();
+        if (!check.isAvailable) return;
+        await Updates.fetchUpdateAsync();
+        if (idle.current) await Updates.reloadAsync();
+      } catch {
+        // Offline or the update server is down: carry on with this version.
+      }
+    })();
+  }, []);
   const [busySlot, setBusySlot] = useState<string | null>(null);
   const [cameraShot, setCameraShot] = useState<Shot | null>(null);
   const [cropPick, setCropPick] = useState<{ shot: Shot; photo: api.LocalPhoto } | null>(null);
@@ -181,7 +204,7 @@ function Studio() {
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (cameraShot || cropPick || viewing || howShot || typeOpen) return false;
+      if (cameraShot || cropPick || viewing || howShot || typeOpen || scanning) return false;
       if (screen === "analyzing" || screen === "generating") return true;
       const to = backFrom(screen);
       if (!to) return false;
@@ -406,8 +429,8 @@ function Studio() {
   }
 
   /** The record for this product ID, made on first use, reopened after. */
-  async function openProduct() {
-    const id = productId.trim();
+  async function openProduct(scanned?: string) {
+    const id = (scanned ?? productId).trim();
     if (!id) return;
     setBusy(true);
     setError(null);
@@ -645,8 +668,9 @@ function Studio() {
             <Text style={s.copy}>Every photo you take next is saved against this product ID.</Text>
             <View style={s.field}>
               <Text style={s.fieldLabel}>Product ID</Text>
+              <View style={[s.row, { gap: 8 }]}>
               <TextInput
-                style={[s.input, focused === "product" && s.inputFocus]}
+                style={[s.input, { flex: 1 }, focused === "product" && s.inputFocus]}
                 value={productId}
                 onChangeText={setProductId}
                 onFocus={() => setFocused("product")}
@@ -658,6 +682,8 @@ function Studio() {
                 returnKeyType="done"
                 onSubmitEditing={() => void openProduct()}
               />
+              <Chip label="Scan" accent disabled={busy} onPress={() => setScanning(true)} />
+              </View>
             </View>
             <Text style={s.sectionLabel}>Garment type</Text>
             <Pressable style={s.select} onPress={() => setTypeOpen(true)}>
@@ -971,9 +997,11 @@ function Studio() {
 
       {/* Garment type picker */}
       <Modal visible={typeOpen} transparent animationType="fade" onRequestClose={() => setTypeOpen(false)}>
-        <Pressable style={s.backdrop} onPress={() => setTypeOpen(false)}>
-          {/* Taps inside the sheet (a "Soon" row, the title) must not fall through and close it. */}
-          <Pressable style={s.sheet} onPress={() => undefined}>
+        {/* The close-on-tap layer sits behind the sheet, not around it: wrapped in a
+            Pressable, the sheet's list could not scroll on iPhone (25 Sep). */}
+        <View style={s.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setTypeOpen(false)} accessibilityLabel="Close" />
+          <View style={s.sheet}>
             <Text style={s.sheetTitle}>Garment type</Text>
             <ScrollView style={{ maxHeight: 420 }}>
               {(Object.keys(groups) as (keyof typeof groups)[]).map((group) => (
@@ -995,8 +1023,8 @@ function Studio() {
                 </View>
               ))}
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* A photo from the library, cropped (or not) before it is saved */}
@@ -1017,23 +1045,38 @@ function Studio() {
       {/* A captured photo, full screen */}
       <Modal visible={viewing !== null} animationType="fade" onRequestClose={() => setViewing(null)} statusBarTranslucent>
         {viewing && (
-          <Pressable style={s.viewer} onPress={() => setViewing(null)}>
-            <Image source={{ uri: viewing.uri }} style={s.viewerImage} resizeMode="contain" />
+          <View style={s.viewer}>
+            <ZoomImage uri={viewing.uri} />
             <View style={s.viewerBar}>
               <Text style={s.viewerLabel}>{viewing.label}</Text>
               <Pressable onPress={() => setViewing(null)} hitSlop={12} accessibilityLabel="Close">
                 <Text style={s.viewerClose}>✕</Text>
               </Pressable>
             </View>
-          </Pressable>
+          </View>
+        )}
+      </Modal>
+
+      {/* Product tag scanner: the code fills the ID and opens the product */}
+      <Modal visible={scanning} animationType="slide" onRequestClose={() => setScanning(false)} statusBarTranslucent>
+        {scanning && (
+          <QrScan
+            onCancel={() => setScanning(false)}
+            onCode={(code) => {
+              setScanning(false);
+              setProductId(code);
+              void openProduct(code);
+            }}
+          />
         )}
       </Modal>
 
       {/* How to shoot */}
       <Modal visible={howShot !== null} transparent animationType="fade" onRequestClose={() => setHowShot(null)}>
-        <Pressable style={s.backdrop} onPress={() => setHowShot(null)}>
+        <View style={s.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setHowShot(null)} accessibilityLabel="Close" />
           {howShot && (
-            <Pressable style={s.sheet} onPress={() => undefined}>
+            <View style={s.sheet}>
               <Text style={s.sheetTitle}>How to shoot the {howShot.label.toLowerCase()}</Text>
               <ScrollView style={{ maxHeight: 520 }} contentContainerStyle={{ gap: 10, alignItems: "center" }}>
                 {howShot.frame && (
@@ -1049,9 +1092,9 @@ function Studio() {
                 {howShot.gives && <Text style={s.howCopy}>{howShot.gives}</Text>}
               </ScrollView>
               <Action label="OK" compact onPress={() => setHowShot(null)} />
-            </Pressable>
+            </View>
           )}
-        </Pressable>
+        </View>
       </Modal>
 
       <Modal visible={cameraShot !== null} animationType="slide" onRequestClose={() => setCameraShot(null)}>
@@ -1344,7 +1387,6 @@ const s = StyleSheet.create({
   savedRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 10, borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: "rgba(255,255,255,0.03)" },
   savedThumb: { width: 52, height: 68, borderRadius: 10, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.05)" },
   viewer: { flex: 1, backgroundColor: "#000", justifyContent: "center" },
-  viewerImage: { width: "100%", height: "100%" },
   viewerBar: { position: "absolute", top: 0, left: 0, right: 0, paddingTop: 48, paddingBottom: 14, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "rgba(0,0,0,0.55)" },
   viewerLabel: { color: "#fff", fontSize: 16, fontWeight: "600" },
   viewerClose: { color: "#fff", fontSize: 22, width: 28, textAlign: "center" },
