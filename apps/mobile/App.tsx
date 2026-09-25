@@ -38,6 +38,14 @@ type Screen = "splash" | "signin" | "type" | "shots" | "analyzing" | "confirm" |
 const PRICE_1K = 10_00;
 const PRICE_2K = 20_00;
 
+/* The poses the server has Case 1 wording for. P5 is left out while testing (25 Sep). */
+const POSES = [
+  { id: "P1", title: "Front, symmetrical" },
+  { id: "P2", title: "Three-quarter, hand on hip" },
+  { id: "P3", title: "Back view, head in profile" },
+  { id: "P4", title: "Waist up, pallu detail" },
+];
+
 export default function App() {
   return (
     <SafeAreaProvider>
@@ -66,6 +74,7 @@ function Studio() {
   const [platformNote, setPlatformNote] = useState<string | null>(null);
   const [accountBack, setAccountBack] = useState<Screen>("type");
   const [scanning, setScanning] = useState(false);
+  const [pose, setPose] = useState<string>(PRIMARY_PROMPT);
 
   // A product opened from Saved products goes Back to that list, not to the product ID screen.
   const [shotsBack, setShotsBack] = useState<Screen>("type");
@@ -371,12 +380,12 @@ function Studio() {
 
   async function generatePrimary(fresh = false) {
     if (!garment) return;
-    const key = fresh ? `again-${api.newKey()}` : `${batch.current}-${PRIMARY_PROMPT}`;
+    const key = fresh ? `again-${api.newKey()}` : `${batch.current}-${pose}`;
     setBusy(true);
     setError(null);
     setScreen("generating");
     try {
-      const run = await api.generate(garment.id, PRIMARY_PROMPT, DEFAULT_LOOK, key);
+      const run = await api.generate(garment.id, pose, DEFAULT_LOOK, key);
       setPrimary(run);
       setScreen("result");
     } catch (problem) {
@@ -387,7 +396,7 @@ function Studio() {
         error: problem instanceof Error ? problem.message : "The render failed.",
         ms: null,
         model: "",
-        promptId: PRIMARY_PROMPT,
+        promptId: pose,
         promptVersion: "",
         look: DEFAULT_LOOK,
         verdict: null,
@@ -516,6 +525,7 @@ function Studio() {
   }
 
   function startOver() {
+    setPose(PRIMARY_PROMPT);
     setProductId("");
     setGarment(null);
     setPrimary(null);
@@ -864,7 +874,21 @@ function Studio() {
                 onView={(uri, label) => setViewing({ uri, label })}
             />
             {balance !== null && balance < price && <Text style={s.support}>Your current plan balance is over. Purchase a plan to continue.</Text>}
-            <Action label="Generate" disabled={busy || busySlot !== null || (balance !== null && balance < price)} onPress={() => void generatePrimary()} />
+            <Text style={s.sectionLabel}>Pose</Text>
+            <View style={{ gap: 8 }}>
+              {POSES.map((p) => {
+                const on = pose === p.id;
+                return (
+                  <Pressable key={p.id} onPress={() => setPose(p.id)} style={[s.modelRow, on && s.modelRowOn]}>
+                    <View style={[s.radio, on && s.radioOn]}>{on && <View style={s.radioDot} />}</View>
+                    <Text style={[s.shotName, { flex: 1 }]}>
+                      {p.id} <Text style={s.shotWhere}>· {p.title}</Text>
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Action label={`Generate ${pose}`} disabled={busy || busySlot !== null || (balance !== null && balance < price)} onPress={() => void generatePrimary()} />
           </View>
         )}
 
@@ -974,6 +998,9 @@ function Studio() {
             {primary.status === "done" && primary.imageUrl ? (
               <>
                 <Text style={s.title}>Your image is ready</Text>
+                <Text style={s.support}>
+                  {primary.promptId} · {POSES.find((p) => p.id === primary.promptId)?.title ?? ""}
+                </Text>
                 <Text style={s.copy}>Download the result or start a new garment.</Text>
                 <View style={s.frame}>
                   <Pressable style={s.fill} onPress={() => setViewing({ uri: primary.imageUrl!, label: "Your image" })}>
