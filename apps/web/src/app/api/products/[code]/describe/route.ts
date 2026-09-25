@@ -16,7 +16,7 @@ const ORDER = ["body", "pallu", "border", "blouse"] as const;
 
 export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
   try {
-    await requireRole("admin", "studio");
+    await requireRole("owner", "studio");
   } catch (error) {
     return unauthorised(error) ?? Response.json({ error: "Sign in to do that." }, { status: 401 });
   }

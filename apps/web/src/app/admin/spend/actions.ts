@@ -1,20 +1,23 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ROLES, requireRole, upsertUser, type Role } from "@/lib/session";
+import { createShop, requirePlatform } from "@/lib/session";
 import { setImageOption } from "@/lib/imageModels";
 import { grantCredits, setSetting } from "@/lib/spend";
 
-/** Server Actions carry no cookie check of their own, so each one asks for the account first. */
+/**
+ * The platform's switches: only Tantu's own admin. Server Actions carry no
+ * cookie check of their own, so each one asks for the login first.
+ */
 
 export async function togglePauseAction(form: FormData) {
-  await requireRole("admin");
+  await requirePlatform();
   await setSetting("generation_paused", form.get("paused") === "true" ? "true" : "false");
   revalidatePath("/admin/spend");
 }
 
 export async function setCapsAction(form: FormData) {
-  await requireRole("admin");
+  await requirePlatform();
   const paise = (name: string) => {
     const n = Number(form.get(name));
     return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : null;
@@ -27,27 +30,31 @@ export async function setCapsAction(form: FormData) {
 }
 
 export async function setImageModelAction(form: FormData) {
-  await requireRole("admin");
+  await requirePlatform();
   await setImageOption(String(form.get("option") ?? ""));
   revalidatePath("/admin/spend");
 }
 
+/** Credit for one shop, chosen on the page. */
 export async function grantAction(form: FormData) {
-  const account = await requireRole("admin");
+  await requirePlatform();
+  const shopId = String(form.get("shop") ?? "");
   const rupees = Number(form.get("rupees"));
-  if (Number.isFinite(rupees) && rupees > 0) {
-    await grantCredits(account.id, Math.round(rupees * 100), "admin grant");
+  if (shopId && Number.isFinite(rupees) && rupees > 0) {
+    await grantCredits(shopId, Math.round(rupees * 100), "platform grant");
   }
   revalidatePath("/admin/spend");
 }
 
-/** Add a person to the shop, or change their password and role. */
-export async function saveUserAction(form: FormData) {
-  const shop = await requireRole("admin");
-  const username = String(form.get("username") ?? "").trim().toLowerCase();
+/** A new customer shop, with its owner's login and starting credit. */
+export async function createShopAction(form: FormData) {
+  await requirePlatform();
+  const name = String(form.get("name") ?? "").trim();
+  const owner = String(form.get("owner") ?? "").trim().toLowerCase();
   const password = String(form.get("password") ?? "");
-  const role = String(form.get("role") ?? "") as Role;
-  if (!/^[a-z0-9._-]{3,32}$/.test(username) || password.length < 6 || !ROLES.includes(role)) return;
-  await upsertUser(shop.id, username, password, role);
+  const starting = Math.max(0, Number(form.get("starting")) || 0);
+  if (!name || !/^[a-z0-9._-]{3,32}$/.test(owner) || password.length < 6) return;
+  await createShop(name, owner, password, Math.round(starting * 100));
   revalidatePath("/admin/spend");
 }
+

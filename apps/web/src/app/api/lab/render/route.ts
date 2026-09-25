@@ -1,4 +1,4 @@
-import { requireRole, unauthorised } from "@/lib/session";
+import { requirePlatform, unauthorised } from "@/lib/session";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { buildPoseOnly, buildRecipe, recipeForPose, runRecipe, toRawBase64 } from "@tantu/engine";
@@ -99,7 +99,7 @@ async function resolvePoseReference(
 
 export async function POST(req: Request) {
   try {
-    await requireRole("admin");
+    await requirePlatform();
   } catch (error) {
     return unauthorised(error) ?? Response.json({ error: "Sign in to do that." }, { status: 401 });
   }

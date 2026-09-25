@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 export default async function LabPage() {
-  await requirePage("/admin/lab", ["admin"]);
+  await requirePage("/admin/lab", { platform: true });
   const pose = poseSpec(POSE_UNDER_TEST);
   if (!pose) notFound();
 

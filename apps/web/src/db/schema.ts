@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigserial,
+  boolean,
   index,
   integer,
   jsonb,
@@ -44,11 +45,17 @@ export const accounts = pgTable(
     /** scrypt, salted, `salt:hash` — see `lib/session.ts` hashPassword/passwordMatches. Null until set. */
     passwordHash: text(),
     /**
-     * What this login may do. `admin`: everything, settings included.
-     * `studio`: capture and generate. `photographer`: open products and
-     * take photos, nothing that spends.
+     * What this login may do inside its shop. `owner`: everything in the
+     * shop, its people included. `studio`: capture and generate.
+     * `photographer`: open products and take photos, nothing that spends.
      */
-    role: text().notNull().default("admin"),
+    role: text().notNull().default("owner"),
+    /**
+     * Runs the platform, not a shop: the image model, Google prices, spend
+     * caps, the pause switch, every shop and its credit. Only Tantu's own
+     * login has it; a customer's owner never does.
+     */
+    platformAdmin: boolean().notNull().default(false),
     /**
      * The shop this login works in. Null for the shop's own account; a
      * photographer or studio login points at it, so everyone sees the same
