@@ -577,7 +577,7 @@ function ShotList({
                 <Image source={{ uri: p.url }} style={s.fill} />
               ) : (
                 <>
-                  <Image source={{ uri: `${api.API_BASE}${shot.sample}` }} style={[s.fill, { opacity: 0.38 }]} />
+                  <Image source={{ uri: `${api.API_BASE}${shot.frame ?? shot.sample}` }} style={[s.fill, { opacity: 0.38 }]} />
                   <Text style={[s.plus, s.plusAbs]}>+</Text>
                 </>
               )}
