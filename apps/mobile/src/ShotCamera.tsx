@@ -27,6 +27,7 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
   const [permission, requestPermission] = useCameraPermissions();
   const [captured, setCaptured] = useState<CapturedPhoto | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pictureSize, setPictureSize] = useState<string | undefined>(undefined);
   const cameraRef = useRef<CameraView>(null);
   const { width: winW, height: winH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -51,6 +52,18 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
   }
   const guideX = (liveW - guideW) / 2;
   const guideY = topBar + (liveH - guideH) / 2;
+
+  /** The largest picture the camera offers ("4032x3024" style names); the default can be smaller. */
+  async function pickLargestSize() {
+    try {
+      const sizes = (await cameraRef.current?.getAvailablePictureSizesAsync()) ?? [];
+      const area = (name: string) => name.split("x").map(Number).reduce((a, b) => a * (b || 0), 1);
+      const largest = sizes.filter((n) => /^\d+x\d+$/.test(n)).sort((a, b) => area(b) - area(a))[0];
+      if (largest) setPictureSize(largest);
+    } catch {
+      // keep the camera's default
+    }
+  }
 
   async function shoot() {
     if (!cameraRef.current || busy) return;
@@ -103,7 +116,7 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
 
   return (
     <View style={s.page}>
-      <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" flash="off" />
+      <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" flash="off" pictureSize={pictureSize} onCameraReady={() => void pickLargestSize()} />
 
       {/* Dim everything outside the guide box, like a spotlight. */}
       <View pointerEvents="none" style={[s.mask, { top: topBar, height: guideY - topBar }]} />

@@ -4,7 +4,7 @@ import { defaultAge, modelTypeFor } from "@/content/promptTemplates";
 import type { GenerationLook } from "@/db";
 import { createGarmentFromSlk, latestGarmentForCode, updateGarment } from "@/lib/garments";
 import { runGeneration } from "@/lib/generate";
-import { requireAccount, unauthorised } from "@/lib/session";
+import { requireRole, unauthorised } from "@/lib/session";
 import { balancePaise, grantCredits, CREDIT_PAISE } from "@/lib/spend";
 
 export const runtime = "nodejs";
@@ -35,7 +35,7 @@ interface Body {
 export async function POST(request: Request) {
   let account;
   try {
-    account = await requireAccount();
+    account = await requireRole("admin");
   } catch (error) {
     return unauthorised(error) ?? Response.json({ error: "Sign in to do that." }, { status: 401 });
   }

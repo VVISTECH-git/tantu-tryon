@@ -67,6 +67,37 @@ export async function accountByUsername(username: string): Promise<Account | nul
   return row ?? null;
 }
 
+export type Role = "admin" | "studio" | "photographer";
+export const ROLES: Role[] = ["admin", "studio", "photographer"];
+
+/**
+ * Add a login to a shop, or change its password and role. The login shares
+ * the shop's products and balance; only its name and role are its own.
+ */
+export async function upsertUser(workspaceId: string, username: string, plain: string, role: Role): Promise<void> {
+  const existing = await accountByUsername(username);
+  if (existing && existing.id !== workspaceId && existing.workspaceId !== workspaceId) {
+    throw new Error("That username belongs to another shop.");
+  }
+  if (existing) {
+    await db
+      .update(accounts)
+      .set({ passwordHash: hashPassword(plain), ...(existing.id === workspaceId ? {} : { role }) })
+      .where(eq(accounts.id, existing.id));
+    return;
+  }
+  await db.insert(accounts).values({ name: username, kind: "user", username, passwordHash: hashPassword(plain), role, workspaceId });
+}
+
+/** The logins of a shop: its own account first, then the people added to it. */
+export async function usersOf(workspaceId: string): Promise<{ username: string | null; role: string; own: boolean }[]> {
+  const rows = await db.select().from(accounts);
+  return rows
+    .filter((a) => a.id === workspaceId || a.workspaceId === workspaceId)
+    .map((a) => ({ username: a.username, role: a.id === workspaceId ? "admin" : a.role, own: a.id === workspaceId }))
+    .sort((a, b) => Number(b.own) - Number(a.own) || (a.username ?? "").localeCompare(b.username ?? ""));
+}
+
 /** Set or change an account's login credentials. */
 export async function setPassword(accountId: string, username: string, plain: string): Promise<void> {
   await db.update(accounts).set({ username, passwordHash: hashPassword(plain) }).where(eq(accounts.id, accountId));
@@ -141,7 +172,28 @@ export async function currentAccount(): Promise<Account | null> {
       ),
     )
     .limit(1);
-  return row?.account ?? null;
+  const login = row?.account;
+  if (!login) return null;
+  if (!login.workspaceId) return { ...login, role: "admin" };
+  // A person's login works inside the shop: the shop's id scopes products,
+  // credits and generations; the login keeps its own name and role.
+  const [shop] = await db.select().from(accounts).where(eq(accounts.id, login.workspaceId)).limit(1);
+  if (!shop) return null;
+  return { ...shop, username: login.username, role: login.role };
+}
+
+export class Forbidden extends Error {
+  constructor() {
+    super("Your login cannot do that.");
+    this.name = "Forbidden";
+  }
+}
+
+/** For route handlers: the account, and only when its role is one of these. */
+export async function requireRole(...allowed: Role[]): Promise<Account> {
+  const account = await requireAccount();
+  if (!allowed.includes(account.role as Role)) throw new Forbidden();
+  return account;
 }
 
 export class NotSignedIn extends Error {
@@ -168,6 +220,9 @@ export async function requireAccount(): Promise<Account> {
 export function unauthorised(error: unknown): Response | null {
   if (error instanceof NotSignedIn) {
     return Response.json({ error: error.message }, { status: 401 });
+  }
+  if (error instanceof Forbidden) {
+    return Response.json({ error: error.message }, { status: 403 });
   }
   return null;
 }

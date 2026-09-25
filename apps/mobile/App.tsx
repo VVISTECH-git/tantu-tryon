@@ -29,9 +29,8 @@ import { C, R } from "./src/theme";
  * phone adds the camera and keeps working when the shop's network is slow.
  */
 
-type Screen = "splash" | "signin" | "type" | "shots" | "analyzing" | "confirm" | "flats" | "generating" | "result" | "account";
+type Screen = "splash" | "signin" | "type" | "shots" | "analyzing" | "confirm" | "flats" | "generating" | "result" | "account" | "saved";
 
-const LONG_SIDE = 2000;
 const PRICE_1K = 10_00;
 const PRICE_2K = 20_00;
 
@@ -48,12 +47,17 @@ function Studio() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [focused, setFocused] = useState<"username" | "password" | null>(null);
+  const [focused, setFocused] = useState<"username" | "password" | "product" | null>(null);
   const passwordRef = useRef<TextInput>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [signedInAs, setSignedInAs] = useState<string | null>(null);
+  // "photographer": products and photos only, nothing that spends.
+  const [role, setRole] = useState("admin");
+  const photographer = role === "photographer";
   const [accountBack, setAccountBack] = useState<Screen>("type");
   const [garmentType, setGarmentType] = useState(DEFAULT_GARMENT_TYPE);
+  const [productId, setProductId] = useState("");
+  const [saved, setSaved] = useState<api.SavedProduct[] | null>(null);
   const [garment, setGarment] = useState<GarmentView | null>(null);
   const [busySlot, setBusySlot] = useState<string | null>(null);
   const [cameraShot, setCameraShot] = useState<Shot | null>(null);
@@ -62,6 +66,7 @@ function Studio() {
   const [warnings, setWarnings] = useState<{ title: string; body: string }[]>([]);
   const [primary, setPrimary] = useState<RunView | null>(null);
   const [howShot, setHowShot] = useState<Shot | null>(null);
+  const [viewing, setViewing] = useState<{ uri: string; label: string } | null>(null);
   const [typeOpen, setTypeOpen] = useState(false);
   const [opened, setOpened] = useState<Set<string>>(() => new Set());
   const batch = useRef(api.newKey());
@@ -90,6 +95,7 @@ function Studio() {
         const me = await api.account();
         setBalance(me.balancePaise);
         setSignedInAs(me.username ?? me.name);
+        setRole(me.role);
         target = "type";
       } catch {
         target = "signin";
@@ -108,6 +114,7 @@ function Studio() {
       const me = await api.account();
       setBalance(me.balancePaise);
       setSignedInAs(me.username ?? me.name);
+      setRole(me.role);
       setPassword("");
       setScreen("type");
     } catch (problem) {
@@ -147,7 +154,7 @@ function Studio() {
     const result = await ImagePicker.launchImageLibraryAsync(options);
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
-    await upload(shot, { uri: asset.uri, width: asset.width, height: asset.height });
+    await upload(shot, { uri: asset.uri, width: asset.width, height: asset.height, mimeType: asset.mimeType ?? undefined });
   }
 
   async function shotCaptured(photo: CapturedPhoto) {
@@ -157,21 +164,21 @@ function Studio() {
     await upload(shot, photo);
   }
 
-  /** Shrink to a 2000px long side as the browser does, then send. */
+  /**
+   * Send the photo as the camera made it: no resize, no recompression. Only
+   * a HEIC from the library is turned into a JPEG, at full size and full
+   * quality, because the server cannot read HEIC.
+   */
   async function upload(shot: Shot, photo: api.LocalPhoto) {
     setBusySlot(shot.slot);
     try {
       let sent = photo;
-      const long = Math.max(photo.width, photo.height);
-      if (long > LONG_SIDE) {
-        const scale = LONG_SIDE / long;
-        const context = ImageManipulator.manipulate(photo.uri);
-        context.resize({ width: Math.round(photo.width * scale), height: Math.round(photo.height * scale) });
-        const rendered = await context.renderAsync();
-        const saved = await rendered.saveAsync({ compress: 0.9, format: SaveFormat.JPEG });
-        sent = { uri: saved.uri, width: saved.width, height: saved.height };
+      if (/hei[cf]/i.test(photo.mimeType ?? "")) {
+        const rendered = await ImageManipulator.manipulate(photo.uri).renderAsync();
+        const saved = await rendered.saveAsync({ compress: 1, format: SaveFormat.JPEG });
+        sent = { uri: saved.uri, width: saved.width, height: saved.height, mimeType: "image/jpeg" };
       }
-      const fresh = garment?.source === "upload" && garment.garmentType === garmentType ? garment.id : null;
+      const fresh = garment?.id ?? null;
       const result = await api.uploadPart(sent, shot.slot, fresh, garmentType);
       if (!fresh) {
         setPrimary(null);
@@ -258,6 +265,7 @@ function Studio() {
       setOpened(new Set());
       setBalance(null);
       setSignedInAs(null);
+      setRole("admin");
       setUsername("");
       setPassword("");
       setBusy(false);
@@ -265,7 +273,58 @@ function Studio() {
     }
   }
 
+  /** The record for this product ID, made on first use, reopened after. */
+  async function openProduct() {
+    const id = productId.trim();
+    if (!id) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const g = await api.openProduct(id, garmentType);
+      setGarment(g);
+      setGarmentType(g.garmentType);
+      setPrimary(null);
+      setWarnings([]);
+      batch.current = api.newKey();
+      setScreen("shots");
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not open the product.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function showSaved() {
+    setScreen("saved");
+    setSaved(null);
+    try {
+      setSaved(await api.savedProducts());
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not load the saved products.");
+      setSaved([]);
+    }
+  }
+
+  async function reopen(item: api.SavedProduct) {
+    setBusy(true);
+    try {
+      const g = await api.getGarment(item.id);
+      setGarment(g);
+      setGarmentType(g.garmentType);
+      setProductId(g.productCode ?? "");
+      setPrimary(null);
+      setWarnings([]);
+      batch.current = api.newKey();
+      setScreen("shots");
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not open the product.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function startOver() {
+    setProductId("");
     setGarment(null);
     setPrimary(null);
     setWarnings([]);
@@ -298,12 +357,20 @@ function Studio() {
             Tantu <Text style={s.brandSub}>Try-On</Text>
           </Text>
           <View style={s.row}>
-            <Pressable style={s.chip} onPress={openAccount} hitSlop={6}>
-              <Text style={s.chipText}>{balance === null ? "…" : `${api.rupees(balance)} left`}</Text>
-            </Pressable>
-            <Pressable onPress={openAccount} hitSlop={8}>
-              <Text style={s.link}>Account</Text>
-            </Pressable>
+            {photographer ? (
+              <View style={s.chip}>
+                <Text style={s.chipText}>{signedInAs ?? "photographer"}</Text>
+              </View>
+            ) : (
+              <>
+                <Pressable style={s.chip} onPress={openAccount} hitSlop={6}>
+                  <Text style={s.chipText}>{balance === null ? "…" : `${api.rupees(balance)} left`}</Text>
+                </Pressable>
+                <Pressable onPress={openAccount} hitSlop={8}>
+                  <Text style={s.link}>Account</Text>
+                </Pressable>
+              </>
+            )}
             <Pressable onPress={() => void signOut()} hitSlop={8}>
               <Text style={s.link}>Sign out</Text>
             </Pressable>
@@ -386,21 +453,74 @@ function Studio() {
 
         {screen === "type" && (
           <View style={s.stack}>
-            <Text style={s.title}>What are you uploading?</Text>
-            <Text style={s.copy}>Pick the garment type first. It decides which photos we ask for.</Text>
+            <Text style={s.title}>Which product?</Text>
+            <Text style={s.copy}>Every photo you take next is saved against this product ID.</Text>
+            <View style={s.field}>
+              <Text style={s.fieldLabel}>Product ID</Text>
+              <TextInput
+                style={[s.input, focused === "product" && s.inputFocus]}
+                value={productId}
+                onChangeText={setProductId}
+                onFocus={() => setFocused("product")}
+                onBlur={() => setFocused(null)}
+                placeholder="e.g. 300010"
+                placeholderTextColor={C.textMuted}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={() => void openProduct()}
+              />
+            </View>
             <Text style={s.sectionLabel}>Garment type</Text>
             <Pressable style={s.select} onPress={() => setTypeOpen(true)}>
               <Text style={s.selectText}>{typeOf(garmentType).label}</Text>
               <Text style={s.selectChevron}>⌄</Text>
             </Pressable>
             <Text style={s.support}>Saree is live. The other types are coming soon.</Text>
-            <Action label="Continue to photos" onPress={() => setScreen("shots")} />
+            <Action label={busy ? "Opening…" : "Continue to photos"} disabled={busy || !productId.trim()} onPress={() => void openProduct()} />
+            <Secondary label="Saved products" onPress={() => void showSaved()} />
+          </View>
+        )}
+
+        {screen === "saved" && (
+          <View style={s.stack}>
+            <Text style={s.title}>Saved products</Text>
+            <Text style={s.copy}>Every product ID with the photos saved against it. Tap one to add or retake photos.</Text>
+            {saved === null ? (
+              <Spinner text="Loading…" />
+            ) : saved.length === 0 ? (
+              <Text style={s.support}>Nothing saved yet.</Text>
+            ) : (
+              saved.map((item) => (
+                <Pressable key={item.id} style={s.savedRow} onPress={() => void reopen(item)} disabled={busy}>
+                  <View style={s.savedThumb}>{item.thumb ? <Image source={{ uri: item.thumb }} style={s.fill} /> : null}</View>
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Text style={s.shotName}>{item.productId ?? "No product ID"}</Text>
+                    <Text style={s.shotWhere}>
+                      {item.photos} photo{item.photos === 1 ? "" : "s"}
+                      {item.slots.length ? ` · ${item.slots.map((slot) => shotFor(item.garmentType, slot)?.label ?? slot).join(", ")}` : ""}
+                    </Text>
+                    <Text style={[s.shotWhere, { color: item.missing.length ? C.warn : C.good }]}>
+                      {item.missing.length ? `Missing: ${item.missing.map((slot) => shotFor(item.garmentType, slot)?.label ?? slot).join(", ")}` : "Required photos in"}
+                    </Text>
+                  </View>
+                  <Text style={s.selectChevron}>›</Text>
+                </Pressable>
+              ))
+            )}
+            <Secondary label="Back" onPress={() => setScreen("type")} />
           </View>
         )}
 
         {screen === "shots" && (
           <View style={s.stack}>
             <Text style={s.title}>{typeOf(garmentType).label} photos</Text>
+            {garment?.productCode ? (
+              <View style={s.savedUnder}>
+                <Text style={s.savedUnderText}>Saving under product ID</Text>
+                <Text style={s.savedUnderId}>{garment.productCode}</Text>
+              </View>
+            ) : null}
             <Text style={s.copy}>Hang it once. Only the phone moves.</Text>
             <Text style={s.status}>
               {required.length - missing.length} of {required.length} required
@@ -416,8 +536,21 @@ function Studio() {
               onUpload={(shot) => void pickFromLibrary(shot)}
               onClear={(shot) => void clear(shot)}
               onHow={setHowShot}
+                onView={(uri, label) => setViewing({ uri, label })}
             />
             <Text style={s.support}>Camera opens the phone camera. Upload picks a photo already on the phone.</Text>
+            {photographer ? (
+              <>
+                <Text style={s.support}>
+                  {missing.length > 0
+                    ? `Still needed: ${missing.map(label).join(" and ")}.`
+                    : blocked.length > 0
+                      ? `Retake ${blocked.map(label).join(" and ")}.`
+                      : `All photos are saved under ${garment?.productCode ?? "this product"}.`}
+                </Text>
+                <Action label="Done · next product" disabled={busySlot !== null} onPress={startOver} />
+              </>
+            ) : (
             <Action
               label={
                 missing.length > 0
@@ -431,6 +564,7 @@ function Studio() {
               disabled={!ready || busy}
               onPress={() => void analyzeNow()}
             />
+            )}
           </View>
         )}
 
@@ -493,6 +627,7 @@ function Studio() {
               onUpload={(shot) => void pickFromLibrary(shot)}
               onClear={(shot) => void clear(shot)}
               onHow={setHowShot}
+                onView={(uri, label) => setViewing({ uri, label })}
             />
             {balance !== null && balance < price && <Text style={s.support}>Your current plan balance is over. Purchase a plan to continue.</Text>}
             <Action label="Generate" disabled={busy || busySlot !== null || (balance !== null && balance < price)} onPress={() => void generatePrimary()} />
@@ -580,6 +715,21 @@ function Studio() {
             </ScrollView>
           </View>
         </Pressable>
+      </Modal>
+
+      {/* A captured photo, full screen */}
+      <Modal visible={viewing !== null} animationType="fade" onRequestClose={() => setViewing(null)} statusBarTranslucent>
+        {viewing && (
+          <Pressable style={s.viewer} onPress={() => setViewing(null)}>
+            <Image source={{ uri: viewing.uri }} style={s.viewerImage} resizeMode="contain" />
+            <View style={s.viewerBar}>
+              <Text style={s.viewerLabel}>{viewing.label}</Text>
+              <Pressable onPress={() => setViewing(null)} hitSlop={12} accessibilityLabel="Close">
+                <Text style={s.viewerClose}>✕</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        )}
       </Modal>
 
       {/* How to shoot */}
@@ -700,6 +850,7 @@ function ShotList({
   onUpload,
   onClear,
   onHow,
+  onView,
 }: {
   type: string;
   garment: GarmentView | null;
@@ -711,6 +862,7 @@ function ShotList({
   onUpload: (shot: Shot) => void;
   onClear: (shot: Shot) => void;
   onHow: (shot: Shot) => void;
+  onView: (uri: string, label: string) => void;
 }) {
   let shots = shotsFor(type);
   if (optionalOnly) shots = shots.filter((sh) => !sh.required);
@@ -727,7 +879,7 @@ function ShotList({
         const full = p?.quality?.reasons.map((r) => r.message).join(" ") ?? "";
         return (
           <View key={shot.slot} style={[s.shot, state === "warn" && s.warnBorder, state === "block" && s.badBorder]}>
-            <Pressable style={s.shotThumb} onPress={() => (p ? onUpload(shot) : onCamera(shot))}>
+            <Pressable style={s.shotThumb} onPress={() => (p ? onView(p.url, shot.label) : onCamera(shot))}>
               {p ? (
                 <Image source={{ uri: p.url }} style={s.fill} />
               ) : (
@@ -870,6 +1022,16 @@ const s = StyleSheet.create({
   plus: { color: C.text, fontSize: 26 },
   plusAbs: { position: "absolute", textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
+  savedUnder: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 7, borderRadius: R.pill, borderWidth: 1, borderColor: "rgba(240,141,66,0.35)", backgroundColor: "rgba(240,141,66,0.1)" },
+  savedUnderText: { color: C.textSoft, fontSize: 12 },
+  savedUnderId: { color: C.accentPale, fontSize: 14, fontWeight: "700" },
+  savedRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 10, borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: "rgba(255,255,255,0.03)" },
+  savedThumb: { width: 52, height: 68, borderRadius: 10, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.05)" },
+  viewer: { flex: 1, backgroundColor: "#000", justifyContent: "center" },
+  viewerImage: { width: "100%", height: "100%" },
+  viewerBar: { position: "absolute", top: 0, left: 0, right: 0, paddingTop: 48, paddingBottom: 14, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "rgba(0,0,0,0.55)" },
+  viewerLabel: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  viewerClose: { color: "#fff", fontSize: 22, width: 28, textAlign: "center" },
   signin: { alignItems: "center", gap: 24, paddingTop: 44 },
   signinGlowOuter: { width: 140, height: 140, marginLeft: -70, marginTop: -70, borderRadius: 70, backgroundColor: "rgba(240,141,66,0.05)" },
   signinGlowMid: { width: 100, height: 100, marginLeft: -50, marginTop: -50, borderRadius: 50, backgroundColor: "rgba(240,141,66,0.07)" },

@@ -1,8 +1,8 @@
 import { GEMINI_MODELS, GeminiError, generateImage } from "@tantu/engine";
 import { eq } from "drizzle-orm";
 import { db, generations, type Garment, type Generation, type GenerationLook } from "@/db";
-import { TEMPLATES, composePrompt, defaultRules, type ModelType, type BackgroundId, type Selections } from "@/content/promptTemplates";
-import { attachmentsFor, sheetFor, wordsFor } from "@/lib/garments";
+import { TEMPLATES, composePrompt, defaultRules, promptVersion, type ModelType, type BackgroundId, type Selections } from "@/content/promptTemplates";
+import { attachmentsFor, partPlan, sheetFor, wordsFor } from "@/lib/garments";
 import { chosenImageOption, type ImageSize } from "@/lib/imageModels";
 import { finishGeneration, imageSizeFor, reserveGeneration, type ReserveResult } from "@/lib/spend";
 import { renderUrl, saveRender } from "@/lib/storage";
@@ -82,12 +82,13 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
     return { ok: false, status: 400, message: `Prompt ${input.promptId} is not available.` };
   }
 
-  const prompt = composePrompt(template, wordsFor(input.garment), selectionsFor(input.look), attachmentsFor(input.garment));
+  const plan = partPlan(input.garment);
+  const prompt = composePrompt(template, wordsFor(input.garment), selectionsFor(input.look), attachmentsFor(input.garment), plan);
   const { model, size } = await modelFor(input.look.quality);
 
   // The sheet first: building it costs nothing, and a garment whose
   // photographs cannot be fetched should fail before any money moves.
-  let sheet: { data: string };
+  let sheet: { data: string; mime: string };
   try {
     sheet = await sheetFor(input.garment);
   } catch (error) {
@@ -99,7 +100,7 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
     garmentId: input.garment.id,
     clientKey: input.clientKey,
     promptId: template.id,
-    promptVersion: template.frozen ? `v${template.frozen.version}` : "draft",
+    promptVersion: promptVersion(template, plan),
     promptText: prompt,
     look: input.look,
     model,
@@ -115,7 +116,7 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
   try {
     const image = await generateImage({
       prompt,
-      images: [{ data: sheet.data, mime: "image/png" }],
+      images: [{ data: sheet.data, mime: sheet.mime }],
       model,
       aspectRatio: "3:4",
       imageSize: size,

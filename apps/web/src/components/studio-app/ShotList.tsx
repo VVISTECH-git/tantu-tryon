@@ -41,6 +41,7 @@ export function ShotList({ type, tiles, busySlot, optionalOnly, hideBlouse, onCa
   // Optional shots start folded into a row of chips so the required ones
   // get the screen; a chip opens its tile, and a tile with a photo stays open.
   const [opened, setOpened] = useState<Set<string>>(() => new Set());
+  const [viewing, setViewing] = useState<{ url: string; label: string } | null>(null);
   let shots = shotsFor(type);
   if (optionalOnly) shots = shots.filter((s) => !s.required);
   if (hideBlouse) shots = shots.filter((s) => s.slot !== "blouse");
@@ -56,6 +57,17 @@ export function ShotList({ type, tiles, busySlot, optionalOnly, hideBlouse, onCa
     });
   return (
     <div className="st-shots">
+      {viewing && (
+        <div className="st-modal-backdrop st-photo-viewer" role="dialog" aria-label={`${viewing.label} photo`} onClick={() => setViewing(null)}>
+          <div className="st-photo-viewer-bar">
+            <b>{viewing.label}</b>
+            <button type="button" className="st-photo-viewer-close" onClick={() => setViewing(null)} aria-label="Close">
+              ✕
+            </button>
+          </div>
+          <img src={viewing.url} alt={`${viewing.label} photo`} />
+        </div>
+      )}
       {visible.map((shot) => {
         const tile = tiles.find((t) => t.slot === shot.slot);
         const quality = tile?.quality ?? null;
@@ -68,7 +80,7 @@ export function ShotList({ type, tiles, busySlot, optionalOnly, hideBlouse, onCa
         const showCopy = state !== null && state !== "ok" && fullText !== `${headline}.`;
         return (
           <div key={shot.slot} className={`st-shot ${state === "block" ? "st-shot--blocked" : state === "warn" ? "st-shot--warned" : ""}`}>
-            <button type="button" className="st-shot-thumb" onClick={() => (tile?.url ? onUpload(shot) : onCamera(shot))} aria-label={`${shot.label} photo`}>
+            <button type="button" className="st-shot-thumb" onClick={() => (tile?.url ? setViewing({ url: tile.url, label: shot.label }) : onCamera(shot))} aria-label={`${shot.label} photo`}>
               {tile?.url ? (
                 <img src={tile.url} alt="" />
               ) : (

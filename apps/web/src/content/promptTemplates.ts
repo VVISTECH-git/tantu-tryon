@@ -200,6 +200,13 @@ export interface PromptTemplate {
   scene?: Partial<Record<BackgroundId, string>>;
   /** A pose's own hair line, when the default would hide something. */
   hair?: string;
+  /**
+   * The placement map when only the body was photographed: the saree is one
+   * print end to end, so the map keeps this drape's geometry — every fix v2
+   * earned about the chest band, the sleeve, the floor — and drops the
+   * body-against-pallu rules, which would forbid the body its own motif.
+   */
+  onePrintMap: string;
 }
 
 /*
@@ -223,6 +230,23 @@ const HOUSE_RULES = [
 
 const OUTPUT =
   "OUTPUT: Return only the image: ONE photograph in portrait orientation, 3:4, taller than wide, with the one model filling the frame. Not a pair of views, not a grid, not a collage. No caption, no notes, no commentary.";
+
+/*
+  v3 HOUSE RULES. Two fixes over v2: "plain blouse fabric only" read as
+  "unprinted" even when a printed blouse piece was photographed, and "no
+  extra jewellery" contradicted the jewellery the SCENE asks for.
+*/
+const HOUSE_RULES_V3 = [
+  "HOUSE RULES: These apply to every image.",
+  "- The blouse has no border, no zari, no piping and no trim on the sleeves, neckline or hem.",
+  "- Both blouse sleeves are identical: fitted short sleeves ending above the elbow, the same length and width on both arms. The sleeves are separate from the {type} and are never covered, extended or merged with the pallu.",
+  "- The midriff and stomach are covered. The {type} is worn at the natural waist, pleats tucked in, and the blouse meets the {type} with no bare skin showing between them. No skin visible at the waist from the front or side.",
+  "- The pallu never touches the ground. The {type} hem clears the floor and the feet are visible.",
+  "- Nothing is added that is not in the reference photographs or named in the SCENE: no bindi except a small plain one, no tassels, no belt, no brooch, no embroidery, no sequins.",
+  "- No text, logo or watermark in the image.",
+  "- One single photograph of the model, filling the whole frame. No collage, no split frame, no side panel, no inset, no close-up detail placed beside the model, and no copy of the reference panels in the output.",
+  "- Every print appears only in the region named for it in the placement map.",
+].join("\n");
 
 const EXPRESSION = "{She} has a direct, confident gaze and a neutral-to-soft expression.";
 
@@ -256,6 +280,25 @@ const PALLU_FORWARD_MAP = [
   "Not allowed: no pallu motif on the skirt. No {pallu_colour} fabric on the chest band. No blouse fabric and no bare skin visible on {her} left side above the waist; the chest band covers it. No zari or border trim on the blouse. The pallu panel must not be folded back, bunched, or hidden behind the arm. The pallu must not reach the floor or pool on the ground; it ends just above the hem.",
 ].join("\n");
 
+/*
+  v3, one print. The same drapes as v2, told as one fabric: the region list
+  names the blouse and the saree print, then the pallu's shape, then the
+  border. {blouse_region} is the blouse's own line from the part plan.
+*/
+const ONE_PRINT_NO_NEW = "No new motif, panel, band or decorated end that is not in the BODY photograph: the pallu is the body fabric.";
+
+const ONE_PRINT_CHEST =
+  "The chest band runs from {her} right hip up to the top of {her} left shoulder, with the {border_colour} border along its upper edge. The fabric lies on {her} LEFT side of that border line: it covers {her} left breast, {her} left ribs and the left side of {her} torso completely, then passes over the top of the left shoulder. {Her} right shoulder and the right side of {her} chest are the only places where the blouse is visible above the waist.";
+
+const ONE_PRINT_PALLU_FORWARD_MAP = [
+  "PLACEMENT MAP:",
+  "1. BLOUSE: {blouse_region} The fitted top, sleeves and neckline. The right side of the chest and the right sleeve are fully visible as blouse.",
+  "2. SAREE print, the print in the BODY panel: everything else. The waist, the pleats at the front of the waist, the whole skirt to the hem, the band of fabric that crosses the chest, and the pallu. The chest band is wide, not a strip: it covers {her} left breast, {her} left ribs and {her} waist completely, so the blouse shows only on {her} right shoulder and the right side of {her} chest.",
+  "3. The pallu: one pleated panel that comes from behind over the left shoulder and hangs straight down the front of {her} left side to just above the hem, flat and open so its print reads. It is the same print as the rest of the {type}.",
+  "4. BORDER: along the hem, along the upper edge of the chest band, and along both long edges of the hanging pallu panel, exactly as narrow as shown.",
+  `Not allowed: no blouse fabric and no bare skin on {her} left side above the waist. The pallu panel must not be folded back, bunched, or hidden behind the arm, and must not reach the floor or pool on the ground. No zari or border trim on the blouse. ${ONE_PRINT_NO_NEW}`,
+].join("\n");
+
 export const TEMPLATES: PromptTemplate[] = [
   {
     id: "P1",
@@ -278,6 +321,14 @@ export const TEMPLATES: PromptTemplate[] = [
       "Transition rule: the {body_colour} BODY print on the chest band ends at the top of the left shoulder. From the top of the shoulder upward into the peak, and everything behind the shoulder, is {pallu_colour} PALLU print. No {pallu_colour} pallu print on the chest below the shoulder, and no {pallu_motif} on the front of the body.",
       "Not allowed: no {pallu_colour} fabric on the left breast or the left side of the chest. No blouse fabric visible on the left side above the waist. The pallu must not lie over the left sleeve or the upper arm; it touches only the top of the shoulder and then goes behind. No cape, no flap, no loose sheet of fabric spread over the shoulder and arm. {PalluEnd} must not appear at the shoulder. The pallu must not hang down the front of the body. The border must not run as a vertical stripe down the front of the left side. The pallu must not be reduced to a tiny sliver, and must not reach the floor or pool on the ground.",
     ].join("\n"),
+    onePrintMap: [
+      "PLACEMENT MAP:",
+      "1. BLOUSE: {blouse_region} The fitted top, both sleeves and the neckline. The left sleeve is fully visible as a fitted short sleeve, not covered by the pallu.",
+      `2. SAREE print, the print in the BODY panel: everything else. The whole front of the {type} from the waist to the hem, the pleats at the front of the waist, the band of fabric crossing the chest, and the pallu. ${ONE_PRINT_CHEST}`,
+      "3. The pallu: a small pleated peak rising above the top of the left shoulder, then falling straight down behind the back to mid-calf; its edge is visible from the front behind {her} left arm. It is the same print as the rest of the {type}.",
+      "4. BORDER: along the hem, along the upper edge of the chest band, and along the edges of the pallu, exactly as narrow as shown.",
+      `Not allowed: no blouse fabric and no bare skin on the left side above the waist. The pallu must not lie over the left sleeve or the upper arm; it touches only the top of the shoulder and then goes behind. No cape, no flap, no loose sheet of fabric spread over the shoulder and arm. The pallu must not hang down the front of the body, must not be reduced to a tiny sliver, and must not reach the floor or pool on the ground. The border must not run as a vertical stripe down the front of the left side. ${ONE_PRINT_NO_NEW}`,
+    ].join("\n"),
     pose: [
       "POSE: A professional fashion catalog photo of {subject} wearing this {type}.",
       "{She} stands facing the camera directly in a symmetrical, centered pose, with both hands clasped together at {her} waist.",
@@ -297,6 +348,7 @@ export const TEMPLATES: PromptTemplate[] = [
     // without bumping the version and proving it again.
     frozen: { version: 2, on: "2026-09-10", proof: "300021, sheet mode, defaults, described words" },
     map: PALLU_FORWARD_MAP,
+    onePrintMap: ONE_PRINT_PALLU_FORWARD_MAP,
     pose: [
       "POSE: A professional fashion catalog photo of {subject} wearing this {type}.",
       "{She} stands at a three-quarter angle, shoulders and hips turned about 30 degrees, with {her} left side nearer the camera so the hanging pallu panel faces the camera, and {her} face turned back toward the camera. {Her} right hand rests lightly on {her} right hip; {her} left arm hangs naturally at {her} side beside the pallu panel, not covering it.",
@@ -326,6 +378,14 @@ export const TEMPLATES: PromptTemplate[] = [
       "4. BORDER: along the hem, and along both long edges of the spread pallu, exactly as narrow as shown. The end edge of the pallu, the edge where the {type} finishes, has NO border: {palluEnd} is the fabric's end.",
       "Transition rule: the {pallu_colour} PALLU print is confined to the spread panel hanging from the left shoulder. Its two long edges are the {border_colour} border; where the border ends, the {body_colour} BODY print begins.",
       "Not allowed: no pallu motif on the skirt. No zari or border trim on the blouse. No zari or {border_colour} border on the end edge of the pallu; that edge is the scalloped fabric end only. The pallu must not be pleated, folded, gathered, twisted or narrowed into a strip; it is fully opened so the {pallu_motif} is seen whole, not cut off at an edge. The pallu must not reach the floor or pool on the ground. No bare skin at the waist or lower back; the spread pallu and the {type} cover the lower back completely.",
+    ].join("\n"),
+    onePrintMap: [
+      "PLACEMENT MAP (seen from behind):",
+      "1. BLOUSE: {blouse_region} The back neckline, the right shoulder and both sleeves. Most of the blouse back is covered by the spread pallu.",
+      "2. SAREE print, the print in the BODY panel: everything else visible from behind. The spread pallu, and the back of the skirt below and beside it from the waist to the hem.",
+      "3. The pallu: it comes over the top of the left shoulder from the front and is opened out flat to its FULL WIDTH across the back, unpleated, like a panel on display, covering the back from the left shoulder across to the right hip and hanging down to mid-calf. It is the same print as the rest of the {type}.",
+      "4. BORDER: along the hem, and along both long edges of the spread pallu, exactly as narrow as shown. The end edge of the pallu has no border.",
+      `Not allowed: no zari or border trim on the blouse. No border on the end edge of the pallu. The pallu must not be pleated, folded, gathered, twisted or narrowed into a strip, and must not reach the floor or pool on the ground. No bare skin at the waist or lower back; the spread pallu and the {type} cover the lower back completely. ${ONE_PRINT_NO_NEW}`,
     ].join("\n"),
     pose: [
       "POSE: A professional fashion catalog photo of {subject} wearing this {type}.",
@@ -358,6 +418,14 @@ export const TEMPLATES: PromptTemplate[] = [
       "Transition rule: the change from {body_colour} BODY print to {pallu_colour} PALLU print is one clean line at the top of the left shoulder. The only PALLU print in front of the shoulder line is the section resting on the left forearm.",
       "Not allowed: no {pallu_colour} fabric on the left breast or the chest band. No blouse fabric visible on the left side above the waist. The pallu must not cover the left sleeve or the upper arm; it rests on the bare forearm below the sleeve. No zari or border trim on the blouse. No cape, no flap, no loose sheet of fabric over the shoulder.",
     ].join("\n"),
+    onePrintMap: [
+      "PLACEMENT MAP:",
+      "1. BLOUSE: {blouse_region} The fitted top, both sleeves and the neckline. {Her} right shoulder and the right side of {her} chest show blouse.",
+      `2. SAREE print, the print in the BODY panel: the fabric at the waist, the band of fabric crossing the chest, and the pallu. ${ONE_PRINT_CHEST}`,
+      "3. The pallu: it goes back over the top of the left shoulder, and its free end is brought forward from behind and rests over {her} left forearm, hanging down from the forearm with its print facing the camera. It is the same print as the rest of the {type}.",
+      "4. BORDER: along the upper edge of the chest band, and along the edges of the pallu end resting on the forearm, exactly as narrow as shown.",
+      `Not allowed: no blouse fabric visible on the left side above the waist. The pallu must not cover the left sleeve or the upper arm; it rests on the bare forearm below the sleeve. No zari or border trim on the blouse. No cape, no flap, no loose sheet of fabric over the shoulder. ${ONE_PRINT_NO_NEW}`,
+    ].join("\n"),
     pose: [
       "POSE: A professional fashion catalog photo of {subject} wearing this {type}.",
       "Tightly cropped from the waist up. {She} faces the camera with a slight three-quarter turn of the shoulders to {her} right, so the left shoulder is nearer the camera. {Her} left forearm is held across {her} body at waist height with the pallu end draped over it; {her} right hand rests lightly on the left wrist.",
@@ -373,6 +441,7 @@ export const TEMPLATES: PromptTemplate[] = [
     live: true,
     // The same drape as Prompt 2 with a different stance, so the same map.
     map: PALLU_FORWARD_MAP,
+    onePrintMap: ONE_PRINT_PALLU_FORWARD_MAP,
     pose: [
       "POSE: A professional fashion catalog photo of {subject} wearing this {type}.",
       "{She} stands in a relaxed, natural three-quarter pose, {her} weight shifted onto one leg and {her} hip gently angled toward the camera, the way a person naturally stands when resting on one side, with {her} left side nearer the camera so the hanging pallu panel faces the camera. {Her} right hand rests lightly on {her} right hip; {her} left arm hangs naturally at {her} side beside the pallu panel, not covering it. {Her} head and neck follow the natural line of {her} shoulders, with a soft, easy turn of the face toward the camera, no strain or awkward angle between head and body.",
@@ -392,6 +461,26 @@ export interface Attachment {
   slot: string;
   /** The filename the download gave it — `300021-body.png`. */
   file: string;
+  /** Set when the panel was cut from another photograph rather than taken: the BORDER from the body's edges. */
+  from?: "body";
+}
+
+/**
+ * Which parts were photographed, read from the garment. The prompt adapts to
+ * it: v2 wording when the pallu was photographed, v3 one-print wording when
+ * only the body was.
+ */
+export interface PartPlan {
+  pallu: "photo" | "same";
+  border: "photo" | "from-body";
+  /** "complementary": no blouse photograph, so a plain solid blouse in a colour from the saree. */
+  blouse: "photo" | "self" | "complementary";
+}
+
+/** The version a composed prompt belongs to, for the generation record. */
+export function promptVersion(template: PromptTemplate, plan?: PartPlan): string {
+  if (plan?.pallu === "same") return "v3-one-print";
+  return template.frozen ? `v${template.frozen.version}` : "draft";
 }
 
 const PART_WORDS: Record<string, (type: string) => string> = {
@@ -478,6 +567,77 @@ function garment(w: GarmentWords): string {
   ].join("\n");
 }
 
+/**
+ * REFERENCE, v3: the panels as they really are. A BORDER cut from the body's
+ * edges is said to be so, and the count of prints is the count of fabrics
+ * actually photographed — v2's "four different fabrics" pushed the model to
+ * invent a pallu when the PALLU panel was the body again.
+ */
+function referenceV3(files: Attachment[], type: string, plan: PartPlan): string {
+  const panel = (f: Attachment) => {
+    const label = f.slot.toUpperCase().replace("_", " ");
+    if (f.slot === "border" && f.from === "body") {
+      return `The panel labelled BORDER shows the ${type}'s two long edges, cut from the BODY photograph and set side by side, at their real width.`;
+    }
+    return `The panel labelled ${label} is ${(PART_WORDS[f.slot] ?? (() => f.slot))(type)}.`;
+  };
+  const prints =
+    plan.blouse === "photo"
+      ? `This ${type} has two prints: the body print, which runs through the pallu to the very end, and the blouse print. They must never be mixed, blended, or shown in each other's place.`
+      : `This ${type} is one print from end to end.`;
+  return [
+    `REFERENCE: The attached image is a sheet of ${files.length} labelled photograph${files.length === 1 ? "" : "s"} of ONE ${type}.`,
+    ...files.map(panel),
+    files.length === 1 ? "The label is printed above the panel." : "Read the label printed above each panel to know which part it is.",
+    ...(files.some((f) => f.slot === "border")
+      ? []
+      : [`The ${type}'s border is the band along both long edges of the BODY photograph; copy it from there, at its real width.`]),
+    `Anything around the fabric in the photograph${files.length === 1 ? "" : "s"}, such as a wall, a window, the rod or the floor, is the shop, not the ${type}.`,
+    `There is no separate pallu design: the pallu is the same fabric as the body, with the same motifs, colours and border, all the way to the end of the ${type}.`,
+    prints,
+    `The border on the finished ${type} must stay as narrow as it is in the photograph${files.length === 1 ? "" : "s"}.`,
+    "The sheet is only something to copy the fabric from. Do not reproduce its layout: the output is ONE photograph of one model, not a sheet, not a grid, not two views side by side.",
+  ].join(" ");
+}
+
+/**
+ * The blouse, from the part plan. With no blouse photograph the blouse is
+ * plain and solid in the border's colour — a colour already in the saree,
+ * so the pair looks chosen — or, without a known border colour, one taken
+ * from the saree's motifs. Chosen here, not by the image model, so every
+ * pose of a saree wears the same blouse.
+ */
+function blouseLine(w: GarmentWords, plan: PartPlan): { garment: string; region: string } {
+  if (plan.blouse === "photo") {
+    return { garment: `${w.blouseDesc}. This is a separate fabric from the ${w.type}.`, region: "the fabric in the BLOUSE panel." };
+  }
+  if (plan.blouse === "self") {
+    return { garment: `made from the same fabric as the ${w.type} body.`, region: "the same fabric as the body." };
+  }
+  const colour = w.borderColour && !same(w.borderColour, w.bodyColour) ? w.borderColour : null;
+  const ground = w.bodyColour ? `the ${w.bodyColour} ground of the ${w.type}` : `the ${w.type}'s ground colour`;
+  const solid = colour
+    ? `a plain, solid ${colour} blouse with no print, matching the colour of the border`
+    : `a plain, solid blouse with no print, in one colour taken from the ${w.type}'s motifs or border that stands apart from ${ground}`;
+  return {
+    garment: `${solid}. It is not cut from the ${w.type} fabric.`,
+    region: colour ? `plain solid ${colour}, no print.` : "plain and solid, no print.",
+  };
+}
+
+/** GARMENT, v3: the pallu is the body; the blouse follows the part plan. */
+function garmentV3(w: GarmentWords, plan: PartPlan): string {
+  const kind = [w.fibre, w.craft, w.type].filter(Boolean).join(" ");
+  const width = w.borderWidth ? `, ${w.borderWidth} wide` : "";
+  return [
+    `GARMENT: A ${kind}.`,
+    `- BODY: ${w.bodyDesc}.`,
+    `- PALLU: the same fabric and print as the body, continuing unchanged to the end of the ${w.type}. There is no separate pallu design.`,
+    `- BORDER: ${w.borderDesc}${width}. It runs along the hem and along the long edges of the ${w.type}.`,
+    `- BLOUSE: ${capitalise(blouseLine(w, plan).garment)}`,
+  ].join("\n");
+}
+
 function capitalise(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
@@ -510,8 +670,9 @@ function notColours(w: GarmentWords): string {
 }
 
 /** Every token in one pass, then the double spaces an empty token leaves. */
-function fill(text: string, p: Pronouns, w: GarmentWords, subject: string): string {
-  const bodyColour = w.bodyColour ?? "BODY-print";
+function fill(text: string, p: Pronouns, w: GarmentWords, subject: string, plan?: PartPlan): string {
+  const onePrint = plan?.pallu === "same";
+  const bodyColour = w.bodyColour ?? (onePrint ? "" : "BODY-print");
   const tokens: Record<string, string> = {
     "{She}": p.She,
     "{she}": p.she,
@@ -521,7 +682,8 @@ function fill(text: string, p: Pronouns, w: GarmentWords, subject: string): stri
     "{type}": w.type,
     "{body_colour}": bodyColour,
     "{body_colour_cap}": capitalise(bodyColour),
-    "{pallu_colour}": palluWord(w),
+    "{pallu_colour}": onePrint ? bodyColour : palluWord(w),
+    "{blouse_region}": plan ? blouseLine(w, plan).region : "",
     "{blouse_colour}": w.blouseColour ?? "BLOUSE-print",
     "{border_colour}": w.borderColour ?? "",
     "{pallu_motif}": w.palluMotif,
@@ -544,6 +706,7 @@ export function composePrompt(
   words: GarmentWords,
   s: Selections,
   files: Attachment[] = [],
+  plan?: PartPlan,
 ): string {
   const p = PRONOUNS[s.modelType];
   const fromPhoto = s.modelSource === "photo";
@@ -556,19 +719,15 @@ export function composePrompt(
     .filter(Boolean)
     .join(" ");
 
-  const blocks = [
-    reference(files, words.type, s.attachMode, fromPhoto ? p : undefined),
-    task(words.type, s.rules),
-    HOUSE_RULES,
-    garment(words),
-    template.map,
-    template.pose,
-    `SCENE: ${scene}`,
-    OUTPUT,
-  ];
+  // One print (no pallu photographed, sheet mode, generated model): v3.
+  // Everything else composes exactly as the frozen v2.
+  const onePrint = plan?.pallu === "same" && s.attachMode === "sheet" && !fromPhoto;
+  const blocks = onePrint
+    ? [referenceV3(files, words.type, plan!), task(words.type, s.rules), HOUSE_RULES_V3, garmentV3(words, plan!), template.onePrintMap, template.pose, `SCENE: ${scene}`, OUTPUT]
+    : [reference(files, words.type, s.attachMode, fromPhoto ? p : undefined), task(words.type, s.rules), HOUSE_RULES, garment(words), template.map, template.pose, `SCENE: ${scene}`, OUTPUT];
 
   return blocks
     .filter(Boolean)
-    .map((b) => fill(b, p, words, subject))
+    .map((b) => fill(b, p, words, subject, onePrint ? plan : undefined))
     .join("\n\n");
 }

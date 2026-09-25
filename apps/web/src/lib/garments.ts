@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import sharp from "sharp";
 import { db, garments, type Garment, type GarmentPartRow, type PartQuality } from "@/db";
 import { garmentWordsFrom, type DescribedGarment, type GarmentWords } from "@/content/garmentWords";
-import type { Attachment } from "@/content/promptTemplates";
+import type { Attachment, PartPlan } from "@/content/promptTemplates";
 import { SHEET_CELLS, SHEET_FILL, SHEET_LEAD, garmentType, requiredSlots } from "@/content/shots";
 import { buildContactSheet } from "@/lib/contactSheet";
 import { fetchBase64, fetchProduct, partsBySlot } from "@/lib/slk";
@@ -92,9 +92,22 @@ export async function addUploadedPart(
   mime: string,
   size: { width: number; height: number },
   quality?: PartQuality,
+  /** Already in storage (a presigned PUT from the phone): record it, do not write it again. */
+  storedKey?: string,
+  takenBy?: string | null,
 ): Promise<Garment> {
-  const key = await saveUpload(garment.id, slot, bytes, mime);
-  const part: GarmentPartRow = { slot, key, url: assetUrl(key), width: size.width, height: size.height, rotate: 0, ...(quality ? { quality } : {}) };
+  const key = storedKey ?? (await saveUpload(garment.id, slot, bytes, mime));
+  const part: GarmentPartRow = {
+    slot,
+    key,
+    url: assetUrl(key),
+    width: size.width,
+    height: size.height,
+    rotate: 0,
+    ...(quality ? { quality } : {}),
+    ...(takenBy ? { takenBy } : {}),
+    takenAt: new Date().toISOString(),
+  };
   const parts = [...garment.parts.filter((p) => p.slot !== slot), part];
   return updateGarment(garment.id, { parts, answers: blouseAnswer(garment, parts) });
 }
@@ -112,6 +125,31 @@ export async function removePart(garment: Garment, slot: string): Promise<Garmen
 export function blouseAnswer(garment: Garment, parts: GarmentPartRow[]): Garment["answers"] {
   if (garment.source !== "upload") return garment.answers;
   return { ...garment.answers, blouseSameAsBody: !parts.some((p) => p.slot === "blouse") };
+}
+
+/** What a product ID may look like: the shop's own codes, typed or scanned. */
+export const PRODUCT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 _\-/.]{0,39}$/;
+
+/**
+ * The record for one product: every photograph of it, required and
+ * optional, lives here. Opening an ID that already has a record reopens it,
+ * so photographs taken on another day land in the same place.
+ */
+export async function openProductGarment(accountId: string, productId: string, type: string): Promise<Garment> {
+  const rows = await db.select().from(garments).where(and(eq(garments.accountId, accountId), eq(garments.productCode, productId)));
+  const existing = rows.sort((a, b) => +b.updatedAt - +a.updatedAt)[0];
+  if (existing) return existing;
+  const chosen = garmentType(type);
+  const [garment] = await db
+    .insert(garments)
+    .values({ accountId, source: "upload", productCode: productId, garmentType: chosen.value, family: chosen.family, title: `${chosen.label} ${productId}`, words: {}, answers: {}, parts: [] })
+    .returning();
+  return garment!;
+}
+
+/** The account's records, newest first, for the list of saved products. */
+export async function listGarments(accountId: string, limit = 200): Promise<Garment[]> {
+  return db.select().from(garments).where(eq(garments.accountId, accountId)).orderBy(desc(garments.updatedAt)).limit(limit);
 }
 
 export async function getGarment(id: string, accountId: string): Promise<Garment | null> {
@@ -173,13 +211,11 @@ export function sheetSlots(garment: Garment): PartSlot[] {
     presentSlots(garment).filter((slot) => garment.parts.find((p) => p.slot === slot)?.quality?.status !== "block"),
   );
   if (present.has("saree")) return ["saree"];
-  // No border close-up: the BORDER cell is cut from the edges of the body
-  // photo, which was framed with both borders in. See `derivedBorder`.
-  if (!present.has("border") && present.has("body")) present.add("border");
-  // No pallu photo: the saree is uniform end to end, so the body photo
-  // stands in for the PALLU panel too — the same fabric, told apart from
-  // itself is not something the sheet needs to pretend to show.
-  if (!present.has("pallu") && present.has("body")) present.add("pallu");
+  // No border close-up beside a photographed pallu: the BORDER cell is cut
+  // from the edges of the body photo, which the v2 wording expects. With the
+  // body alone (one print) there is no BORDER cell: the body photograph shows
+  // both borders at their real width, and v3 says so.
+  if (!present.has("border") && present.has("body") && present.has("pallu")) present.add("border");
   const chosen: PartSlot[] = SHEET_LEAD.filter((slot) => present.has(slot));
   for (const slot of SHEET_FILL) {
     if (chosen.length >= SHEET_CELLS) break;
@@ -192,7 +228,30 @@ export function sheetSlots(garment: Garment): PartSlot[] {
 
 export function attachmentsFor(garment: Garment): Attachment[] {
   const stem = garment.productCode ?? garment.id.slice(0, 8);
-  return sheetSlots(garment).map((slot) => ({ slot, file: `${stem}-${slot}.png` }));
+  const photographed = (slot: string) => garment.parts.some((p) => p.slot === slot && p.quality?.status !== "block");
+  return sheetSlots(garment).map((slot) => ({
+    slot,
+    file: `${stem}-${slot}.png`,
+    ...(slot === "border" && !photographed("border") ? { from: "body" as const } : {}),
+  }));
+}
+
+/**
+ * What the photographs say about the saree, for the prompt to adapt to.
+ *
+ * No pallu photo means the saree is one print end to end. No blouse photo
+ * means a plain blouse in a complementary colour — except for an SLK product
+ * whose design record says the blouse is self fabric, which is a fact, not a
+ * gap. A single flat photograph of the whole saree keeps the older wording.
+ */
+export function partPlan(garment: Garment): PartPlan | undefined {
+  const has = (slot: string) => garment.parts.some((p) => p.slot === slot && p.quality?.status !== "block");
+  if (has("saree")) return undefined;
+  return {
+    pallu: has("pallu") ? "photo" : "same",
+    border: has("border") ? "photo" : "from-body",
+    blouse: has("blouse") ? "photo" : garment.source === "slk" && garment.answers.blouseSameAsBody ? "self" : "complementary",
+  };
 }
 
 /**
@@ -229,10 +288,11 @@ async function partBase64(part: GarmentPartRow): Promise<string> {
  * storage is configured, read back after that. Without storage it is built
  * on every call — slow but honest.
  */
-export async function sheetFor(garment: Garment): Promise<{ data: string; key: string | null }> {
+export async function sheetFor(garment: Garment): Promise<{ data: string; key: string | null; mime: string }> {
   if (garment.sheetKey && storageConfigured()) {
     const bytes = await getObject(garment.sheetKey);
-    return { data: Buffer.from(bytes).toString("base64"), key: garment.sheetKey };
+    const mime = garment.sheetKey.endsWith(".jpg") ? "image/jpeg" : "image/png";
+    return { data: Buffer.from(bytes).toString("base64"), key: garment.sheetKey, mime };
   }
 
   const parts = await Promise.all(
@@ -242,20 +302,18 @@ export async function sheetFor(garment: Garment): Promise<{ data: string; key: s
         const body = garment.parts.find((p) => p.slot === "body")!;
         return { key: slot, label: "BORDER", data: await derivedBorder(await partBase64(body), body.rotate) };
       }
-      if (!part && slot === "pallu") {
-        const body = garment.parts.find((p) => p.slot === "body")!;
-        return { key: slot, label: "PALLU", data: await partBase64(body), rotate: body.rotate };
-      }
       return { key: slot, label: slot.toUpperCase().replace("_", " "), data: await partBase64(part!), rotate: part!.rotate };
     }),
   );
   if (parts.length === 0) throw new Error("This garment has no photographs yet.");
-  const sheet = await buildContactSheet(parts, { cell: 1000 });
+  // Large panels from the originals: one panel at 2000px, more at 1600px
+  // each, JPEG so the request stays well under Gemini's inline limit.
+  const sheet = await buildContactSheet(parts, { cell: parts.length === 1 ? 2000 : 1600, format: "jpeg" });
 
-  if (!storageConfigured()) return { data: sheet.data, key: null };
+  if (!storageConfigured()) return { data: sheet.data, key: null, mime: sheet.mime };
 
-  const key = keys.sheet(garment.id);
-  await putObject(key, Buffer.from(sheet.data, "base64"), "image/png");
+  const key = keys.sheet(garment.id, "jpg");
+  await putObject(key, Buffer.from(sheet.data, "base64"), sheet.mime);
   await db.update(garments).set({ sheetKey: key, updatedAt: new Date() }).where(eq(garments.id, garment.id));
-  return { data: sheet.data, key };
+  return { data: sheet.data, key, mime: sheet.mime };
 }

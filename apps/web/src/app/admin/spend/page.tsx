@@ -3,7 +3,8 @@ import { db, garments, generations } from "@/db";
 import { requirePage } from "@/lib/page-auth";
 import { IMAGE_OPTIONS, chosenImageOption, livePrices, liveRate } from "@/lib/imageModels";
 import { balancePaise, rupees, spendSummary, sweepStale } from "@/lib/spend";
-import { grantAction, setCapsAction, setImageModelAction, togglePauseAction } from "./actions";
+import { usersOf } from "@/lib/session";
+import { grantAction, saveUserAction, setCapsAction, setImageModelAction, togglePauseAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -16,11 +17,12 @@ export const dynamic = "force-dynamic";
  * Google bill can be traced to the image that caused it.
  */
 export default async function SpendPage() {
-  const account = await requirePage("/admin/spend");
+  const account = await requirePage("/admin/spend", ["admin"]);
   await sweepStale();
   // Read fresh on every visit: Google's price page and today's dollar rate.
   const [prices, rate, chosen] = await Promise.all([livePrices(), liveRate(), chosenImageOption()]);
   const summary = await spendSummary();
+  const people = await usersOf(account.id);
   const balance = await balancePaise(account.id);
   const recent = await db
     .select({
@@ -145,6 +147,48 @@ export default async function SpendPage() {
             </button>
           </div>
         </form>
+      </section>
+
+      <section className="mt-6 rounded-xl border border-line bg-surface p-5">
+        <h2 className="text-[15px] font-semibold">People</h2>
+        <p className="mt-1 text-[13px] text-ink-soft">
+          Everyone signs in with their own name and works on the same products. A photographer can only open products and take photos; studio can also generate; admin can also change these settings.
+        </p>
+        <table className="mt-3 w-full text-[13.5px]">
+          <thead className="text-left text-[12px] uppercase tracking-wide text-ink-faint">
+            <tr><th className="py-1.5">Username</th><th>Role</th></tr>
+          </thead>
+          <tbody>
+            {people.map((u) => (
+              <tr key={u.username ?? "shop"} className="border-t border-line-soft">
+                <td className="py-1.5">{u.username ?? "—"}</td>
+                <td className="capitalize">{u.role}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <form action={saveUserAction} className="mt-4 flex flex-wrap items-end gap-3">
+          <label className="block">
+            <span className="text-[12px] text-ink-faint">Username</span>
+            <input name="username" required pattern="[a-zA-Z0-9._-]{3,32}" className="mt-1 w-40 rounded-lg border border-line bg-ground px-3 py-1.5 text-[14px] outline-none focus:border-accent" />
+          </label>
+          <label className="block">
+            <span className="text-[12px] text-ink-faint">Password</span>
+            <input name="password" type="password" required minLength={6} className="mt-1 w-40 rounded-lg border border-line bg-ground px-3 py-1.5 text-[14px] outline-none focus:border-accent" />
+          </label>
+          <label className="block">
+            <span className="text-[12px] text-ink-faint">Role</span>
+            <select name="role" defaultValue="photographer" className="mt-1 rounded-lg border border-line bg-ground px-3 py-1.5 text-[14px] outline-none focus:border-accent">
+              <option value="photographer">Photographer</option>
+              <option value="studio">Studio</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <button type="submit" className="rounded-lg border border-line px-4 py-2 text-[14px] hover:border-ink-faint">
+            Save person
+          </button>
+        </form>
+        <p className="mt-2 text-[12.5px] text-ink-faint">Saving an existing username changes its password and role.</p>
       </section>
 
       <section className="mt-8">

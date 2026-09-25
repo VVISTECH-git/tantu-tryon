@@ -1,7 +1,7 @@
 import { buildContactSheet } from "@/lib/contactSheet";
 import { describeSheet } from "@/lib/describe";
 import { QUERY_KEY, parseRotations } from "@/lib/rotation";
-import { requireAccount, unauthorised } from "@/lib/session";
+import { requireRole, unauthorised } from "@/lib/session";
 import { fetchBase64, fetchProduct, partsBySlot } from "@/lib/slk";
 
 export const runtime = "nodejs";
@@ -16,7 +16,7 @@ const ORDER = ["body", "pallu", "border", "blouse"] as const;
 
 export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
   try {
-    await requireAccount();
+    await requireRole("admin", "studio");
   } catch (error) {
     return unauthorised(error) ?? Response.json({ error: "Sign in to do that." }, { status: 401 });
   }

@@ -115,7 +115,7 @@ export async function remove(key: string): Promise<void> {
 export const keys = {
   part: (garmentId: string, slot: string, extension: string) =>
     `garments/${garmentId}/${slot}-${Date.now()}.${extension}`,
-  sheet: (garmentId: string) => `garments/${garmentId}/sheet-${Date.now()}.png`,
+  sheet: (garmentId: string, extension = "png") => `garments/${garmentId}/sheet-${Date.now()}.${extension}`,
   render: (garmentId: string, generationId: string, extension: string) =>
     `renders/${garmentId}/${generationId}.${extension}`,
 };
@@ -178,11 +178,11 @@ export function renderUrl(key: string): string {
 export const assetUrl = renderUrl;
 
 /**
- * A merchant's uploaded photograph, already resized in the browser.
- *
- * Through the server rather than a presigned PUT: at ≤1600px JPEG a part is
- * well under Vercel's request limit, and one path that also works without
- * R2 on a laptop beats two paths that each work somewhere.
+ * A merchant's photograph sent through the server: the browser's upload, and
+ * the phone's when storage is not configured. Stored as it arrived. The
+ * phone's usual path is a presigned PUT straight to R2 (see the upload-url
+ * route), because an untouched camera original can pass Vercel's 4.5 MB
+ * request limit.
  */
 export async function saveUpload(garmentId: string, slot: string, bytes: Uint8Array, mime: string): Promise<string> {
   const extension = extensionFor(mime);

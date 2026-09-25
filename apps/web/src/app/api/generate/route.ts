@@ -2,7 +2,7 @@ import type { GenerationLook } from "@/db";
 import { BACKGROUNDS, MODEL_TYPES, TEMPLATES } from "@/content/promptTemplates";
 import { getGarment } from "@/lib/garments";
 import { runGeneration } from "@/lib/generate";
-import { requireAccount, unauthorised } from "@/lib/session";
+import { requireRole, unauthorised } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -21,7 +21,7 @@ interface Body {
 
 export async function POST(request: Request) {
   try {
-    const account = await requireAccount();
+    const account = await requireRole("admin", "studio");
     const body = (await request.json().catch(() => ({}))) as Body;
 
     if (!body.garmentId || !body.promptId || !body.clientKey || !body.look) {

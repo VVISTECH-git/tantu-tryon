@@ -48,13 +48,13 @@ const INSTRUCTIONS = `The attached image is a sheet of labelled photographs of O
 interface Reader {
   id: string;
   configured: () => boolean;
-  read: (sheetBase64: string) => Promise<{ text: string; model: string }>;
+  read: (sheetBase64: string, mime: string) => Promise<{ text: string; model: string }>;
 }
 
 const claude: Reader = {
   id: "claude",
   configured: () => Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN),
-  async read(data) {
+  async read(data, mime) {
     const model = process.env.ANTHROPIC_TEXT_MODEL || "claude-opus-5";
     const client = new Anthropic();
     const response = await client.beta.messages.create({
@@ -67,7 +67,7 @@ const claude: Reader = {
         {
           role: "user",
           content: [
-            { type: "image", source: { type: "base64", media_type: "image/png", data } },
+            { type: "image", source: { type: "base64", media_type: mime as "image/png" | "image/jpeg", data } },
             { type: "text", text: INSTRUCTIONS },
           ],
         },
@@ -87,7 +87,7 @@ const claude: Reader = {
 const openai: Reader = {
   id: "openai",
   configured: () => Boolean(process.env.OPENAI_API_KEY),
-  async read(data) {
+  async read(data, mime) {
     const model = process.env.OPENAI_TEXT_MODEL || "gpt-4.1-mini";
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -101,7 +101,7 @@ const openai: Reader = {
             role: "user",
             content: [
               { type: "text", text: INSTRUCTIONS },
-              { type: "image_url", image_url: { url: `data:image/png;base64,${data}`, detail: "high" } },
+              { type: "image_url", image_url: { url: `data:${mime};base64,${data}`, detail: "high" } },
             ],
           },
         ],
@@ -116,14 +116,14 @@ const openai: Reader = {
 const gemini: Reader = {
   id: "gemini",
   configured: () => Boolean(process.env.GEMINI_API_KEY),
-  async read(data) {
+  async read(data, mime) {
     const model = process.env.GEMINI_TEXT_MODEL || "gemini-3.6-flash";
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
     const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: INSTRUCTIONS }, { inline_data: { mime_type: "image/png", data } }] }],
+        contents: [{ parts: [{ text: INSTRUCTIONS }, { inline_data: { mime_type: mime, data } }] }],
         generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
       }),
     });
@@ -144,7 +144,7 @@ export type DescribeResult =
   | { ok: false; status: 502 | 503; message: string };
 
 /** Read a labelled sheet (raw base64 PNG) into garment words with whichever reader answers first. */
-export async function describeSheet(sheetBase64: string): Promise<DescribeResult> {
+export async function describeSheet(sheetBase64: string, mime = "image/png"): Promise<DescribeResult> {
   const readers = READERS.filter((r) => r.configured());
   if (readers.length === 0) {
     return { ok: false, status: 503, message: "No engine key on this deployment, so the photographs cannot be read. Fill the words in by hand." };
@@ -154,7 +154,7 @@ export async function describeSheet(sheetBase64: string): Promise<DescribeResult
   for (const reader of readers) {
     let answer: { text: string; model: string };
     try {
-      answer = await reader.read(sheetBase64);
+      answer = await reader.read(sheetBase64, mime);
     } catch (problem) {
       failures.push(`${reader.id}: ${problem instanceof Error ? problem.message : String(problem)}`);
       continue;
