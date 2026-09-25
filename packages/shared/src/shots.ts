@@ -92,11 +92,11 @@ export const SAREE_SHOTS: Shot[] = [
     sample: SAREE_SAMPLE("pallu"),
     frame: SAREE_SAMPLE("frame_pallu"),
     label: "Pallu",
-    required: true,
+    required: false,
     orientation: "upright",
     where: "Waist height, a band of body at the top, the end edge at the bottom",
     how: "Hold the phone upright. Same spot, phone at waist height, pointing straight ahead. A thin band of body at the top of the frame, both borders inside, and the end edge of the pallu at the bottom.",
-    gives: "This one photo gives the pallu design, the line where it joins the body, its end edge, and often the blouse colour below it.",
+    gives: "Skip this if the saree looks the same from end to end — the body photo stands in for the pallu too. Take it whenever the pallu carries its own design.",
   },
   {
     slot: "border",
