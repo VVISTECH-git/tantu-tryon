@@ -1,6 +1,6 @@
 import { describeSheet } from "@/lib/describe";
 import { getGarment, publicGarment, sheetFor, updateGarment, wordsFor } from "@/lib/garments";
-import { requireAccount, unauthorised } from "@/lib/session";
+import { requireRole, unauthorised } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -13,7 +13,7 @@ export const maxDuration = 60;
  */
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const account = await requireAccount();
+    const account = await requireRole("admin", "studio");
     const { id } = await params;
     const garment = await getGarment(id, account.id);
     if (!garment) return Response.json({ error: "No such garment." }, { status: 404 });

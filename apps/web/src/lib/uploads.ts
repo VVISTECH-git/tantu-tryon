@@ -31,10 +31,10 @@ export async function uprightSize(bytes: Uint8Array): Promise<{ width: number; h
 }
 
 /** Size, free quality check, part row. `storedKey` when the bytes are already in R2. */
-export async function recordPhoto(garment: Garment, slot: PartSlot, bytes: Uint8Array, mime: string, storedKey?: string) {
+export async function recordPhoto(garment: Garment, slot: PartSlot, bytes: Uint8Array, mime: string, storedKey?: string, takenBy?: string | null) {
   const { width, height } = await uprightSize(bytes);
   const shot = shotFor(garment.garmentType, slot);
   const quality = await checkQuality({ bytes: Buffer.from(bytes), width, height, expected: shot?.orientation ?? null });
-  const updated = await addUploadedPart(garment, slot, bytes, mime, { width, height }, quality, storedKey);
+  const updated = await addUploadedPart(garment, slot, bytes, mime, { width, height }, quality, storedKey, takenBy);
   return { garment: updated, quality };
 }

@@ -51,6 +51,9 @@ function Studio() {
   const passwordRef = useRef<TextInput>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [signedInAs, setSignedInAs] = useState<string | null>(null);
+  // "photographer": products and photos only, nothing that spends.
+  const [role, setRole] = useState("admin");
+  const photographer = role === "photographer";
   const [accountBack, setAccountBack] = useState<Screen>("type");
   const [garmentType, setGarmentType] = useState(DEFAULT_GARMENT_TYPE);
   const [productId, setProductId] = useState("");
@@ -92,6 +95,7 @@ function Studio() {
         const me = await api.account();
         setBalance(me.balancePaise);
         setSignedInAs(me.username ?? me.name);
+        setRole(me.role);
         target = "type";
       } catch {
         target = "signin";
@@ -110,6 +114,7 @@ function Studio() {
       const me = await api.account();
       setBalance(me.balancePaise);
       setSignedInAs(me.username ?? me.name);
+      setRole(me.role);
       setPassword("");
       setScreen("type");
     } catch (problem) {
@@ -260,6 +265,7 @@ function Studio() {
       setOpened(new Set());
       setBalance(null);
       setSignedInAs(null);
+      setRole("admin");
       setUsername("");
       setPassword("");
       setBusy(false);
@@ -351,12 +357,20 @@ function Studio() {
             Tantu <Text style={s.brandSub}>Try-On</Text>
           </Text>
           <View style={s.row}>
-            <Pressable style={s.chip} onPress={openAccount} hitSlop={6}>
-              <Text style={s.chipText}>{balance === null ? "…" : `${api.rupees(balance)} left`}</Text>
-            </Pressable>
-            <Pressable onPress={openAccount} hitSlop={8}>
-              <Text style={s.link}>Account</Text>
-            </Pressable>
+            {photographer ? (
+              <View style={s.chip}>
+                <Text style={s.chipText}>{signedInAs ?? "photographer"}</Text>
+              </View>
+            ) : (
+              <>
+                <Pressable style={s.chip} onPress={openAccount} hitSlop={6}>
+                  <Text style={s.chipText}>{balance === null ? "…" : `${api.rupees(balance)} left`}</Text>
+                </Pressable>
+                <Pressable onPress={openAccount} hitSlop={8}>
+                  <Text style={s.link}>Account</Text>
+                </Pressable>
+              </>
+            )}
             <Pressable onPress={() => void signOut()} hitSlop={8}>
               <Text style={s.link}>Sign out</Text>
             </Pressable>
@@ -525,6 +539,18 @@ function Studio() {
                 onView={(uri, label) => setViewing({ uri, label })}
             />
             <Text style={s.support}>Camera opens the phone camera. Upload picks a photo already on the phone.</Text>
+            {photographer ? (
+              <>
+                <Text style={s.support}>
+                  {missing.length > 0
+                    ? `Still needed: ${missing.map(label).join(" and ")}.`
+                    : blocked.length > 0
+                      ? `Retake ${blocked.map(label).join(" and ")}.`
+                      : `All photos are saved under ${garment?.productCode ?? "this product"}.`}
+                </Text>
+                <Action label="Done · next product" disabled={busySlot !== null} onPress={startOver} />
+              </>
+            ) : (
             <Action
               label={
                 missing.length > 0
@@ -538,6 +564,7 @@ function Studio() {
               disabled={!ready || busy}
               onPress={() => void analyzeNow()}
             />
+            )}
           </View>
         )}
 

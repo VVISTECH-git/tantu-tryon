@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
     let recorded;
     try {
-      recorded = await recordPhoto(garment, slot, new Uint8Array(await file.arrayBuffer()), mime);
+      recorded = await recordPhoto(garment, slot, new Uint8Array(await file.arrayBuffer()), mime, undefined, account.username);
     } catch {
       return Response.json({ error: "We could not read this image. Please try another one (JPEG or PNG)." }, { status: 415 });
     }

@@ -43,6 +43,18 @@ export const accounts = pgTable(
     username: text(),
     /** scrypt, salted, `salt:hash` — see `lib/session.ts` hashPassword/passwordMatches. Null until set. */
     passwordHash: text(),
+    /**
+     * What this login may do. `admin`: everything, settings included.
+     * `studio`: capture and generate. `photographer`: open products and
+     * take photos, nothing that spends.
+     */
+    role: text().notNull().default("admin"),
+    /**
+     * The shop this login works in. Null for the shop's own account; a
+     * photographer or studio login points at it, so everyone sees the same
+     * products and spends from the same balance.
+     */
+    workspaceId: uuid(),
     phone: text(),
     email: text(),
     createdAt: now(),
@@ -120,6 +132,9 @@ export interface GarmentPartRow {
   rotate: 0 | 90 | 180 | 270;
   /** Set for photographs uploaded here; SLK's photographs carry none. */
   quality?: PartQuality;
+  /** The login that took it, and when: the tracking that replaces sending photos on WhatsApp. */
+  takenBy?: string;
+  takenAt?: string;
 }
 
 export interface GarmentAnswers {

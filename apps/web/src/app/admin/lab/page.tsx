@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { requirePage } from "@/lib/page-auth";
 import { Lab } from "@/components/lab/Lab";
 import { poseSpec } from "@/registry/poses";
 
@@ -18,6 +19,7 @@ export const metadata: Metadata = {
 };
 
 export default async function LabPage() {
+  await requirePage("/admin/lab", ["admin"]);
   const pose = poseSpec(POSE_UNDER_TEST);
   if (!pose) notFound();
 

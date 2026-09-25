@@ -94,9 +94,20 @@ export async function addUploadedPart(
   quality?: PartQuality,
   /** Already in storage (a presigned PUT from the phone): record it, do not write it again. */
   storedKey?: string,
+  takenBy?: string | null,
 ): Promise<Garment> {
   const key = storedKey ?? (await saveUpload(garment.id, slot, bytes, mime));
-  const part: GarmentPartRow = { slot, key, url: assetUrl(key), width: size.width, height: size.height, rotate: 0, ...(quality ? { quality } : {}) };
+  const part: GarmentPartRow = {
+    slot,
+    key,
+    url: assetUrl(key),
+    width: size.width,
+    height: size.height,
+    rotate: 0,
+    ...(quality ? { quality } : {}),
+    ...(takenBy ? { takenBy } : {}),
+    takenAt: new Date().toISOString(),
+  };
   const parts = [...garment.parts.filter((p) => p.slot !== slot), part];
   return updateGarment(garment.id, { parts, answers: blouseAnswer(garment, parts) });
 }

@@ -59,15 +59,15 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   return payload;
 }
 
-export async function login(username: string, password: string): Promise<{ name: string }> {
-  const out = await call<{ ok: true; account: { id: string; name: string }; token?: string }>("/api/auth/login", {
+export async function login(username: string, password: string): Promise<{ name: string; role: string }> {
+  const out = await call<{ ok: true; account: { id: string; name: string; role?: string }; token?: string }>("/api/auth/login", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ username, password }),
   });
   if (!out.token) throw new ApiError("The server did not return a session for the phone.", 500);
   await storeToken(out.token);
-  return { name: out.account.name };
+  return { name: out.account.name, role: out.account.role ?? "admin" };
 }
 
 export async function logout(): Promise<void> {
@@ -78,9 +78,9 @@ export async function logout(): Promise<void> {
   }
 }
 
-export async function account(): Promise<{ name: string; username: string | null; balancePaise: number }> {
-  const out = await call<{ account: { name: string; username?: string | null }; balancePaise: number }>("/api/account");
-  return { name: out.account.name, username: out.account.username ?? null, balancePaise: out.balancePaise };
+export async function account(): Promise<{ name: string; username: string | null; role: string; balancePaise: number }> {
+  const out = await call<{ account: { name: string; username?: string | null; role?: string }; balancePaise: number }>("/api/account");
+  return { name: out.account.name, username: out.account.username ?? null, role: out.account.role ?? "admin", balancePaise: out.balancePaise };
 }
 
 export interface LocalPhoto {
