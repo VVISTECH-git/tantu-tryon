@@ -176,7 +176,9 @@ function Studio() {
   // Not while analyzing or generating: those screens move on by themselves when the call returns.
   function openAccount() {
     if (screen === "analyzing" || screen === "generating" || screen === "account") return;
-    setAccountBack(screen);
+    // From Platform, Account's Back must still lead to where the person came
+    // from, not back to Platform (which loops: 25 Sep).
+    if (screen !== "platform") setAccountBack(screen);
     setScreen("account");
     void refreshBalance();
   }
@@ -1261,7 +1263,7 @@ const s = StyleSheet.create({
   brandSub: { color: C.textMuted, fontSize: 12, fontWeight: "400" },
   chip: { paddingHorizontal: 12, minHeight: 30, borderRadius: R.pill, backgroundColor: "rgba(107, 52, 179, 0.16)", borderWidth: 1, borderColor: "rgba(107, 52, 179, 0.24)", justifyContent: "center" },
   chipText: { color: C.violetText, fontSize: 12, fontWeight: "500" },
-  main: { padding: 20, gap: 16 },
+  main: { padding: 20, paddingBottom: 120, gap: 16 },
   stack: { gap: 12 },
   title: { color: C.text, fontSize: 26, fontWeight: "600", textAlign: "center", lineHeight: 30 },
   copy: { color: C.textSoft, fontSize: 14, textAlign: "center", lineHeight: 20 },
