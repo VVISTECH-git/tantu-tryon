@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import sharp from "sharp";
 import { db, garments, type Garment, type GarmentPartRow, type PartQuality } from "@/db";
 import { garmentWordsFrom, type DescribedGarment, type GarmentWords } from "@/content/garmentWords";
@@ -114,6 +114,31 @@ export async function removePart(garment: Garment, slot: string): Promise<Garmen
 export function blouseAnswer(garment: Garment, parts: GarmentPartRow[]): Garment["answers"] {
   if (garment.source !== "upload") return garment.answers;
   return { ...garment.answers, blouseSameAsBody: !parts.some((p) => p.slot === "blouse") };
+}
+
+/** What a product ID may look like: the shop's own codes, typed or scanned. */
+export const PRODUCT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 _\-/.]{0,39}$/;
+
+/**
+ * The record for one product: every photograph of it, required and
+ * optional, lives here. Opening an ID that already has a record reopens it,
+ * so photographs taken on another day land in the same place.
+ */
+export async function openProductGarment(accountId: string, productId: string, type: string): Promise<Garment> {
+  const rows = await db.select().from(garments).where(and(eq(garments.accountId, accountId), eq(garments.productCode, productId)));
+  const existing = rows.sort((a, b) => +b.updatedAt - +a.updatedAt)[0];
+  if (existing) return existing;
+  const chosen = garmentType(type);
+  const [garment] = await db
+    .insert(garments)
+    .values({ accountId, source: "upload", productCode: productId, garmentType: chosen.value, family: chosen.family, title: `${chosen.label} ${productId}`, words: {}, answers: {}, parts: [] })
+    .returning();
+  return garment!;
+}
+
+/** The account's records, newest first, for the list of saved products. */
+export async function listGarments(accountId: string, limit = 200): Promise<Garment[]> {
+  return db.select().from(garments).where(eq(garments.accountId, accountId)).orderBy(desc(garments.updatedAt)).limit(limit);
 }
 
 export async function getGarment(id: string, accountId: string): Promise<Garment | null> {

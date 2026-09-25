@@ -132,6 +132,33 @@ async function uploadThroughServer(photo: LocalPhoto, slot: string, garmentId: s
   return call<UploadResult>("/api/garments/upload", { method: "POST", body: form });
 }
 
+/** Open (or reopen) the record for one product ID; every photograph after this is saved against it. */
+export async function openProduct(productId: string, type: string): Promise<GarmentView> {
+  const out = await call<{ garment: GarmentView }>("/api/garments/open", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ productId, type }),
+  });
+  return out.garment;
+}
+
+export interface SavedProduct {
+  id: string;
+  productId: string | null;
+  title: string;
+  garmentType: string;
+  photos: number;
+  slots: string[];
+  missing: string[];
+  thumb: string | null;
+  updatedAt: string;
+}
+
+export async function savedProducts(): Promise<SavedProduct[]> {
+  const out = await call<{ products: SavedProduct[] }>("/api/garments");
+  return out.products;
+}
+
 export async function getGarment(id: string): Promise<GarmentView> {
   const out = await call<{ garment: GarmentView }>(`/api/garments/${id}`);
   return out.garment;

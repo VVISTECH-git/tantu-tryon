@@ -29,7 +29,7 @@ import { C, R } from "./src/theme";
  * phone adds the camera and keeps working when the shop's network is slow.
  */
 
-type Screen = "splash" | "signin" | "type" | "shots" | "analyzing" | "confirm" | "flats" | "generating" | "result" | "account";
+type Screen = "splash" | "signin" | "type" | "shots" | "analyzing" | "confirm" | "flats" | "generating" | "result" | "account" | "saved";
 
 const PRICE_1K = 10_00;
 const PRICE_2K = 20_00;
@@ -47,12 +47,14 @@ function Studio() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [focused, setFocused] = useState<"username" | "password" | null>(null);
+  const [focused, setFocused] = useState<"username" | "password" | "product" | null>(null);
   const passwordRef = useRef<TextInput>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [signedInAs, setSignedInAs] = useState<string | null>(null);
   const [accountBack, setAccountBack] = useState<Screen>("type");
   const [garmentType, setGarmentType] = useState(DEFAULT_GARMENT_TYPE);
+  const [productId, setProductId] = useState("");
+  const [saved, setSaved] = useState<api.SavedProduct[] | null>(null);
   const [garment, setGarment] = useState<GarmentView | null>(null);
   const [busySlot, setBusySlot] = useState<string | null>(null);
   const [cameraShot, setCameraShot] = useState<Shot | null>(null);
@@ -171,7 +173,7 @@ function Studio() {
         const saved = await rendered.saveAsync({ compress: 1, format: SaveFormat.JPEG });
         sent = { uri: saved.uri, width: saved.width, height: saved.height, mimeType: "image/jpeg" };
       }
-      const fresh = garment?.source === "upload" && garment.garmentType === garmentType ? garment.id : null;
+      const fresh = garment?.id ?? null;
       const result = await api.uploadPart(sent, shot.slot, fresh, garmentType);
       if (!fresh) {
         setPrimary(null);
@@ -265,7 +267,58 @@ function Studio() {
     }
   }
 
+  /** The record for this product ID, made on first use, reopened after. */
+  async function openProduct() {
+    const id = productId.trim();
+    if (!id) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const g = await api.openProduct(id, garmentType);
+      setGarment(g);
+      setGarmentType(g.garmentType);
+      setPrimary(null);
+      setWarnings([]);
+      batch.current = api.newKey();
+      setScreen("shots");
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not open the product.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function showSaved() {
+    setScreen("saved");
+    setSaved(null);
+    try {
+      setSaved(await api.savedProducts());
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not load the saved products.");
+      setSaved([]);
+    }
+  }
+
+  async function reopen(item: api.SavedProduct) {
+    setBusy(true);
+    try {
+      const g = await api.getGarment(item.id);
+      setGarment(g);
+      setGarmentType(g.garmentType);
+      setProductId(g.productCode ?? "");
+      setPrimary(null);
+      setWarnings([]);
+      batch.current = api.newKey();
+      setScreen("shots");
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not open the product.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function startOver() {
+    setProductId("");
     setGarment(null);
     setPrimary(null);
     setWarnings([]);
@@ -386,21 +439,74 @@ function Studio() {
 
         {screen === "type" && (
           <View style={s.stack}>
-            <Text style={s.title}>What are you uploading?</Text>
-            <Text style={s.copy}>Pick the garment type first. It decides which photos we ask for.</Text>
+            <Text style={s.title}>Which product?</Text>
+            <Text style={s.copy}>Every photo you take next is saved against this product ID.</Text>
+            <View style={s.field}>
+              <Text style={s.fieldLabel}>Product ID</Text>
+              <TextInput
+                style={[s.input, focused === "product" && s.inputFocus]}
+                value={productId}
+                onChangeText={setProductId}
+                onFocus={() => setFocused("product")}
+                onBlur={() => setFocused(null)}
+                placeholder="e.g. 300010"
+                placeholderTextColor={C.textMuted}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={() => void openProduct()}
+              />
+            </View>
             <Text style={s.sectionLabel}>Garment type</Text>
             <Pressable style={s.select} onPress={() => setTypeOpen(true)}>
               <Text style={s.selectText}>{typeOf(garmentType).label}</Text>
               <Text style={s.selectChevron}>⌄</Text>
             </Pressable>
             <Text style={s.support}>Saree is live. The other types are coming soon.</Text>
-            <Action label="Continue to photos" onPress={() => setScreen("shots")} />
+            <Action label={busy ? "Opening…" : "Continue to photos"} disabled={busy || !productId.trim()} onPress={() => void openProduct()} />
+            <Secondary label="Saved products" onPress={() => void showSaved()} />
+          </View>
+        )}
+
+        {screen === "saved" && (
+          <View style={s.stack}>
+            <Text style={s.title}>Saved products</Text>
+            <Text style={s.copy}>Every product ID with the photos saved against it. Tap one to add or retake photos.</Text>
+            {saved === null ? (
+              <Spinner text="Loading…" />
+            ) : saved.length === 0 ? (
+              <Text style={s.support}>Nothing saved yet.</Text>
+            ) : (
+              saved.map((item) => (
+                <Pressable key={item.id} style={s.savedRow} onPress={() => void reopen(item)} disabled={busy}>
+                  <View style={s.savedThumb}>{item.thumb ? <Image source={{ uri: item.thumb }} style={s.fill} /> : null}</View>
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Text style={s.shotName}>{item.productId ?? "No product ID"}</Text>
+                    <Text style={s.shotWhere}>
+                      {item.photos} photo{item.photos === 1 ? "" : "s"}
+                      {item.slots.length ? ` · ${item.slots.map((slot) => shotFor(item.garmentType, slot)?.label ?? slot).join(", ")}` : ""}
+                    </Text>
+                    <Text style={[s.shotWhere, { color: item.missing.length ? C.warn : C.good }]}>
+                      {item.missing.length ? `Missing: ${item.missing.map((slot) => shotFor(item.garmentType, slot)?.label ?? slot).join(", ")}` : "Required photos in"}
+                    </Text>
+                  </View>
+                  <Text style={s.selectChevron}>›</Text>
+                </Pressable>
+              ))
+            )}
+            <Secondary label="Back" onPress={() => setScreen("type")} />
           </View>
         )}
 
         {screen === "shots" && (
           <View style={s.stack}>
             <Text style={s.title}>{typeOf(garmentType).label} photos</Text>
+            {garment?.productCode ? (
+              <View style={s.savedUnder}>
+                <Text style={s.savedUnderText}>Saving under product ID</Text>
+                <Text style={s.savedUnderId}>{garment.productCode}</Text>
+              </View>
+            ) : null}
             <Text style={s.copy}>Hang it once. Only the phone moves.</Text>
             <Text style={s.status}>
               {required.length - missing.length} of {required.length} required
@@ -889,6 +995,11 @@ const s = StyleSheet.create({
   plus: { color: C.text, fontSize: 26 },
   plusAbs: { position: "absolute", textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
+  savedUnder: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 7, borderRadius: R.pill, borderWidth: 1, borderColor: "rgba(240,141,66,0.35)", backgroundColor: "rgba(240,141,66,0.1)" },
+  savedUnderText: { color: C.textSoft, fontSize: 12 },
+  savedUnderId: { color: C.accentPale, fontSize: 14, fontWeight: "700" },
+  savedRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 10, borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: "rgba(255,255,255,0.03)" },
+  savedThumb: { width: 52, height: 68, borderRadius: 10, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.05)" },
   viewer: { flex: 1, backgroundColor: "#000", justifyContent: "center" },
   viewerImage: { width: "100%", height: "100%" },
   viewerBar: { position: "absolute", top: 0, left: 0, right: 0, paddingTop: 48, paddingBottom: 14, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "rgba(0,0,0,0.55)" },
