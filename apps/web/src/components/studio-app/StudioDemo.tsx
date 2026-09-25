@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- demo shots at their own size */
 
-import { TANTU_MARK_GRADIENT, TANTU_MARK_PATHS, TANTU_MARK_VIEWBOX } from "@tantu/shared/brand";
+import { TantuMark } from "./TantuMark";
 import { useEffect, useRef, useState } from "react";
 import { CREDIT_PAISE, QUALITY_LABEL, rupees, type Quality } from "@/content/credits";
 import { ADULT_AGES, BACKGROUNDS, CHILD_AGES, MODEL_TYPES, TEMPLATES, type ModelType } from "@/content/promptTemplates";
@@ -736,19 +736,4 @@ function swatch(id: string): string {
   }
 }
 
-function TantuMark({ size }: { size: number }) {
-  return (
-    <svg width={size} height={size} viewBox={TANTU_MARK_VIEWBOX} aria-hidden>
-      <defs>
-        <linearGradient id={`tantu-mark-${size}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor={TANTU_MARK_GRADIENT[0]} />
-          <stop offset="1" stopColor={TANTU_MARK_GRADIENT[1]} />
-        </linearGradient>
-      </defs>
-      {TANTU_MARK_PATHS.map((d, i) => (
-        <path key={i} d={d} fill={`url(#tantu-mark-${size})`} />
-      ))}
-    </svg>
-  );
-}
 

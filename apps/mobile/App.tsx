@@ -47,6 +47,9 @@ function Studio() {
   const [screen, setScreen] = useState<Screen>("splash");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [focused, setFocused] = useState<"username" | "password" | null>(null);
+  const passwordRef = useRef<TextInput>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [signedInAs, setSignedInAs] = useState<string | null>(null);
   const [accountBack, setAccountBack] = useState<Screen>("type");
@@ -309,37 +312,75 @@ function Studio() {
       )}
 
       <ScrollView contentContainerStyle={s.main} keyboardShouldPersistTaps="handled">
-        {error && <Text style={s.error}>{error}</Text>}
+        {error && screen !== "signin" && <Text style={s.error}>{error}</Text>}
 
         {screen === "splash" && <Splash onSkip={() => setScreen("signin")} deviceW={deviceW} />}
 
         {screen === "signin" && (
-          <View style={s.stack}>
-            <Text style={s.title}>Tantu</Text>
-            <Text style={s.copy}>Sign in to begin.</Text>
-            <TextInput
-              style={s.input}
-              value={username}
-              onChangeText={setUsername}
-              placeholder="Username"
-              placeholderTextColor={C.textMuted}
-              autoCapitalize="none"
-              autoComplete="username"
-              returnKeyType="next"
-            />
-            <TextInput
-              style={s.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Password"
-              placeholderTextColor={C.textMuted}
-              secureTextEntry
-              autoCapitalize="none"
-              autoComplete="password"
-              onSubmitEditing={() => void signIn()}
-            />
-            <Action label={busy ? "Please wait…" : "Sign in"} disabled={busy || !username.trim() || !password} onPress={() => void signIn()} />
-            <Text style={s.support}>{api.API_BASE.replace(/^https?:\/\//, "")}</Text>
+          <View style={s.signin}>
+            <View style={s.signinBrand}>
+              <View style={{ width: 72, height: 72, alignItems: "center", justifyContent: "center" }}>
+                <View style={[s.splashGlow, s.signinGlowOuter]} pointerEvents="none" />
+                <View style={[s.splashGlow, s.signinGlowMid]} pointerEvents="none" />
+                <View style={[s.splashGlow, s.signinGlowInner]} pointerEvents="none" />
+                <TantuMark size={72} />
+              </View>
+              <Text style={s.signinName}>Tantu</Text>
+              <Text style={s.signinTagline}>AI Studio for Fashion Brands</Text>
+            </View>
+
+            <View style={s.fan} pointerEvents="none">
+              <Image source={{ uri: `${api.API_BASE}/splash/b_1.jpg` }} style={[s.fanCard, { left: 6, top: 12, transform: [{ rotate: "-11deg" }] }]} />
+              <Image source={{ uri: `${api.API_BASE}/splash/b_5.jpg` }} style={[s.fanCard, { right: 6, top: 12, transform: [{ rotate: "10deg" }] }]} />
+              <Image source={{ uri: `${api.API_BASE}/splash/b_3.jpg` }} style={[s.fanCard, s.fanCentre]} />
+            </View>
+
+            <View style={s.signinCard}>
+              <Text style={s.signinTitle}>Sign in to your studio</Text>
+              <View style={s.field}>
+                <Text style={s.fieldLabel}>Username</Text>
+                <TextInput
+                  style={[s.input, focused === "username" && s.inputFocus]}
+                  value={username}
+                  onChangeText={setUsername}
+                  onFocus={() => setFocused("username")}
+                  onBlur={() => setFocused(null)}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="username"
+                  textContentType="username"
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                  submitBehavior="submit"
+                />
+              </View>
+              <View style={s.field}>
+                <Text style={s.fieldLabel}>Password</Text>
+                <View>
+                  <TextInput
+                    ref={passwordRef}
+                    style={[s.input, { paddingRight: 72 }, focused === "password" && s.inputFocus]}
+                    value={password}
+                    onChangeText={setPassword}
+                    onFocus={() => setFocused("password")}
+                    onBlur={() => setFocused(null)}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="password"
+                    textContentType="password"
+                    returnKeyType="go"
+                    onSubmitEditing={() => void signIn()}
+                  />
+                  <Pressable style={s.fieldToggle} onPress={() => setShowPassword((v) => !v)} hitSlop={6}>
+                    <Text style={s.fieldToggleText}>{showPassword ? "Hide" : "Show"}</Text>
+                  </Pressable>
+                </View>
+              </View>
+              {error && <Text style={s.signinError}>{error}</Text>}
+              <Action label={busy ? "Signing in…" : "Sign in"} disabled={busy || !username.trim() || !password} onPress={() => void signIn()} />
+            </View>
+            {__DEV__ && <Text style={s.support}>{api.API_BASE.replace(/^https?:\/\//, "")}</Text>}
           </View>
         )}
 
@@ -829,6 +870,24 @@ const s = StyleSheet.create({
   plus: { color: C.text, fontSize: 26 },
   plusAbs: { position: "absolute", textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
+  signin: { alignItems: "center", gap: 24, paddingTop: 44 },
+  signinGlowOuter: { width: 140, height: 140, marginLeft: -70, marginTop: -70, borderRadius: 70, backgroundColor: "rgba(240,141,66,0.05)" },
+  signinGlowMid: { width: 100, height: 100, marginLeft: -50, marginTop: -50, borderRadius: 50, backgroundColor: "rgba(240,141,66,0.07)" },
+  signinGlowInner: { width: 62, height: 62, marginLeft: -31, marginTop: -31, borderRadius: 31, backgroundColor: "rgba(240,141,66,0.09)" },
+  signinBrand: { alignItems: "center", gap: 8 },
+  signinName: { color: C.text, fontSize: 34, fontWeight: "700", letterSpacing: -0.5, marginTop: 4 },
+  signinTagline: { color: C.textSoft, fontSize: 15, fontWeight: "600" },
+  fan: { width: 220, height: 128 },
+  fanCard: { position: "absolute", width: 78, height: 104, borderRadius: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
+  fanCentre: { left: 64, top: 0, width: 92, height: 123, transform: [{ rotate: "-2deg" }] },
+  signinCard: { alignSelf: "stretch", gap: 14, padding: 18, paddingTop: 20, borderRadius: R.lg, borderWidth: 1, borderColor: C.border, backgroundColor: "rgba(255,255,255,0.035)" },
+  signinTitle: { color: C.text, fontSize: 17, fontWeight: "600", textAlign: "center", marginBottom: 2 },
+  field: { gap: 6 },
+  fieldLabel: { color: C.textMuted, fontSize: 12, fontWeight: "600", letterSpacing: 0.8, textTransform: "uppercase" },
+  inputFocus: { borderColor: "rgba(240,141,66,0.65)" },
+  fieldToggle: { position: "absolute", right: 8, top: 0, bottom: 0, justifyContent: "center", paddingHorizontal: 10 },
+  fieldToggleText: { color: C.accentPale, fontSize: 13, fontWeight: "600" },
+  signinError: { color: "#ffb3ad", fontSize: 13.5, textAlign: "center", paddingVertical: 10, paddingHorizontal: 12, borderRadius: R.sm, borderWidth: 1, borderColor: "rgba(227,73,73,0.4)", backgroundColor: "rgba(179,56,56,0.12)", overflow: "hidden" },
   card: { padding: 16, gap: 14, borderRadius: R.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
   kv: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   kvLabel: { color: C.textMuted, fontSize: 13 },
