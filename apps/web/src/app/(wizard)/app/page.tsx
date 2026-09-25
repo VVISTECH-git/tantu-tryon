@@ -22,7 +22,7 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
   }
   return (
     <StudioApp
-      account={{ id: account.id, name: account.name, kind: account.kind }}
+      account={{ id: account.id, name: account.name, username: account.username, kind: account.kind }}
       balancePaise={await balancePaise(account.id)}
       canDescribe={canDescribe()}
     />

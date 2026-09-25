@@ -27,9 +27,11 @@ import { C, R } from "./src/theme";
  * phone adds the camera and keeps working when the shop's network is slow.
  */
 
-type Screen = "splash" | "signin" | "type" | "shots" | "analyzing" | "confirm" | "flats" | "generating" | "result";
+type Screen = "splash" | "signin" | "type" | "shots" | "analyzing" | "confirm" | "flats" | "generating" | "result" | "account";
 
 const LONG_SIDE = 2000;
+const PRICE_1K = 10_00;
+const PRICE_2K = 20_00;
 
 export default function App() {
   return (
@@ -44,6 +46,8 @@ function Studio() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [balance, setBalance] = useState<number | null>(null);
+  const [signedInAs, setSignedInAs] = useState<string | null>(null);
+  const [accountBack, setAccountBack] = useState<Screen>("type");
   const [garmentType, setGarmentType] = useState(DEFAULT_GARMENT_TYPE);
   const [garment, setGarment] = useState<GarmentView | null>(null);
   const [busySlot, setBusySlot] = useState<string | null>(null);
@@ -80,6 +84,7 @@ function Studio() {
       try {
         const me = await api.account();
         setBalance(me.balancePaise);
+        setSignedInAs(me.username ?? me.name);
         target = "type";
       } catch {
         target = "signin";
@@ -97,6 +102,7 @@ function Studio() {
       await api.login(username.trim(), password);
       const me = await api.account();
       setBalance(me.balancePaise);
+      setSignedInAs(me.username ?? me.name);
       setPassword("");
       setScreen("type");
     } catch (problem) {
@@ -104,6 +110,14 @@ function Studio() {
     } finally {
       setBusy(false);
     }
+  }
+
+  // Not while analyzing or generating: those screens move on by themselves when the call returns.
+  function openAccount() {
+    if (screen === "analyzing" || screen === "generating" || screen === "account") return;
+    setAccountBack(screen);
+    setScreen("account");
+    void refreshBalance();
   }
 
   async function refreshBalance() {
@@ -238,6 +252,7 @@ function Studio() {
       setWarnings([]);
       setOpened(new Set());
       setBalance(null);
+      setSignedInAs(null);
       setUsername("");
       setPassword("");
       setBusy(false);
@@ -263,7 +278,7 @@ function Studio() {
   const blocked = required.filter((slot) => parts.find((p) => p.slot === slot)?.quality?.status === "block");
   const label = (slot: string) => shotFor(garmentType, slot)?.label ?? slot;
   const ready = garment !== null && missing.length === 0 && blocked.length === 0 && busySlot === null;
-  const price = 10_00;
+  const price = PRICE_1K;
   const groups = useMemo(() => garmentTypeGroups(), []);
   const { width: deviceW } = useWindowDimensions();
 
@@ -278,9 +293,12 @@ function Studio() {
             Tantu <Text style={s.brandSub}>Try-On</Text>
           </Text>
           <View style={s.row}>
-            <View style={s.chip}>
+            <Pressable style={s.chip} onPress={openAccount} hitSlop={6}>
               <Text style={s.chipText}>{balance === null ? "…" : `${api.rupees(balance)} left`}</Text>
-            </View>
+            </Pressable>
+            <Pressable onPress={openAccount} hitSlop={8}>
+              <Text style={s.link}>Account</Text>
+            </Pressable>
             <Pressable onPress={() => void signOut()} hitSlop={8}>
               <Text style={s.link}>Sign out</Text>
             </Pressable>
@@ -439,6 +457,34 @@ function Studio() {
         )}
 
         {screen === "generating" && <Spinner text="Generating your image. This can take up to a minute." sub="Keep this screen open and your phone unlocked." />}
+
+        {screen === "account" && (
+          <View style={s.stack}>
+            <Text style={s.title}>Account</Text>
+            <View style={s.card}>
+              <View style={s.kv}>
+                <Text style={s.kvLabel}>Signed in as</Text>
+                <Text style={s.kvValue}>{signedInAs ?? "…"}</Text>
+              </View>
+              <View style={s.kv}>
+                <Text style={s.kvLabel}>Balance</Text>
+                <Text style={[s.kvValue, s.kvBig]}>{balance === null ? "…" : api.rupees(balance)}</Text>
+              </View>
+              <Text style={s.kvLabel}>Images you can make with this balance</Text>
+              <View style={s.row}>
+                <View style={s.count}>
+                  <Text style={s.kvLabel}>1K · {api.rupees(PRICE_1K)} each</Text>
+                  <Text style={s.kvBig}>{balance === null ? "…" : Math.floor(balance / PRICE_1K)}</Text>
+                </View>
+                <View style={s.count}>
+                  <Text style={s.kvLabel}>2K · {api.rupees(PRICE_2K)} each</Text>
+                  <Text style={s.kvBig}>{balance === null ? "…" : Math.floor(balance / PRICE_2K)}</Text>
+                </View>
+              </View>
+            </View>
+            <Secondary label="Back" onPress={() => setScreen(accountBack)} />
+          </View>
+        )}
 
         {screen === "result" && primary && (
           <View style={s.stack}>
@@ -755,6 +801,12 @@ const s = StyleSheet.create({
   plus: { color: C.text, fontSize: 26 },
   plusAbs: { position: "absolute", textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
+  card: { padding: 16, gap: 14, borderRadius: R.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
+  kv: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  kvLabel: { color: C.textMuted, fontSize: 13 },
+  kvValue: { color: C.text, fontSize: 15, fontWeight: "600" },
+  kvBig: { color: C.text, fontSize: 22, fontWeight: "600" },
+  count: { flex: 1, gap: 4, padding: 12, borderRadius: R.sm, borderWidth: 1, borderColor: C.border, backgroundColor: "rgba(255,255,255,0.03)" },
   shotName: { color: C.text, fontSize: 14, fontWeight: "600" },
   shotWhere: { color: C.textMuted, fontSize: 12, flexShrink: 1 },
   tag: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: R.pill },

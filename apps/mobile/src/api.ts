@@ -78,9 +78,9 @@ export async function logout(): Promise<void> {
   }
 }
 
-export async function account(): Promise<{ name: string; balancePaise: number }> {
-  const out = await call<{ account: { name: string }; balancePaise: number }>("/api/account");
-  return { name: out.account.name, balancePaise: out.balancePaise };
+export async function account(): Promise<{ name: string; username: string | null; balancePaise: number }> {
+  const out = await call<{ account: { name: string; username?: string | null }; balancePaise: number }>("/api/account");
+  return { name: out.account.name, username: out.account.username ?? null, balancePaise: out.balancePaise };
 }
 
 export interface LocalPhoto {
