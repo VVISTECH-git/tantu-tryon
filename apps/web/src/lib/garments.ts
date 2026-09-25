@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import sharp from "sharp";
 import { db, garments, type Garment, type GarmentPartRow, type PartQuality } from "@/db";
 import { garmentWordsFrom, type DescribedGarment, type GarmentWords } from "@/content/garmentWords";
-import type { Attachment } from "@/content/promptTemplates";
+import type { Attachment, PartPlan } from "@/content/promptTemplates";
 import { SHEET_CELLS, SHEET_FILL, SHEET_LEAD, garmentType, requiredSlots } from "@/content/shots";
 import { buildContactSheet } from "@/lib/contactSheet";
 import { fetchBase64, fetchProduct, partsBySlot } from "@/lib/slk";
@@ -176,10 +176,6 @@ export function sheetSlots(garment: Garment): PartSlot[] {
   // No border close-up: the BORDER cell is cut from the edges of the body
   // photo, which was framed with both borders in. See `derivedBorder`.
   if (!present.has("border") && present.has("body")) present.add("border");
-  // No pallu photo: the saree is uniform end to end, so the body photo
-  // stands in for the PALLU panel too — the same fabric, told apart from
-  // itself is not something the sheet needs to pretend to show.
-  if (!present.has("pallu") && present.has("body")) present.add("pallu");
   const chosen: PartSlot[] = SHEET_LEAD.filter((slot) => present.has(slot));
   for (const slot of SHEET_FILL) {
     if (chosen.length >= SHEET_CELLS) break;
@@ -192,7 +188,30 @@ export function sheetSlots(garment: Garment): PartSlot[] {
 
 export function attachmentsFor(garment: Garment): Attachment[] {
   const stem = garment.productCode ?? garment.id.slice(0, 8);
-  return sheetSlots(garment).map((slot) => ({ slot, file: `${stem}-${slot}.png` }));
+  const photographed = (slot: string) => garment.parts.some((p) => p.slot === slot && p.quality?.status !== "block");
+  return sheetSlots(garment).map((slot) => ({
+    slot,
+    file: `${stem}-${slot}.png`,
+    ...(slot === "border" && !photographed("border") ? { from: "body" as const } : {}),
+  }));
+}
+
+/**
+ * What the photographs say about the saree, for the prompt to adapt to.
+ *
+ * No pallu photo means the saree is one print end to end. No blouse photo
+ * means a plain blouse in a complementary colour — except for an SLK product
+ * whose design record says the blouse is self fabric, which is a fact, not a
+ * gap. A single flat photograph of the whole saree keeps the older wording.
+ */
+export function partPlan(garment: Garment): PartPlan | undefined {
+  const has = (slot: string) => garment.parts.some((p) => p.slot === slot && p.quality?.status !== "block");
+  if (has("saree")) return undefined;
+  return {
+    pallu: has("pallu") ? "photo" : "same",
+    border: has("border") ? "photo" : "from-body",
+    blouse: has("blouse") ? "photo" : garment.source === "slk" && garment.answers.blouseSameAsBody ? "self" : "complementary",
+  };
 }
 
 /**
@@ -241,10 +260,6 @@ export async function sheetFor(garment: Garment): Promise<{ data: string; key: s
       if (!part && slot === "border") {
         const body = garment.parts.find((p) => p.slot === "body")!;
         return { key: slot, label: "BORDER", data: await derivedBorder(await partBase64(body), body.rotate) };
-      }
-      if (!part && slot === "pallu") {
-        const body = garment.parts.find((p) => p.slot === "body")!;
-        return { key: slot, label: "PALLU", data: await partBase64(body), rotate: body.rotate };
       }
       return { key: slot, label: slot.toUpperCase().replace("_", " "), data: await partBase64(part!), rotate: part!.rotate };
     }),

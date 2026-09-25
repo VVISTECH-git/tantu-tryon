@@ -72,9 +72,9 @@ describe("sheet cells", () => {
     expect(sheetSlots(garment(parts))).toEqual(["body", "pallu", "border", "body_motif"]);
   });
 
-  it("derives the pallu from the body photo when the saree is the same end to end", () => {
-    const parts = ["body", "border", "blouse"].map((s) => part(s));
-    expect(sheetSlots(garment(parts))).toEqual(["body", "pallu", "border", "blouse"]);
+  it("adds no pallu panel when the saree is one print end to end", () => {
+    const parts = ["body", "blouse"].map((s) => part(s));
+    expect(sheetSlots(garment(parts))).toEqual(["body", "border", "blouse"]);
   });
 
   it("derives the border in place of a blocked close-up", () => {

@@ -77,3 +77,24 @@ describe("frozen prompts", () => {
     }
   });
 });
+
+describe("one print (only the body photographed)", () => {
+  const plan = { pallu: "same", border: "from-body", blouse: "complementary" } as const;
+  const files = [{ slot: "body", file: "g-body.png" }, { slot: "border", file: "g-border.png", from: "body" as const }];
+  const cases = {
+    described: garmentWordsFrom(null, { bodyColour: "teal green", bodyDesc: "teal green ground with lotus flowers and birds", borderColour: "red", borderDesc: "red border with gold zari stripes" }),
+    unread: garmentWordsFrom(null, {}),
+  };
+  for (const [name, words] of Object.entries(cases)) {
+    for (const template of TEMPLATES) {
+      it(`${template.id} with ${name} words never sets the body against a pallu`, () => {
+        const text = composePrompt(template, words, DEFAULTS, files, plan);
+        expect(text).toContain("There is no separate pallu design");
+        expect(text).toContain("one print from end to end");
+        expect(text).not.toMatch(/different fabrics|BODY-print|PALLU-print|never [a-z -]*-patterned|no pallu motif/);
+        expect(text).not.toMatch(/ {2}|\.\./);
+        expect(text).toMatch(/BLOUSE: plain/);
+      });
+    }
+  }
+});
