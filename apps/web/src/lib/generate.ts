@@ -88,7 +88,7 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
 
   // The sheet first: building it costs nothing, and a garment whose
   // photographs cannot be fetched should fail before any money moves.
-  let sheet: { data: string };
+  let sheet: { data: string; mime: string };
   try {
     sheet = await sheetFor(input.garment);
   } catch (error) {
@@ -116,7 +116,7 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
   try {
     const image = await generateImage({
       prompt,
-      images: [{ data: sheet.data, mime: "image/png" }],
+      images: [{ data: sheet.data, mime: sheet.mime }],
       model,
       aspectRatio: "3:4",
       imageSize: size,

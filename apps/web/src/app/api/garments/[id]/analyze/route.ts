@@ -53,7 +53,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     let readerError: string | null = null;
     try {
       const sheet = await sheetFor(garment);
-      const result = await describeSheet(sheet.data);
+      const result = await describeSheet(sheet.data, sheet.mime);
       if (result.ok) {
         described = result.words as Record<string, string>;
         model = result.model;

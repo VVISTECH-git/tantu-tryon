@@ -31,6 +31,12 @@ export interface SheetOptions {
    * original's detail, since the model gets nothing else.
    */
   cell?: number;
+  /**
+   * PNG for the small sheets people download; JPEG for the large sheet sent
+   * to Gemini, where a PNG of full-size photographs would outgrow the
+   * request limit.
+   */
+  format?: "png" | "jpeg";
 }
 
 /*
@@ -98,9 +104,9 @@ function labelSvg(text: string, width: number, height: number, size: number): Bu
  */
 export async function buildContactSheet(
   parts: SheetPart[],
-  { cell = 620 }: SheetOptions = {},
-): Promise<{ data: string; layout: string }> {
-  const cols = 2;
+  { cell = 620, format = "png" }: SheetOptions = {},
+): Promise<{ data: string; layout: string; mime: "image/png" | "image/jpeg" }> {
+  const cols = parts.length === 1 ? 1 : 2;
   const rows = Math.ceil(parts.length / cols);
   const labelH = Math.round(cell * 0.075);
   const pad = Math.round(cell * 0.022);
@@ -139,14 +145,14 @@ export async function buildContactSheet(
     create: { width, height, channels: 3, background: { r: 255, g: 255, b: 255 } },
   })
     .composite(composites)
-    .png()
+    [format === "jpeg" ? "jpeg" : "png"](format === "jpeg" ? { quality: 95 } : {})
     .toBuffer();
 
   const layout = parts
     .map((p, i) => `${p.label} in the ${position(i, cols, rows)} panel`)
     .join(", ");
 
-  return { data: sheet.toString("base64"), layout };
+  return { data: sheet.toString("base64"), layout, mime: format === "jpeg" ? "image/jpeg" : "image/png" };
 }
 
 function position(index: number, cols: number, rows: number): string {

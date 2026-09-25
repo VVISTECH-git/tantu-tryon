@@ -87,10 +87,42 @@ export interface LocalPhoto {
   uri: string;
   width: number;
   height: number;
+  /** "image/jpeg" from the camera; the library may hand back PNG or HEIC. */
+  mimeType?: string;
 }
 
 /** One photograph into its slot. The file goes as multipart, the way the browser sends it. */
+/**
+ * The photo exactly as the camera made it: asked for an upload URL, PUT
+ * straight to storage (an original can pass the 4.5 MB a server request may
+ * carry), then recorded. Falls back to the multipart route where the server
+ * has no storage to hand out URLs for.
+ */
 export async function uploadPart(photo: LocalPhoto, slot: string, garmentId: string | null, type: string): Promise<UploadResult> {
+  const contentType = photo.mimeType ?? "image/jpeg";
+  let target: { garmentId: string; key: string; url: string };
+  try {
+    target = await call("/api/garments/upload-url", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ slot, type, garmentId, contentType }),
+    });
+  } catch (error) {
+    // 501: no storage here. 404: a server from before direct uploads.
+    if (error instanceof ApiError && (error.status === 501 || error.status === 404)) return uploadThroughServer(photo, slot, garmentId, type);
+    throw error;
+  }
+  // Straight to storage, with no Authorization header: the URL carries its own signature.
+  const put = await fetch(target.url, { method: "PUT", headers: { "content-type": contentType }, body: new File(photo.uri) as unknown as Blob });
+  if (!put.ok) throw new ApiError(`The photo could not be sent (${put.status}). Please try again.`, put.status);
+  return call<UploadResult>("/api/garments/upload-done", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ garmentId: target.garmentId, slot, key: target.key }),
+  });
+}
+
+async function uploadThroughServer(photo: LocalPhoto, slot: string, garmentId: string | null, type: string): Promise<UploadResult> {
   const form = new FormData();
   // Expo's fetch wants a real File for a multipart part, not the old {uri} descriptor.
   form.append("file", new File(photo.uri) as unknown as Blob, `${slot}.jpg`);

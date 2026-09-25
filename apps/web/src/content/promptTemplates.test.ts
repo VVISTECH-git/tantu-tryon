@@ -80,7 +80,7 @@ describe("frozen prompts", () => {
 
 describe("one print (only the body photographed)", () => {
   const plan = { pallu: "same", border: "from-body", blouse: "complementary" } as const;
-  const files = [{ slot: "body", file: "g-body.png" }, { slot: "border", file: "g-border.png", from: "body" as const }];
+  const files = [{ slot: "body", file: "g-body.png" }];
   const cases = {
     described: garmentWordsFrom(null, { bodyColour: "teal green", bodyDesc: "teal green ground with lotus flowers and birds", borderColour: "red", borderDesc: "red border with gold zari stripes" }),
     unread: garmentWordsFrom(null, {}),
@@ -94,6 +94,10 @@ describe("one print (only the body photographed)", () => {
         expect(text).not.toMatch(/different fabrics|BODY-print|PALLU-print|never [a-z -]*-patterned|no pallu motif/);
         expect(text).not.toMatch(/ {2}|\.\./);
         expect(text).toMatch(/BLOUSE: plain/);
+        expect(text).toContain("sheet of 1 labelled photograph of ONE");
+        expect(text).toContain("border is the band along both long edges of the BODY photograph");
+        expect(text).toContain("Anything around the fabric in the photograph, such as a wall");
+        expect(text).not.toContain("BORDER panel");
       });
     }
   }

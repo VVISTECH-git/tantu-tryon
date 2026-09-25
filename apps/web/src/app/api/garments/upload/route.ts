@@ -1,7 +1,6 @@
-import sharp from "sharp";
-import { DEFAULT_GARMENT_TYPE, garmentType, shotFor } from "@/content/shots";
-import { PART_ORDER, addUploadedPart, createUploadGarment, getGarment, missingSlots, publicGarment, type PartSlot } from "@/lib/garments";
-import { checkQuality } from "@/lib/quality";
+import { DEFAULT_GARMENT_TYPE, garmentType } from "@/content/shots";
+import { PART_ORDER, createUploadGarment, getGarment, missingSlots, publicGarment, type PartSlot } from "@/lib/garments";
+import { photoTypeAllowed, recordPhoto } from "@/lib/uploads";
 import { requireAccount, unauthorised } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -13,12 +12,12 @@ export const maxDuration = 60;
  * Multipart: `file`, `slot` (body · pallu · border · blouse · body_motif ·
  * pallu_motif · whole, or `saree` for one flat photo), an optional
  * `garmentId` to add to, and `type` for the garment the first upload
- * creates. The browser has already resized the image to about 2000px, so it
- * arrives small and upright; the server still reads its size, normalises it
- * to a JPEG so nothing odd (HEIC, a huge PNG) reaches the sheet builder, and
- * runs the free quality check so the tile can say "blurred, retake" at once.
+ * creates. Stored exactly as it arrives (see lib/uploads.ts); the free
+ * quality check runs so the tile can say "blurred, retake" at once. Vercel
+ * caps a request at 4.5 MB, so a full-size camera original comes the other
+ * way: upload-url, a PUT straight to R2, then upload-done.
  */
-const MAX_BYTES = 4_000_000;
+const MAX_BYTES = 4_400_000;
 
 export async function POST(request: Request) {
   try {
@@ -36,28 +35,22 @@ export async function POST(request: Request) {
       return Response.json({ error: "Image is too large. Please upload a smaller-sized garment image so we can process it properly." }, { status: 413 });
     }
 
+    const mime = file.type || "image/jpeg";
+    if (!photoTypeAllowed(mime)) {
+      return Response.json({ error: "Please send a JPEG or PNG photo." }, { status: 415 });
+    }
+
     let garment = garmentId ? await getGarment(garmentId, account.id) : null;
     if (garmentId && !garment) return Response.json({ error: "No such garment." }, { status: 404 });
     garment ??= await createUploadGarment(account.id, type.value);
 
-    const input = Buffer.from(await file.arrayBuffer());
-    let bytes: Buffer;
-    let width: number;
-    let height: number;
+    let recorded;
     try {
-      const image = sharp(input).autoOrient();
-      const meta = await image.metadata();
-      width = meta.width ?? 0;
-      height = meta.height ?? 0;
-      bytes = await image.jpeg({ quality: 90 }).toBuffer();
+      recorded = await recordPhoto(garment, slot, new Uint8Array(await file.arrayBuffer()), mime);
     } catch {
       return Response.json({ error: "We could not read this image. Please try another one (JPEG or PNG)." }, { status: 415 });
     }
-
-    const shot = shotFor(garment.garmentType, slot);
-    const quality = await checkQuality({ bytes, width, height, expected: shot?.orientation ?? null });
-
-    const updated = await addUploadedPart(garment, slot, bytes, "image/jpeg", { width, height }, quality);
+    const { garment: updated, quality } = recorded;
     return Response.json(
       { garment: publicGarment(updated), quality, missing: missingSlots(updated) },
       { headers: { "Cache-Control": "no-store" } },

@@ -588,10 +588,14 @@ function referenceV3(files: Attachment[], type: string, plan: PartPlan): string 
   return [
     `REFERENCE: The attached image is a sheet of ${files.length} labelled photograph${files.length === 1 ? "" : "s"} of ONE ${type}.`,
     ...files.map(panel),
-    "Read the label printed above each panel to know which part it is.",
+    files.length === 1 ? "The label is printed above the panel." : "Read the label printed above each panel to know which part it is.",
+    ...(files.some((f) => f.slot === "border")
+      ? []
+      : [`The ${type}'s border is the band along both long edges of the BODY photograph; copy it from there, at its real width.`]),
+    `Anything around the fabric in the photograph${files.length === 1 ? "" : "s"}, such as a wall, a window, the rod or the floor, is the shop, not the ${type}.`,
     `There is no separate pallu design: the pallu is the same fabric as the body, with the same motifs, colours and border, all the way to the end of the ${type}.`,
     prints,
-    `The border on the finished ${type} must stay as narrow as in the BORDER panel.`,
+    `The border on the finished ${type} must stay as narrow as it is in the photograph${files.length === 1 ? "" : "s"}.`,
     "The sheet is only something to copy the fabric from. Do not reproduce its layout: the output is ONE photograph of one model, not a sheet, not a grid, not two views side by side.",
   ].join(" ");
 }

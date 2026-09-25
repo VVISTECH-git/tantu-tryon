@@ -72,9 +72,9 @@ describe("sheet cells", () => {
     expect(sheetSlots(garment(parts))).toEqual(["body", "pallu", "border", "body_motif"]);
   });
 
-  it("adds no pallu panel when the saree is one print end to end", () => {
-    const parts = ["body", "blouse"].map((s) => part(s));
-    expect(sheetSlots(garment(parts))).toEqual(["body", "border", "blouse"]);
+  it("adds no pallu and no cut-out border when only the body is photographed", () => {
+    expect(sheetSlots(garment([part("body")]))).toEqual(["body"]);
+    expect(sheetSlots(garment(["body", "blouse"].map((s) => part(s))))).toEqual(["body", "blouse"]);
   });
 
   it("derives the border in place of a blocked close-up", () => {

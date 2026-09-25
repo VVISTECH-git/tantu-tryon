@@ -92,8 +92,10 @@ export async function addUploadedPart(
   mime: string,
   size: { width: number; height: number },
   quality?: PartQuality,
+  /** Already in storage (a presigned PUT from the phone): record it, do not write it again. */
+  storedKey?: string,
 ): Promise<Garment> {
-  const key = await saveUpload(garment.id, slot, bytes, mime);
+  const key = storedKey ?? (await saveUpload(garment.id, slot, bytes, mime));
   const part: GarmentPartRow = { slot, key, url: assetUrl(key), width: size.width, height: size.height, rotate: 0, ...(quality ? { quality } : {}) };
   const parts = [...garment.parts.filter((p) => p.slot !== slot), part];
   return updateGarment(garment.id, { parts, answers: blouseAnswer(garment, parts) });
@@ -173,9 +175,11 @@ export function sheetSlots(garment: Garment): PartSlot[] {
     presentSlots(garment).filter((slot) => garment.parts.find((p) => p.slot === slot)?.quality?.status !== "block"),
   );
   if (present.has("saree")) return ["saree"];
-  // No border close-up: the BORDER cell is cut from the edges of the body
-  // photo, which was framed with both borders in. See `derivedBorder`.
-  if (!present.has("border") && present.has("body")) present.add("border");
+  // No border close-up beside a photographed pallu: the BORDER cell is cut
+  // from the edges of the body photo, which the v2 wording expects. With the
+  // body alone (one print) there is no BORDER cell: the body photograph shows
+  // both borders at their real width, and v3 says so.
+  if (!present.has("border") && present.has("body") && present.has("pallu")) present.add("border");
   const chosen: PartSlot[] = SHEET_LEAD.filter((slot) => present.has(slot));
   for (const slot of SHEET_FILL) {
     if (chosen.length >= SHEET_CELLS) break;
@@ -248,10 +252,11 @@ async function partBase64(part: GarmentPartRow): Promise<string> {
  * storage is configured, read back after that. Without storage it is built
  * on every call — slow but honest.
  */
-export async function sheetFor(garment: Garment): Promise<{ data: string; key: string | null }> {
+export async function sheetFor(garment: Garment): Promise<{ data: string; key: string | null; mime: string }> {
   if (garment.sheetKey && storageConfigured()) {
     const bytes = await getObject(garment.sheetKey);
-    return { data: Buffer.from(bytes).toString("base64"), key: garment.sheetKey };
+    const mime = garment.sheetKey.endsWith(".jpg") ? "image/jpeg" : "image/png";
+    return { data: Buffer.from(bytes).toString("base64"), key: garment.sheetKey, mime };
   }
 
   const parts = await Promise.all(
@@ -265,12 +270,14 @@ export async function sheetFor(garment: Garment): Promise<{ data: string; key: s
     }),
   );
   if (parts.length === 0) throw new Error("This garment has no photographs yet.");
-  const sheet = await buildContactSheet(parts, { cell: 1000 });
+  // Large panels from the originals: one panel at 2000px, more at 1600px
+  // each, JPEG so the request stays well under Gemini's inline limit.
+  const sheet = await buildContactSheet(parts, { cell: parts.length === 1 ? 2000 : 1600, format: "jpeg" });
 
-  if (!storageConfigured()) return { data: sheet.data, key: null };
+  if (!storageConfigured()) return { data: sheet.data, key: null, mime: sheet.mime };
 
-  const key = keys.sheet(garment.id);
-  await putObject(key, Buffer.from(sheet.data, "base64"), "image/png");
+  const key = keys.sheet(garment.id, "jpg");
+  await putObject(key, Buffer.from(sheet.data, "base64"), sheet.mime);
   await db.update(garments).set({ sheetKey: key, updatedAt: new Date() }).where(eq(garments.id, garment.id));
-  return { data: sheet.data, key };
+  return { data: sheet.data, key, mime: sheet.mime };
 }

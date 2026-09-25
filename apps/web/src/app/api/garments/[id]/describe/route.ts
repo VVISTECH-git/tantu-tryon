@@ -19,7 +19,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     if (!garment) return Response.json({ error: "No such garment." }, { status: 404 });
 
     const sheet = await sheetFor(garment);
-    const result = await describeSheet(sheet.data);
+    const result = await describeSheet(sheet.data, sheet.mime);
     if (!result.ok) return Response.json({ error: result.message }, { status: result.status });
 
     const updated = await updateGarment(id, { words: { ...(result.words as Record<string, string>), ...garment.words } });

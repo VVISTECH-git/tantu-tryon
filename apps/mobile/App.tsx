@@ -31,7 +31,6 @@ import { C, R } from "./src/theme";
 
 type Screen = "splash" | "signin" | "type" | "shots" | "analyzing" | "confirm" | "flats" | "generating" | "result" | "account";
 
-const LONG_SIDE = 2000;
 const PRICE_1K = 10_00;
 const PRICE_2K = 20_00;
 
@@ -62,6 +61,7 @@ function Studio() {
   const [warnings, setWarnings] = useState<{ title: string; body: string }[]>([]);
   const [primary, setPrimary] = useState<RunView | null>(null);
   const [howShot, setHowShot] = useState<Shot | null>(null);
+  const [viewing, setViewing] = useState<{ uri: string; label: string } | null>(null);
   const [typeOpen, setTypeOpen] = useState(false);
   const [opened, setOpened] = useState<Set<string>>(() => new Set());
   const batch = useRef(api.newKey());
@@ -147,7 +147,7 @@ function Studio() {
     const result = await ImagePicker.launchImageLibraryAsync(options);
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
-    await upload(shot, { uri: asset.uri, width: asset.width, height: asset.height });
+    await upload(shot, { uri: asset.uri, width: asset.width, height: asset.height, mimeType: asset.mimeType ?? undefined });
   }
 
   async function shotCaptured(photo: CapturedPhoto) {
@@ -157,19 +157,19 @@ function Studio() {
     await upload(shot, photo);
   }
 
-  /** Shrink to a 2000px long side as the browser does, then send. */
+  /**
+   * Send the photo as the camera made it: no resize, no recompression. Only
+   * a HEIC from the library is turned into a JPEG, at full size and full
+   * quality, because the server cannot read HEIC.
+   */
   async function upload(shot: Shot, photo: api.LocalPhoto) {
     setBusySlot(shot.slot);
     try {
       let sent = photo;
-      const long = Math.max(photo.width, photo.height);
-      if (long > LONG_SIDE) {
-        const scale = LONG_SIDE / long;
-        const context = ImageManipulator.manipulate(photo.uri);
-        context.resize({ width: Math.round(photo.width * scale), height: Math.round(photo.height * scale) });
-        const rendered = await context.renderAsync();
-        const saved = await rendered.saveAsync({ compress: 0.9, format: SaveFormat.JPEG });
-        sent = { uri: saved.uri, width: saved.width, height: saved.height };
+      if (/hei[cf]/i.test(photo.mimeType ?? "")) {
+        const rendered = await ImageManipulator.manipulate(photo.uri).renderAsync();
+        const saved = await rendered.saveAsync({ compress: 1, format: SaveFormat.JPEG });
+        sent = { uri: saved.uri, width: saved.width, height: saved.height, mimeType: "image/jpeg" };
       }
       const fresh = garment?.source === "upload" && garment.garmentType === garmentType ? garment.id : null;
       const result = await api.uploadPart(sent, shot.slot, fresh, garmentType);
@@ -416,6 +416,7 @@ function Studio() {
               onUpload={(shot) => void pickFromLibrary(shot)}
               onClear={(shot) => void clear(shot)}
               onHow={setHowShot}
+                onView={(uri, label) => setViewing({ uri, label })}
             />
             <Text style={s.support}>Camera opens the phone camera. Upload picks a photo already on the phone.</Text>
             <Action
@@ -493,6 +494,7 @@ function Studio() {
               onUpload={(shot) => void pickFromLibrary(shot)}
               onClear={(shot) => void clear(shot)}
               onHow={setHowShot}
+                onView={(uri, label) => setViewing({ uri, label })}
             />
             {balance !== null && balance < price && <Text style={s.support}>Your current plan balance is over. Purchase a plan to continue.</Text>}
             <Action label="Generate" disabled={busy || busySlot !== null || (balance !== null && balance < price)} onPress={() => void generatePrimary()} />
@@ -580,6 +582,21 @@ function Studio() {
             </ScrollView>
           </View>
         </Pressable>
+      </Modal>
+
+      {/* A captured photo, full screen */}
+      <Modal visible={viewing !== null} animationType="fade" onRequestClose={() => setViewing(null)} statusBarTranslucent>
+        {viewing && (
+          <Pressable style={s.viewer} onPress={() => setViewing(null)}>
+            <Image source={{ uri: viewing.uri }} style={s.viewerImage} resizeMode="contain" />
+            <View style={s.viewerBar}>
+              <Text style={s.viewerLabel}>{viewing.label}</Text>
+              <Pressable onPress={() => setViewing(null)} hitSlop={12} accessibilityLabel="Close">
+                <Text style={s.viewerClose}>✕</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        )}
       </Modal>
 
       {/* How to shoot */}
@@ -700,6 +717,7 @@ function ShotList({
   onUpload,
   onClear,
   onHow,
+  onView,
 }: {
   type: string;
   garment: GarmentView | null;
@@ -711,6 +729,7 @@ function ShotList({
   onUpload: (shot: Shot) => void;
   onClear: (shot: Shot) => void;
   onHow: (shot: Shot) => void;
+  onView: (uri: string, label: string) => void;
 }) {
   let shots = shotsFor(type);
   if (optionalOnly) shots = shots.filter((sh) => !sh.required);
@@ -727,7 +746,7 @@ function ShotList({
         const full = p?.quality?.reasons.map((r) => r.message).join(" ") ?? "";
         return (
           <View key={shot.slot} style={[s.shot, state === "warn" && s.warnBorder, state === "block" && s.badBorder]}>
-            <Pressable style={s.shotThumb} onPress={() => (p ? onUpload(shot) : onCamera(shot))}>
+            <Pressable style={s.shotThumb} onPress={() => (p ? onView(p.url, shot.label) : onCamera(shot))}>
               {p ? (
                 <Image source={{ uri: p.url }} style={s.fill} />
               ) : (
@@ -870,6 +889,11 @@ const s = StyleSheet.create({
   plus: { color: C.text, fontSize: 26 },
   plusAbs: { position: "absolute", textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
+  viewer: { flex: 1, backgroundColor: "#000", justifyContent: "center" },
+  viewerImage: { width: "100%", height: "100%" },
+  viewerBar: { position: "absolute", top: 0, left: 0, right: 0, paddingTop: 48, paddingBottom: 14, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "rgba(0,0,0,0.55)" },
+  viewerLabel: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  viewerClose: { color: "#fff", fontSize: 22, width: 28, textAlign: "center" },
   signin: { alignItems: "center", gap: 24, paddingTop: 44 },
   signinGlowOuter: { width: 140, height: 140, marginLeft: -70, marginTop: -70, borderRadius: 70, backgroundColor: "rgba(240,141,66,0.05)" },
   signinGlowMid: { width: 100, height: 100, marginLeft: -50, marginTop: -50, borderRadius: 50, backgroundColor: "rgba(240,141,66,0.07)" },
