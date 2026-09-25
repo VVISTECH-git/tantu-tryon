@@ -21,7 +21,7 @@ interface Body {
 
 export async function POST(request: Request) {
   try {
-    const account = await requireRole("admin", "studio");
+    const account = await requireRole("owner", "studio");
     const body = (await request.json().catch(() => ({}))) as Body;
 
     if (!body.garmentId || !body.promptId || !body.clientKey || !body.look) {

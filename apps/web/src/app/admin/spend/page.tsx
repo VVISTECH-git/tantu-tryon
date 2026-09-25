@@ -2,9 +2,9 @@ import { desc, eq } from "drizzle-orm";
 import { db, garments, generations } from "@/db";
 import { requirePage } from "@/lib/page-auth";
 import { IMAGE_OPTIONS, chosenImageOption, livePrices, liveRate } from "@/lib/imageModels";
-import { balancePaise, rupees, spendSummary, sweepStale } from "@/lib/spend";
-import { usersOf } from "@/lib/session";
-import { grantAction, saveUserAction, setCapsAction, setImageModelAction, togglePauseAction } from "./actions";
+import { rupees, spendSummary, sweepStale } from "@/lib/spend";
+import { listShops } from "@/lib/shops";
+import { createShopAction, grantAction, setCapsAction, setImageModelAction, togglePauseAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -17,13 +17,12 @@ export const dynamic = "force-dynamic";
  * Google bill can be traced to the image that caused it.
  */
 export default async function SpendPage() {
-  const account = await requirePage("/admin/spend", ["admin"]);
+  await requirePage("/admin/spend", { platform: true });
   await sweepStale();
   // Read fresh on every visit: Google's price page and today's dollar rate.
   const [prices, rate, chosen] = await Promise.all([livePrices(), liveRate(), chosenImageOption()]);
   const summary = await spendSummary();
-  const people = await usersOf(account.id);
-  const balance = await balancePaise(account.id);
+  const shops = await listShops();
   const recent = await db
     .select({
       id: generations.id,
@@ -50,7 +49,8 @@ export default async function SpendPage() {
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
       <p className="label">Admin</p>
-      <h1 className="mt-1 text-[24px] font-semibold tracking-tight">Settings</h1>
+      <h1 className="mt-1 text-[24px] font-semibold tracking-tight">Platform</h1>
+      <p className="mt-1 text-[13px] text-ink-soft">Tantu&apos;s own settings: they apply to every shop. Customers never see this page.</p>
 
       <form action={setImageModelAction} className="mt-6 rounded-xl border border-line bg-surface p-5">
         <h2 className="text-[15px] font-semibold">Image model</h2>
@@ -136,11 +136,16 @@ export default async function SpendPage() {
         </form>
 
         <form action={grantAction} className="rounded-xl border border-line bg-surface p-5">
-          <h2 className="text-[15px] font-semibold">Credits</h2>
-          <p className="mt-1 text-[13px] text-ink-soft">
-            House balance <b className="tabular-nums text-ink">{rupees(balance)}</b>
-          </p>
-          <div className="mt-3 flex gap-2">
+          <h2 className="text-[15px] font-semibold">Grant credit</h2>
+          <p className="mt-1 text-[13px] text-ink-soft">Add rupees to one shop&apos;s balance.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <select name="shop" className="rounded-lg border border-line bg-ground px-3 py-2 text-[14px] outline-none focus:border-accent">
+              {shops.map((shop) => (
+                <option key={shop.id} value={shop.id}>
+                  {shop.name} ({shop.owner ?? "no login"})
+                </option>
+              ))}
+            </select>
             <input name="rupees" type="number" min={1} defaultValue={500} className="w-28 rounded-lg border border-line bg-ground px-3 py-2 text-[14px] tabular-nums outline-none focus:border-accent" />
             <button type="submit" className="rounded-lg border border-line px-4 py-2 text-[14px] hover:border-ink-faint">
               Grant
@@ -150,45 +155,61 @@ export default async function SpendPage() {
       </section>
 
       <section className="mt-6 rounded-xl border border-line bg-surface p-5">
-        <h2 className="text-[15px] font-semibold">People</h2>
+        <h2 className="text-[15px] font-semibold">Shops</h2>
         <p className="mt-1 text-[13px] text-ink-soft">
-          Everyone signs in with their own name and works on the same products. A photographer can only open products and take photos; studio can also generate; admin can also change these settings.
+          Each shop has its own products, photos, images and balance, and sees nothing of the others. Its owner signs in with the username below and adds their own photographers and studio people from the Shop page.
         </p>
-        <table className="mt-3 w-full text-[13.5px]">
-          <thead className="text-left text-[12px] uppercase tracking-wide text-ink-faint">
-            <tr><th className="py-1.5">Username</th><th>Role</th></tr>
-          </thead>
-          <tbody>
-            {people.map((u) => (
-              <tr key={u.username ?? "shop"} className="border-t border-line-soft">
-                <td className="py-1.5">{u.username ?? "—"}</td>
-                <td className="capitalize">{u.role}</td>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-[13.5px]">
+            <thead className="text-left text-[12px] uppercase tracking-wide text-ink-faint">
+              <tr>
+                <th className="py-1.5">Shop</th>
+                <th>Owner login</th>
+                <th className="text-right">People</th>
+                <th className="text-right">Products</th>
+                <th className="text-right">Images</th>
+                <th className="text-right">Balance</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        <form action={saveUserAction} className="mt-4 flex flex-wrap items-end gap-3">
+            </thead>
+            <tbody>
+              {shops.map((shop) => (
+                <tr key={shop.id} className="border-t border-line-soft">
+                  <td className="py-1.5">
+                    {shop.name}
+                    {shop.house && <span className="ml-2 text-[12px] text-accent">Tantu&apos;s own · SLK</span>}
+                  </td>
+                  <td>{shop.owner ?? "—"}</td>
+                  <td className="text-right tabular-nums">{shop.people}</td>
+                  <td className="text-right tabular-nums">{shop.products}</td>
+                  <td className="text-right tabular-nums">{shop.images}</td>
+                  <td className="text-right tabular-nums">{rupees(shop.balancePaise)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <h3 className="mt-5 text-[14px] font-semibold">Onboard a customer</h3>
+        <form action={createShopAction} className="mt-2 flex flex-wrap items-end gap-3">
           <label className="block">
-            <span className="text-[12px] text-ink-faint">Username</span>
-            <input name="username" required pattern="[a-zA-Z0-9._-]{3,32}" className="mt-1 w-40 rounded-lg border border-line bg-ground px-3 py-1.5 text-[14px] outline-none focus:border-accent" />
+            <span className="text-[12px] text-ink-faint">Shop name</span>
+            <input name="name" required maxLength={80} className="mt-1 w-48 rounded-lg border border-line bg-ground px-3 py-1.5 text-[14px] outline-none focus:border-accent" />
           </label>
           <label className="block">
-            <span className="text-[12px] text-ink-faint">Password</span>
+            <span className="text-[12px] text-ink-faint">Owner username</span>
+            <input name="owner" required pattern="[a-zA-Z0-9._-]{3,32}" className="mt-1 w-40 rounded-lg border border-line bg-ground px-3 py-1.5 text-[14px] outline-none focus:border-accent" />
+          </label>
+          <label className="block">
+            <span className="text-[12px] text-ink-faint">Owner password</span>
             <input name="password" type="password" required minLength={6} className="mt-1 w-40 rounded-lg border border-line bg-ground px-3 py-1.5 text-[14px] outline-none focus:border-accent" />
           </label>
           <label className="block">
-            <span className="text-[12px] text-ink-faint">Role</span>
-            <select name="role" defaultValue="photographer" className="mt-1 rounded-lg border border-line bg-ground px-3 py-1.5 text-[14px] outline-none focus:border-accent">
-              <option value="photographer">Photographer</option>
-              <option value="studio">Studio</option>
-              <option value="admin">Admin</option>
-            </select>
+            <span className="text-[12px] text-ink-faint">Starting credit (₹)</span>
+            <input name="starting" type="number" min={0} defaultValue={100} className="mt-1 w-28 rounded-lg border border-line bg-ground px-3 py-1.5 text-[14px] tabular-nums outline-none focus:border-accent" />
           </label>
           <button type="submit" className="rounded-lg border border-line px-4 py-2 text-[14px] hover:border-ink-faint">
-            Save person
+            Create shop
           </button>
         </form>
-        <p className="mt-2 text-[12.5px] text-ink-faint">Saving an existing username changes its password and role.</p>
       </section>
 
       <section className="mt-8">

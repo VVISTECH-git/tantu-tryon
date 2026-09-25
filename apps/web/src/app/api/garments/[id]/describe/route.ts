@@ -13,7 +13,7 @@ export const maxDuration = 60;
  */
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const account = await requireRole("admin", "studio");
+    const account = await requireRole("owner", "studio");
     const { id } = await params;
     const garment = await getGarment(id, account.id);
     if (!garment) return Response.json({ error: "No such garment." }, { status: 404 });

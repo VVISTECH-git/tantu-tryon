@@ -67,8 +67,8 @@ export async function accountByUsername(username: string): Promise<Account | nul
   return row ?? null;
 }
 
-export type Role = "admin" | "studio" | "photographer";
-export const ROLES: Role[] = ["admin", "studio", "photographer"];
+export type Role = "owner" | "studio" | "photographer";
+export const ROLES: Role[] = ["owner", "studio", "photographer"];
 
 /**
  * Add a login to a shop, or change its password and role. The login shares
@@ -94,7 +94,7 @@ export async function usersOf(workspaceId: string): Promise<{ username: string |
   const rows = await db.select().from(accounts);
   return rows
     .filter((a) => a.id === workspaceId || a.workspaceId === workspaceId)
-    .map((a) => ({ username: a.username, role: a.id === workspaceId ? "admin" : a.role, own: a.id === workspaceId }))
+    .map((a) => ({ username: a.username, role: a.id === workspaceId ? "owner" : a.role, own: a.id === workspaceId }))
     .sort((a, b) => Number(b.own) - Number(a.own) || (a.username ?? "").localeCompare(b.username ?? ""));
 }
 
@@ -174,12 +174,42 @@ export async function currentAccount(): Promise<Account | null> {
     .limit(1);
   const login = row?.account;
   if (!login) return null;
-  if (!login.workspaceId) return { ...login, role: "admin" };
+  if (!login.workspaceId) return { ...login, role: "owner" };
   // A person's login works inside the shop: the shop's id scopes products,
   // credits and generations; the login keeps its own name and role.
   const [shop] = await db.select().from(accounts).where(eq(accounts.id, login.workspaceId)).limit(1);
   if (!shop) return null;
-  return { ...shop, username: login.username, role: login.role };
+  // platformAdmin is the login's, never inherited from the shop.
+  return { ...shop, username: login.username, role: login.role, platformAdmin: login.platformAdmin };
+}
+
+/**
+ * A new customer shop: its own account (the shop, which its owner signs in
+ * as), its own products, photographs, generations and balance. Starting
+ * credit is granted in the same step so the owner can try it at once.
+ */
+export async function createShop(name: string, ownerUsername: string, plain: string, startingPaise: number): Promise<void> {
+  if (await accountByUsername(ownerUsername)) throw new Error("That username is taken.");
+  const [shop] = await db
+    .insert(accounts)
+    .values({ name, kind: "merchant", username: ownerUsername, passwordHash: hashPassword(plain), role: "owner" })
+    .returning();
+  if (startingPaise > 0) {
+    const { grantCredits } = await import("@/lib/spend");
+    await grantCredits(shop!.id, startingPaise, "starting credit");
+  }
+}
+
+/** Tantu's own shop: the one wired to SLK. Customer shops are not. */
+export function isHouseShop(account: Account): boolean {
+  return account.kind === "shared";
+}
+
+/** For route handlers: only the platform admin. */
+export async function requirePlatform(): Promise<Account> {
+  const account = await requireAccount();
+  if (!account.platformAdmin) throw new Forbidden();
+  return account;
 }
 
 export class Forbidden extends Error {

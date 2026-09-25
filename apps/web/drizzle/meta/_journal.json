@@ -29,6 +29,13 @@
       "when": 1790322132809,
       "tag": "0003_account-roles",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790323806861,
+      "tag": "0004_platform-admin-and-owners",
+      "breakpoints": true
     }
   ]
 }

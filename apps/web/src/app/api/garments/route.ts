@@ -1,5 +1,5 @@
 import { createGarmentFromSlk, listGarments, missingSlots, publicGarment } from "@/lib/garments";
-import { requireAccount, unauthorised } from "@/lib/session";
+import { isHouseShop, requireAccount, unauthorised } from "@/lib/session";
 
 export const runtime = "nodejs";
 
@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     const account = await requireAccount();
+    if (!isHouseShop(account)) return Response.json({ error: "Product codes come from Tantu's own inventory." }, { status: 403 });
     const body = (await request.json().catch(() => ({}))) as { code?: string };
     const code = String(body.code ?? "").trim();
     if (!code) return Response.json({ error: "Which product code?" }, { status: 400 });

@@ -34,6 +34,6 @@ export async function POST(request: Request) {
   const token = await startSession(account.id);
   // Only a client that cannot keep the cookie gets the token in the body.
   const mobile = request.headers.get("x-tantu-client") === "mobile";
-  const role = account.workspaceId ? account.role : "admin";
+  const role = account.role;
   return Response.json({ ok: true, account: { id: account.id, name: account.name, role }, ...(mobile ? { token } : {}) });
 }

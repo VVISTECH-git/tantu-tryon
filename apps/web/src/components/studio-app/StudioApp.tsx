@@ -24,7 +24,7 @@ import { POSE_TILES, PRIMARY_PROMPT, type GarmentView, type RunView, type Screen
  */
 
 interface Props {
-  account: { id: string; name: string; username: string | null; kind: string };
+  account: { id: string; name: string; username: string | null; kind: string; role: string; platformAdmin: boolean };
   balancePaise: number;
   canDescribe: boolean;
 }
@@ -863,7 +863,13 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                   <b>{T.pricing.title}</b>
                   <span className="st-muted">›</span>
                 </button>
-                {account.kind === "shared" && (
+                {account.role === "owner" && (
+                  <a className="st-row" href="/admin/shop" style={{ textDecoration: "none", color: "inherit" }}>
+                    <b>{T.profile.shop}</b>
+                    <span className="st-muted">↗</span>
+                  </a>
+                )}
+                {account.platformAdmin && (
                   <a className="st-row" href="/admin/spend" style={{ textDecoration: "none", color: "inherit" }}>
                     <b>{T.profile.spend}</b>
                     <span className="st-muted">↗</span>
