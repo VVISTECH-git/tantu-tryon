@@ -76,6 +76,8 @@ function Studio() {
   const [accountBack, setAccountBack] = useState<Screen>("type");
   const [scanning, setScanning] = useState(false);
   const [pose, setPose] = useState<string>(PRIMARY_PROMPT);
+  // The newest finished image per pose, for the Generated sign on each pose.
+  const [madeByPose, setMadeByPose] = useState<Record<string, string>>({});
 
   // A product opened from Saved products goes Back to that list, not to the product ID screen.
   const [shotsBack, setShotsBack] = useState<Screen>("type");
@@ -531,6 +533,24 @@ function Studio() {
    * Android's share sheet takes no files here, so it opens the image instead.
    */
   const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (!garment || (screen !== "flats" && screen !== "result")) return;
+    let live = true;
+    api
+      .listRuns(garment.id)
+      .then((runs) => {
+        if (!live) return;
+        const made: Record<string, string> = {};
+        for (const r of [...runs].sort((a, b) => a.startedAt.localeCompare(b.startedAt))) {
+          if (r.status === "done" && r.imageUrl) made[r.promptId] = r.imageUrl;
+        }
+        setMadeByPose(made);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [garment?.id, screen]);
   async function saveImage(url: string, name: string) {
     if (Platform.OS !== "ios") {
       void Linking.openURL(url);
@@ -909,6 +929,23 @@ function Studio() {
                     <Text style={[s.shotName, { flex: 1 }]}>
                       {p.id} <Text style={s.shotWhere}>· {p.title}</Text>
                     </Text>
+                    {madeByPose[p.id] ? (
+                      <Pressable
+                        onPress={() => void saveImage(madeByPose[p.id]!, `${garment?.productCode ?? "tantu"}-${p.id}`)}
+                        disabled={saving}
+                        hitSlop={8}
+                        style={[s.madeChip, s.madeChipOn]}
+                        accessibilityLabel={`Generated. Save the ${p.id} image`}
+                      >
+                        <View style={[s.dot, { backgroundColor: C.good }]} />
+                        <Text style={[s.madeText, { color: C.good }]}>Generated · Save</Text>
+                      </Pressable>
+                    ) : (
+                      <View style={s.madeChip}>
+                        <View style={[s.dot, { backgroundColor: C.textMuted }]} />
+                        <Text style={s.madeText}>Not yet</Text>
+                      </View>
+                    )}
                   </Pressable>
                 );
               })}
@@ -1106,6 +1143,15 @@ function Studio() {
             <ZoomImage uri={viewing.uri} />
             <View style={s.viewerBar}>
               <Text style={s.viewerLabel}>{viewing.label}</Text>
+              <Pressable
+                onPress={() => void saveImage(viewing.uri, `${garment?.productCode ?? "tantu"}-${viewing.label}`)}
+                disabled={saving}
+                hitSlop={12}
+                style={{ marginLeft: "auto", marginRight: 22 }}
+                accessibilityLabel="Save"
+              >
+                <Text style={s.viewerSave}>{saving ? "Saving…" : "Save"}</Text>
+              </Pressable>
               <Pressable onPress={() => setViewing(null)} hitSlop={12} accessibilityLabel="Close">
                 <Text style={s.viewerClose}>✕</Text>
               </Pressable>
@@ -1437,6 +1483,9 @@ const s = StyleSheet.create({
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: C.textMuted, alignItems: "center", justifyContent: "center" },
   radioOn: { borderColor: C.accentStrong },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: C.accentStrong },
+  madeChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, borderColor: C.border },
+  madeChipOn: { borderColor: "rgba(143,224,182,0.5)", backgroundColor: "rgba(143,224,182,0.1)" },
+  madeText: { color: C.textMuted, fontSize: 13, fontWeight: "600" },
   modelPrice: { color: C.text, fontSize: 14, fontWeight: "700" },
   savedUnder: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 7, borderRadius: R.pill, borderWidth: 1, borderColor: "rgba(240,141,66,0.35)", backgroundColor: "rgba(240,141,66,0.1)" },
   savedUnderText: { color: C.textSoft, fontSize: 12 },
@@ -1446,6 +1495,7 @@ const s = StyleSheet.create({
   viewer: { flex: 1, backgroundColor: "#000", justifyContent: "center" },
   viewerBar: { position: "absolute", top: 0, left: 0, right: 0, paddingTop: 48, paddingBottom: 14, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "rgba(0,0,0,0.55)" },
   viewerLabel: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  viewerSave: { color: C.accentStrong, fontSize: 16, fontWeight: "700" },
   viewerClose: { color: "#fff", fontSize: 22, width: 28, textAlign: "center" },
   signin: { alignItems: "center", gap: 24, paddingTop: 44 },
   signinGlowOuter: { width: 140, height: 140, marginLeft: -70, marginTop: -70, borderRadius: 70, backgroundColor: "rgba(240,141,66,0.05)" },
