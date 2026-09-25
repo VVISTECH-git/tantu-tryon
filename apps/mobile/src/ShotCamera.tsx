@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Shot } from "@tantu/shared/shots";
+import { CropView } from "./CropView";
 import { C, R } from "./theme";
 
 /**
@@ -28,6 +29,7 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
   const [captured, setCaptured] = useState<CapturedPhoto | null>(null);
   const [busy, setBusy] = useState(false);
   const [pictureSize, setPictureSize] = useState<string | undefined>(undefined);
+  const [cropping, setCropping] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const { width: winW, height: winH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -53,10 +55,19 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
   const guideX = (liveW - guideW) / 2;
   const guideY = topBar + (liveH - guideH) / 2;
 
-  /** The largest picture the camera offers ("4032x3024" style names); the default can be smaller. */
+  /**
+   * The full-resolution still. iOS names it "Photo" (4032 x 3024 on a 12 MP
+   * camera) next to video-shaped presets like "3840x2160" — picking the
+   * largest number there gave 16:9 frames (25 Sep, 1776 x 3840). Android
+   * lists plain "WxH" sizes, where the largest area is the full still.
+   */
   async function pickLargestSize() {
     try {
       const sizes = (await cameraRef.current?.getAvailablePictureSizesAsync()) ?? [];
+      if (sizes.includes("Photo")) {
+        setPictureSize("Photo");
+        return;
+      }
       const area = (name: string) => name.split("x").map(Number).reduce((a, b) => a * (b || 0), 1);
       const largest = sizes.filter((n) => /^\d+x\d+$/.test(n)).sort((a, b) => area(b) - area(a))[0];
       if (largest) setPictureSize(largest);
@@ -98,14 +109,23 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
     );
   }
 
+  if (captured && cropping) {
+    return <CropView photo={captured} onDone={(p) => onCapture({ uri: p.uri, width: p.width, height: p.height })} onCancel={() => setCropping(false)} />;
+  }
+
   if (captured) {
     return (
       <View style={s.page}>
         <Image source={{ uri: captured.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         <View style={s.reviewBar}>
-          <Pressable style={s.secondary} onPress={() => setCaptured(null)}>
-            <Text style={s.secondaryText}>Retake</Text>
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <Pressable style={[s.secondary, { flex: 1 }]} onPress={() => setCaptured(null)}>
+              <Text style={s.secondaryText}>Retake</Text>
+            </Pressable>
+            <Pressable style={[s.secondary, { flex: 1 }]} onPress={() => setCropping(true)}>
+              <Text style={s.secondaryText}>Crop</Text>
+            </Pressable>
+          </View>
           <Pressable style={s.action} onPress={() => onCapture(captured)}>
             <Text style={s.actionText}>Use photo</Text>
           </Pressable>

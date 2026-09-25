@@ -147,6 +147,12 @@ export async function openProductGarment(accountId: string, productId: string, t
   return garment!;
 }
 
+/** Whether another record in this shop already carries the product ID. */
+export async function productIdTaken(accountId: string, productId: string, exceptId: string): Promise<boolean> {
+  const rows = await db.select({ id: garments.id }).from(garments).where(and(eq(garments.accountId, accountId), eq(garments.productCode, productId)));
+  return rows.some((r) => r.id !== exceptId);
+}
+
 /** The account's records, newest first, for the list of saved products. */
 export async function listGarments(accountId: string, limit = 200): Promise<Garment[]> {
   return db.select().from(garments).where(eq(garments.accountId, accountId)).orderBy(desc(garments.updatedAt)).limit(limit);
@@ -165,7 +171,7 @@ export async function latestGarmentForCode(accountId: string, code: string): Pro
 /** Parts change what the sheet shows, so the cached sheet goes with them. */
 export async function updateGarment(
   id: string,
-  patch: Partial<Pick<Garment, "words" | "answers" | "parts" | "title">>,
+  patch: Partial<Pick<Garment, "words" | "answers" | "parts" | "title" | "productCode">>,
 ): Promise<Garment> {
   // The blouse answer decides whether the blouse cell is on the sheet, so it resets it too.
   const resetSheet = patch.parts !== undefined || patch.answers !== undefined;

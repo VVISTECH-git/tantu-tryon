@@ -164,6 +164,16 @@ export async function getGarment(id: string): Promise<GarmentView> {
   return out.garment;
 }
 
+/** Give a record made before product IDs were asked for its ID. */
+export async function setProductId(id: string, productId: string): Promise<GarmentView> {
+  const out = await call<{ garment: GarmentView }>(`/api/garments/${id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ productCode: productId }),
+  });
+  return out.garment;
+}
+
 export async function removePart(id: string, slot: string): Promise<GarmentView> {
   const out = await call<{ garment: GarmentView }>(`/api/garments/${id}`, {
     method: "PATCH",

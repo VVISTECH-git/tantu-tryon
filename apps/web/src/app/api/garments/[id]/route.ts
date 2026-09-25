@@ -1,5 +1,5 @@
 import type { GarmentAnswers, GarmentPartRow } from "@/db";
-import { blouseAnswer, getGarment, publicGarment, updateGarment, wordsFor } from "@/lib/garments";
+import { PRODUCT_ID_PATTERN, blouseAnswer, getGarment, productIdTaken, publicGarment, updateGarment, wordsFor } from "@/lib/garments";
 import { requireAccount, unauthorised } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -25,6 +25,8 @@ interface Patch {
   rotations?: Record<string, 0 | 90 | 180 | 270>;
   /** Optional parts a merchant took back off. */
   removeSlots?: string[];
+  /** A product ID for a record made before IDs were asked for. */
+  productCode?: string;
 }
 
 /** Corrected words, the two questions, and orientation turns. Anything that changes the sheet drops the cached one. */
@@ -37,6 +39,17 @@ export async function PATCH(request: Request, { params }: Params) {
 
     const patch = (await request.json().catch(() => ({}))) as Patch;
     const next: Parameters<typeof updateGarment>[1] = {};
+
+    if (patch.productCode !== undefined) {
+      const code = String(patch.productCode).trim();
+      if (!PRODUCT_ID_PATTERN.test(code)) {
+        return Response.json({ error: "Enter the product ID: letters and numbers, up to 40 characters." }, { status: 400 });
+      }
+      if (await productIdTaken(account.id, code, garment.id)) {
+        return Response.json({ error: `${code} already has its own record. Open it from Saved products.` }, { status: 409 });
+      }
+      next.productCode = code;
+    }
 
     if (patch.words) {
       const words: Record<string, string> = {};
