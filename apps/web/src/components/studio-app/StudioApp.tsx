@@ -23,7 +23,7 @@ import { POSE_TILES, PRIMARY_PROMPT, type GarmentView, type RunView, type Screen
  */
 
 interface Props {
-  account: { id: string; name: string; kind: string };
+  account: { id: string; name: string; username: string | null; kind: string };
   balancePaise: number;
   canDescribe: boolean;
 }
@@ -837,7 +837,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
               <Title>{T.profile.title}</Title>
               <Copy>{T.profile.copy}</Copy>
               <div className="st-card">
-                <Row label={T.profile.number} value={account.kind === "shared" ? "Studio passcode" : account.name} />
+                <Row label={T.profile.number} value={account.username ?? account.name} />
                 <Row label={T.profile.plan} value={<span className="st-badge st-badge--soft">{T.profile.trial}</span>} />
                 <Row label={T.profile.remaining} value={rupees(balance)} />
                 <div className="st-question-hint">{T.profile.possible}</div>
