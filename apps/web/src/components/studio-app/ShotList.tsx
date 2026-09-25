@@ -73,7 +73,7 @@ export function ShotList({ type, tiles, busySlot, optionalOnly, hideBlouse, onCa
                 <img src={tile.url} alt="" />
               ) : (
                 <>
-                  <img src={shot.sample} alt="" className="st-shot-sample" />
+                  <img src={shot.frame ?? shot.sample} alt="" className="st-shot-sample" />
                   <span className="st-shot-plus" aria-hidden>+</span>
                 </>
               )}
