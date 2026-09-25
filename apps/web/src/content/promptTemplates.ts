@@ -273,6 +273,14 @@ const HOUSE_RULES_V3 = [
   "- Every print appears only in the region named for it in the placement map.",
 ].join("\n");
 
+/*
+  v3 OUTPUT. These images sell the saree online, where buyers zoom in: the
+  print has to hold up. (A 1K render drew the UNCLE paisleys at 15-20 px
+  and they read as blur; the size itself is set by the API's image size.)
+*/
+const OUTPUT_V3 =
+  "OUTPUT: Return only the image: ONE photograph in portrait orientation, 3:4, taller than wide, with the one model filling the frame, at the highest resolution available. The print is rendered sharply everywhere on the saree: every motif's outline and inner detail crisp and in focus, as in a high-resolution catalogue photograph that buyers will zoom into. Not a pair of views, not a grid, not a collage. No caption, no notes, no commentary.";
+
 const EXPRESSION = "{She} has a direct, confident gaze and a neutral-to-soft expression.";
 
 const FULL_LENGTH =
@@ -353,7 +361,7 @@ export const TEMPLATES: PromptTemplate[] = [
       "PLACEMENT MAP:",
       "1. BLOUSE: {blouse_region} The fitted top, both sleeves and the neckline. Both sleeves are fully visible, the left one included; nothing lies over the left arm.",
       `2. SAREE print, the print in the BODY panel: everything else. The whole front of the {type} from the waist to the hem, the pleats at the front of the waist, the band of fabric crossing the chest, and the pallu. ${ONE_PRINT_CHEST}`,
-      "3. The pallu: seen from the front, it shows only as a small pleated peak on top of the left shoulder. From there it drops down {her} back, behind {her}, out of sight. No part of the pallu hangs in front of {her} body or beside {her} left arm, and its end is not in the picture.",
+      "3. The pallu: seen from the front, it shows only as a small pleated peak on top of the left shoulder. From there it drops down {her} back, behind {her}, out of sight. No part of the pallu hangs in front of {her} body or beside {her} left arm, and its end is not in the picture. {Her} left side, from the shoulder to the hip, shows only the chest band's fabric and the fitted blouse sleeve: there is no hanging panel on {her} left side and no second border running down it.",
       "4. BORDER: along the hem, along the upper edge of the chest band, and along the edges of the pleated peak, exactly as narrow as shown.",
       `Not allowed: no blouse fabric and no bare skin on the left side above the waist. No cape, no flap, no loose sheet of fabric over the shoulder or arm. The border must not run as a vertical stripe down the front of the left side. ${ONE_PRINT_NO_NEW}`,
     ].join("\n"),
@@ -510,6 +518,14 @@ export interface PartPlan {
   border: "photo" | "from-body";
   /** "complementary": no blouse photograph, so a plain solid blouse in a colour from the saree. */
   blouse: "photo" | "self" | "complementary";
+  /**
+   * The BODY photograph was turned a quarter turn to show the fabric the way
+   * it is worn: length left to right, hem border along the bottom, motifs
+   * standing. On the rod the length hangs top to bottom, so the motifs lie
+   * on their side; copied as hung, they lay sideways on the skirt (UNCLE,
+   * 25 Sep).
+   */
+  worn?: boolean;
 }
 
 /** The version a composed prompt belongs to, for the generation record. */
@@ -624,11 +640,22 @@ function referenceV3(files: Attachment[], type: string, plan: PartPlan, person?:
     `REFERENCE: The attached image is a sheet of ${files.length} labelled photograph${files.length === 1 ? "" : "s"} of ONE ${type}.`,
     ...files.map(panel),
     files.length === 1 ? "The label is printed above the panel." : "Read the label printed above each panel to know which part it is.",
+    ...(plan.worn
+      ? [
+          `The BODY photograph has been turned to show the fabric the way it is worn: the ${type}'s length runs from left to right, the border along the bottom edge of the photograph is the hem border, and the border along the top edge is the waist border, tucked in at the waist. The print is shown the right way up. Every motif stands on the model exactly as it stands in the photograph, on the skirt, in the pleats and on the chest band: motifs that stand upright in the photograph stand upright on her and never lie on their side.`,
+        ]
+      : []),
     ...(files.some((f) => f.slot === "border")
       ? []
-      : [`The ${type}'s border is the band along both long edges of the BODY photograph; copy it from there, at its real width.`]),
+      : [
+          plan.worn
+            ? `The ${type}'s border is the band along the top and bottom edges of the BODY photograph; copy it from there, at its real width.`
+            : `The ${type}'s border is the band along both long edges of the BODY photograph; copy it from there, at its real width.`,
+        ]),
     `Anything around the fabric in the photograph${files.length === 1 ? "" : "s"}, such as a wall, a window, the rod or the floor, is the shop, not the ${type}.`,
-    `The BODY photograph shows the ${type}'s full width, from border to border, about 115 cm (45 inches). On the model every motif keeps its size relative to that width: a motif that spans a fifth of the photograph's width spans a fifth of the fabric's width on ${person?.her ?? "her"}. Do not shrink the motifs or pack them more densely.`,
+    plan.worn
+      ? `From the top border to the bottom border the BODY photograph shows the ${type}'s full width, about 115 cm (45 inches): the height of the skirt from ${person?.her ?? "her"} waist to the hem. On the model every motif keeps its size relative to that height: a motif that spans a tenth of the photograph's height spans a tenth of the distance from ${person?.her ?? "her"} waist to the hem. Do not shrink the motifs or pack them more densely.`
+      : `The BODY photograph shows the ${type}'s full width, from border to border, about 115 cm (45 inches). On the model every motif keeps its size relative to that width: a motif that spans a fifth of the photograph's width spans a fifth of the fabric's width on ${person?.her ?? "her"}. Do not shrink the motifs or pack them more densely.`,
     `There is no separate pallu design: the pallu is the same fabric as the body, with the same motifs, colours and border, all the way to the end of the ${type}.`,
     prints,
     `The border on the finished ${type} must stay as narrow as it is in the photograph${files.length === 1 ? "" : "s"}.`,
@@ -765,7 +792,7 @@ export function composePrompt(
   // Everything else composes exactly as the frozen v2.
   const onePrint = onePrintPlan;
   const blocks = onePrint
-    ? [referenceV3(files, words.type, plan!, p), task(words.type, s.rules), HOUSE_RULES_V3, garmentV3(words, plan!), template.onePrintMap, template.onePrintPose ?? template.pose, `SCENE: ${scene}`, OUTPUT]
+    ? [referenceV3(files, words.type, plan!, p), task(words.type, s.rules), HOUSE_RULES_V3, garmentV3(words, plan!), template.onePrintMap, template.onePrintPose ?? template.pose, `SCENE: ${scene}`, OUTPUT_V3]
     : [reference(files, words.type, s.attachMode, fromPhoto ? p : undefined), task(words.type, s.rules), HOUSE_RULES, garment(words), template.map, template.pose, `SCENE: ${scene}`, OUTPUT];
 
   return blocks
