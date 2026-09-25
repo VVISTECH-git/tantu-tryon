@@ -3,7 +3,8 @@ import * as Updates from "expo-updates";
 import * as ImagePicker from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, BackHandler, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Alert, BackHandler, Image, Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { File, Paths } from "expo-file-system";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
 import { TANTU_MARK_GRADIENT, TANTU_MARK_PATHS, TANTU_MARK_VIEWBOX } from "@tantu/shared/brand";
@@ -524,6 +525,30 @@ function Studio() {
     }
   }
 
+  /**
+   * The finished image onto the phone: downloaded full size, then the share
+   * sheet, whose "Save Image" puts it in Photos (and WhatsApp, AirDrop...).
+   * Android's share sheet takes no files here, so it opens the image instead.
+   */
+  const [saving, setSaving] = useState(false);
+  async function saveImage(url: string, name: string) {
+    if (Platform.OS !== "ios") {
+      void Linking.openURL(url);
+      return;
+    }
+    setSaving(true);
+    try {
+      const dest = new File(Paths.cache, `${name.replace(/[^A-Za-z0-9_-]+/g, "-")}.jpg`);
+      if (dest.exists) dest.delete();
+      const file = await File.downloadFileAsync(url, dest);
+      await Share.share({ url: file.uri });
+    } catch (problem) {
+      Alert.alert("Could not save the image", problem instanceof Error ? problem.message : "Try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function startOver() {
     setPose(PRIMARY_PROMPT);
     setProductId("");
@@ -1007,6 +1032,11 @@ function Studio() {
                     <Image source={{ uri: primary.imageUrl }} style={s.fill} resizeMode="cover" />
                   </Pressable>
                 </View>
+                <Action
+                  label={saving ? "Preparing…" : "Save or share image"}
+                  disabled={saving}
+                  onPress={() => void saveImage(primary.imageUrl!, `${garment?.productCode ?? "tantu"}-${primary.promptId}`)}
+                />
                 <Secondary label="Open full size" onPress={() => setViewing({ uri: primary.imageUrl!, label: "Your image" })} />
               </>
             ) : (
