@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- the shell shows uploads, local dev renders and R2 objects at their own size; next/image would resample them. */
 
-import { TANTU_MARK_GRADIENT, TANTU_MARK_PATHS, TANTU_MARK_VIEWBOX } from "@tantu/shared/brand";
+import { TantuMark } from "./TantuMark";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREDIT_PAISE, rupees, type Quality } from "@/content/credits";
 import { PACKS, inr } from "@/content/pricing";
@@ -394,7 +394,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
         {splash && (
           <div className="st-splash" onClick={() => setScreen("upload")} role="button" aria-label="Enter the studio">
             <div className="st-splash-brand">
-              <TantuMark />
+              <TantuMark className="st-splash-mark" />
               <h1 className="st-splash-name">{T.splash.name}</h1>
               <p className="st-splash-tagline">{T.splash.tagline}</p>
             </div>
@@ -1036,20 +1036,4 @@ const SPLASH_SHOTS = [
   "/splash/b_5.jpg",
 ];
 
-/** Tantu's mark: the script T, in the studio's orange. */
-function TantuMark() {
-  return (
-    <svg className="st-splash-mark" viewBox={TANTU_MARK_VIEWBOX} aria-hidden>
-      <defs>
-        <linearGradient id="tantu-mark" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor={TANTU_MARK_GRADIENT[0]} />
-          <stop offset="1" stopColor={TANTU_MARK_GRADIENT[1]} />
-        </linearGradient>
-      </defs>
-      {TANTU_MARK_PATHS.map((d, i) => (
-        <path key={i} d={d} fill="url(#tantu-mark)" />
-      ))}
-    </svg>
-  );
-}
 
