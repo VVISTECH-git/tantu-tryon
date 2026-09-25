@@ -2,7 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import * as ImagePicker from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { ShotCamera, type CapturedPhoto } from "./src/ShotCamera";
 import {
@@ -265,6 +265,7 @@ function Studio() {
   const ready = garment !== null && missing.length === 0 && blocked.length === 0 && busySlot === null;
   const price = 10_00;
   const groups = useMemo(() => garmentTypeGroups(), []);
+  const { width: deviceW } = useWindowDimensions();
 
   // ── Render ──────────────────────────────────────────────────────────────
 
@@ -290,15 +291,7 @@ function Studio() {
       <ScrollView contentContainerStyle={s.main} keyboardShouldPersistTaps="handled">
         {error && <Text style={s.error}>{error}</Text>}
 
-        {screen === "splash" && (
-          <Pressable style={s.splash} onPress={() => setScreen("signin")}>
-            <View style={s.splashMark}>
-              <Text style={s.splashMarkGlyph}>T</Text>
-            </View>
-            <Text style={s.splashName}>Tantu</Text>
-            <Text style={s.splashTagline}>AI Studio for Fashion Brands</Text>
-          </Pressable>
-        )}
+        {screen === "splash" && <Splash onSkip={() => setScreen("signin")} deviceW={deviceW} />}
 
         {screen === "signin" && (
           <View style={s.stack}>
@@ -534,6 +527,53 @@ function Studio() {
 
 // ── Pieces ────────────────────────────────────────────────────────────────
 
+/**
+ * The splash: the mark, the name, the tagline over a warm glow, and the
+ * same five-photo collage the web demo shows — same photos
+ * (/splash/b_1..5.jpg), same rough layout: two cards up top, one large one
+ * centred over them, two more along the bottom, each tilted a few degrees.
+ * Sized off the device width the way the web version caps at 440px.
+ */
+function Splash({ onSkip, deviceW }: { onSkip: () => void; deviceW: number }) {
+  const W = Math.min(deviceW - 40, 380);
+  const H = 440;
+  const small = 100;
+  const smallH = (small * 4) / 3;
+  const big = 142;
+  const bigH = (big * 4) / 3;
+  const photo = (n: number) => `${api.API_BASE}/splash/b_${n}.jpg`;
+  const cards: { src: string; style: object; z?: number }[] = [
+    { src: photo(1), style: { left: 0, top: 8, width: small, height: smallH, transform: [{ rotate: "-10deg" }] } },
+    { src: photo(2), style: { right: 0, top: 0, width: small, height: smallH, transform: [{ rotate: "9deg" }] } },
+    { src: photo(3), style: { left: W / 2 - big / 2, top: 116, width: big, height: bigH, transform: [{ rotate: "-2deg" }] }, z: 2 },
+    { src: photo(4), style: { left: W * 0.03, top: H - smallH, width: small, height: smallH, transform: [{ rotate: "7deg" }] } },
+    { src: photo(5), style: { right: W * 0.03, top: H - smallH - 4, width: small, height: smallH, transform: [{ rotate: "-8deg" }] } },
+  ];
+  return (
+    <Pressable style={s.splash} onPress={onSkip}>
+      <View style={{ alignItems: "center", gap: 10 }}>
+        <View style={{ width: 84, height: 84, alignItems: "center", justifyContent: "center" }}>
+          <View style={[s.splashGlow, s.splashGlowOuter]} pointerEvents="none" />
+          <View style={[s.splashGlow, s.splashGlowMid]} pointerEvents="none" />
+          <View style={[s.splashGlow, s.splashGlowInner]} pointerEvents="none" />
+          <View style={s.splashMark}>
+            <Text style={s.splashMarkGlyph}>T</Text>
+          </View>
+        </View>
+        <Text style={s.splashName}>Tantu</Text>
+        <Text style={s.splashTagline}>AI Studio for Fashion Brands</Text>
+      </View>
+      <View style={{ width: W, height: H, marginTop: 30 }}>
+        {cards.map((c, i) => (
+          <View key={i} style={[s.splashShot, c.style, c.z ? { zIndex: c.z } : null]}>
+            <Image source={{ uri: c.src }} style={s.fill} resizeMode="cover" />
+          </View>
+        ))}
+      </View>
+    </Pressable>
+  );
+}
+
 function ShotList({
   type,
   garment,
@@ -757,9 +797,14 @@ const s = StyleSheet.create({
   howPhotoSideways: { width: "70%", aspectRatio: 4 / 3, borderRadius: R.md },
   howWhere: { color: C.text, fontSize: 15, fontWeight: "600", textAlign: "center" },
   howCopy: { color: C.textSoft, fontSize: 14, lineHeight: 20 },
-  splash: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, paddingBottom: 60 },
+  splash: { flex: 1, alignItems: "center", paddingTop: 64, paddingHorizontal: 20, paddingBottom: 24 },
+  splashGlow: { position: "absolute", left: "50%", top: "50%" },
+  splashGlowOuter: { width: 190, height: 190, marginLeft: -95, marginTop: -95, borderRadius: 95, backgroundColor: "rgba(240,141,66,0.06)" },
+  splashGlowMid: { width: 130, height: 130, marginLeft: -65, marginTop: -65, borderRadius: 65, backgroundColor: "rgba(240,141,66,0.08)" },
+  splashGlowInner: { width: 80, height: 80, marginLeft: -40, marginTop: -40, borderRadius: 40, backgroundColor: "rgba(240,141,66,0.10)" },
   splashMark: { width: 84, height: 84, borderRadius: 22, backgroundColor: C.actionTop, alignItems: "center", justifyContent: "center" },
   splashMarkGlyph: { color: "#fff8f1", fontSize: 40, fontWeight: "800" },
   splashName: { color: C.text, fontSize: 40, fontWeight: "700", letterSpacing: -0.5 },
   splashTagline: { color: C.textSoft, fontSize: 18, fontWeight: "600" },
+  splashShot: { position: "absolute", borderRadius: 18, overflow: "hidden", backgroundColor: "#1d1d1f", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
 });
