@@ -253,11 +253,32 @@ export function attachmentsFor(garment: Garment): Attachment[] {
 export function partPlan(garment: Garment): PartPlan | undefined {
   const has = (slot: string) => garment.parts.some((p) => p.slot === slot && p.quality?.status !== "block");
   if (has("saree")) return undefined;
+  const pallu = has("pallu") ? "photo" : "same";
   return {
-    pallu: has("pallu") ? "photo" : "same",
+    pallu,
     border: has("border") ? "photo" : "from-body",
     blouse: has("blouse") ? "photo" : garment.source === "slk" && garment.answers.blouseSameAsBody ? "self" : "complementary",
+    worn: pallu === "same" && turnsToWorn(garment),
   };
+}
+
+/**
+ * Rod photographs are turned to the way the saree is worn before Gemini
+ * sees them. On the rod the length hangs top to bottom with the hem border
+ * on the LEFT and the waist border on the right (the shop's rule), so a
+ * quarter turn anticlockwise puts the hem at the bottom and stands the
+ * motifs up; copied as hung, they lay on their side on the skirt (UNCLE,
+ * 25 Sep). Only for uploads (rod captures) with the one-print wording,
+ * which says the photo is turned; the v2 wording for a photographed pallu
+ * still describes the rod view.
+ */
+const WORN_TURN_SLOTS = new Set(["body", "body_motif"]);
+function turnsToWorn(garment: Garment): boolean {
+  return garment.source === "upload";
+}
+function sheetRotate(garment: Garment, slot: string, rotate: 0 | 90 | 180 | 270): 0 | 90 | 180 | 270 {
+  if (!WORN_TURN_SLOTS.has(slot) || !partPlan(garment)?.worn) return rotate;
+  return (((rotate + 270) % 360) as 0 | 90 | 180 | 270);
 }
 
 /**
@@ -295,7 +316,9 @@ async function partBase64(part: GarmentPartRow): Promise<string> {
  * on every call — slow but honest.
  */
 export async function sheetFor(garment: Garment): Promise<{ data: string; key: string | null; mime: string }> {
-  if (garment.sheetKey && storageConfigured()) {
+  // Sheets cached before rod photos were turned to the worn view carry no
+  // ".w2.jpg" mark and are rebuilt rather than reused.
+  if (garment.sheetKey && garment.sheetKey.endsWith(".w2.jpg") && storageConfigured()) {
     const bytes = await getObject(garment.sheetKey);
     const mime = garment.sheetKey.endsWith(".jpg") ? "image/jpeg" : "image/png";
     return { data: Buffer.from(bytes).toString("base64"), key: garment.sheetKey, mime };
@@ -308,7 +331,7 @@ export async function sheetFor(garment: Garment): Promise<{ data: string; key: s
         const body = garment.parts.find((p) => p.slot === "body")!;
         return { key: slot, label: "BORDER", data: await derivedBorder(await partBase64(body), body.rotate) };
       }
-      return { key: slot, label: slot.toUpperCase().replace("_", " "), data: await partBase64(part!), rotate: part!.rotate };
+      return { key: slot, label: slot.toUpperCase().replace("_", " "), data: await partBase64(part!), rotate: sheetRotate(garment, slot, part!.rotate) };
     }),
   );
   if (parts.length === 0) throw new Error("This garment has no photographs yet.");
@@ -318,7 +341,7 @@ export async function sheetFor(garment: Garment): Promise<{ data: string; key: s
 
   if (!storageConfigured()) return { data: sheet.data, key: null, mime: sheet.mime };
 
-  const key = keys.sheet(garment.id, "jpg");
+  const key = keys.sheet(garment.id, "w2.jpg");
   await putObject(key, Buffer.from(sheet.data, "base64"), sheet.mime);
   await db.update(garments).set({ sheetKey: key, updatedAt: new Date() }).where(eq(garments.id, garment.id));
   return { data: sheet.data, key, mime: sheet.mime };
