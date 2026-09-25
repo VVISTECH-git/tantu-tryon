@@ -51,7 +51,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     let described: Record<string, string> = {};
     let model: string | null = null;
     let readerError: string | null = null;
-    try {
+    // Already read, and the photos have not changed since (a new or removed
+    // photo clears the stored sheet): skip the reader. Every Continue used to
+    // pay for a fresh read and wait 20-40 s for words it already had (UNCLE,
+    // 25 Sep: seven reads in a few minutes).
+    const alreadyRead = Boolean(garment.sheetKey) && Object.values(garment.words ?? {}).some((v) => typeof v === "string" && v.trim());
+    if (!alreadyRead) try {
       const sheet = await sheetFor(garment);
       const result = await describeSheet(sheet.data, sheet.mime);
       if (result.ok) {

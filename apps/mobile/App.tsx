@@ -2,7 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import * as ImagePicker from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, BackHandler, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Alert, BackHandler, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
 import { TANTU_MARK_GRADIENT, TANTU_MARK_PATHS, TANTU_MARK_VIEWBOX } from "@tantu/shared/brand";
@@ -62,6 +62,8 @@ function Studio() {
   const [grantRupees, setGrantRupees] = useState("100");
   const [platformNote, setPlatformNote] = useState<string | null>(null);
   const [accountBack, setAccountBack] = useState<Screen>("type");
+  // A product opened from Saved products goes Back to that list, not to the product ID screen.
+  const [shotsBack, setShotsBack] = useState<Screen>("type");
   const [garmentType, setGarmentType] = useState(DEFAULT_GARMENT_TYPE);
   const [productId, setProductId] = useState("");
   const [lateId, setLateId] = useState("");
@@ -83,12 +85,23 @@ function Studio() {
   // Splash for at least 2.2s (same as the web studio), while a stored
   // session is checked in the background; whichever finishes last decides
   // when the splash gives way to sign-in or straight into the studio.
+  const skipSplash = useRef<() => void>(() => undefined);
+  // The sign-in card sits at the bottom of the page; on iPhone the keyboard
+  // covered it, so typing went on blind (25 Sep). Bring it up above the keys.
+  const mainScroll = useRef<ScrollView>(null);
+  const showSigninCard = () => setTimeout(() => mainScroll.current?.scrollToEnd({ animated: true }), 350);
   useEffect(() => {
     if (screen !== "splash") return;
     let target: Screen | null = null;
     let timerDone = false;
     const finish = () => {
       if (target && timerDone) setScreen(target);
+    };
+    // A tap skips the wait, not the session check: a signed-in person goes
+    // straight in instead of to the sign-in page.
+    skipSplash.current = () => {
+      timerDone = true;
+      finish();
     };
     const timer = setTimeout(() => {
       timerDone = true;
@@ -143,6 +156,7 @@ function Studio() {
   function backFrom(from: Screen): Screen | null {
     switch (from) {
       case "shots":
+        return shotsBack;
       case "saved":
         return "type";
       case "confirm":
@@ -160,6 +174,10 @@ function Studio() {
     }
   }
   const backTarget = backFrom(screen);
+  function goBack(to: Screen) {
+    if (to === "saved") void showSaved();
+    else setScreen(to);
+  }
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -167,7 +185,7 @@ function Studio() {
       if (screen === "analyzing" || screen === "generating") return true;
       const to = backFrom(screen);
       if (!to) return false;
-      setScreen(to);
+      goBack(to);
       return true;
     });
     return () => sub.remove();
@@ -292,7 +310,15 @@ function Studio() {
     }
   }
 
-  async function clear(shot: Shot) {
+  function clear(shot: Shot) {
+    if (!garment) return;
+    Alert.alert(`Remove the ${shot.label.toLowerCase()} photo?`, "You can take or upload it again afterwards.", [
+      { text: "Keep", style: "cancel" },
+      { text: "Remove", style: "destructive", onPress: () => void removeNow(shot) },
+    ]);
+  }
+
+  async function removeNow(shot: Shot) {
     if (!garment) return;
     setBusySlot(shot.slot);
     try {
@@ -370,6 +396,10 @@ function Studio() {
       setPlatform(null);
       setUsername("");
       setPassword("");
+      setProductId("");
+      setLateId("");
+      setAccountBack("type");
+      setShotsBack("type");
       setBusy(false);
       setScreen("signin");
     }
@@ -388,6 +418,7 @@ function Studio() {
       setPrimary(null);
       setWarnings([]);
       batch.current = api.newKey();
+      setShotsBack("type");
       setScreen("shots");
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "Could not open the product.");
@@ -422,6 +453,7 @@ function Studio() {
       setPrimary(null);
       setWarnings([]);
       batch.current = api.newKey();
+      setShotsBack("type");
       setScreen("shots");
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "Could not start.");
@@ -451,6 +483,7 @@ function Studio() {
       setPrimary(null);
       setWarnings([]);
       batch.current = api.newKey();
+      setShotsBack("saved");
       setScreen("shots");
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "Could not open the product.");
@@ -507,19 +540,19 @@ function Studio() {
                 </Pressable>
               </>
             )}
-            <Pressable onPress={() => void signOut()} hitSlop={8}>
+            <Pressable onPress={() => void signOut()} hitSlop={8} disabled={screen === "analyzing" || screen === "generating"} style={{ opacity: screen === "analyzing" || screen === "generating" ? 0.35 : 1 }}>
               <Text style={s.link}>Sign out</Text>
             </Pressable>
           </View>
         </View>
       )}
 
-      <ScrollView contentContainerStyle={s.main} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={mainScroll} contentContainerStyle={s.main} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         {error && screen !== "signin" && <Text style={s.error}>{error}</Text>}
 
         {backTarget && screen !== "account" && (
           <View style={s.navRow}>
-            <Pressable onPress={() => setScreen(backTarget)} hitSlop={10} accessibilityLabel="Back">
+            <Pressable onPress={() => goBack(backTarget)} hitSlop={10} accessibilityLabel="Back">
               <Text style={s.navBack}>‹ Back</Text>
             </Pressable>
             {garment?.productCode && screen !== "saved" && screen !== "shots" ? (
@@ -530,7 +563,7 @@ function Studio() {
           </View>
         )}
 
-        {screen === "splash" && <Splash onSkip={() => setScreen("signin")} deviceW={deviceW} />}
+        {screen === "splash" && <Splash onSkip={() => skipSplash.current()} deviceW={deviceW} />}
 
         {screen === "signin" && (
           <View style={s.signin}>
@@ -559,7 +592,10 @@ function Studio() {
                   style={[s.input, focused === "username" && s.inputFocus]}
                   value={username}
                   onChangeText={setUsername}
-                  onFocus={() => setFocused("username")}
+                  onFocus={() => {
+                    setFocused("username");
+                    showSigninCard();
+                  }}
                   onBlur={() => setFocused(null)}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -578,7 +614,10 @@ function Studio() {
                     style={[s.input, { paddingRight: 72 }, focused === "password" && s.inputFocus]}
                     value={password}
                     onChangeText={setPassword}
-                    onFocus={() => setFocused("password")}
+                    onFocus={() => {
+                      setFocused("password");
+                      showSigninCard();
+                    }}
                     onBlur={() => setFocused(null)}
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
@@ -673,8 +712,8 @@ function Studio() {
               </View>
             ) : garment ? (
               <View style={s.lateId}>
-                <Text style={s.lateIdTitle}>This record has no product ID</Text>
-                <Text style={s.support}>It was saved before IDs were asked for. Give it one so its photos are tracked.</Text>
+                <Text style={s.lateIdTitle}>No product ID yet</Text>
+                <Text style={s.support}>Add one now or later. The photos are kept either way.</Text>
                 <View style={[s.row, { gap: 8 }]}>
                   <TextInput
                     style={[s.input, { flex: 1 }]}
@@ -744,7 +783,7 @@ function Studio() {
           <View style={s.stack}>
             <Text style={s.title}>Confirm your photos</Text>
             <Text style={s.copy}>
-              {parts.length === 1 ? "1 photo" : `${parts.length} photos`} of a {typeOf(garment.garmentType).label.toLowerCase()}. Tap a photo to change it.
+              {parts.length === 1 ? "1 photo" : `${parts.length} photos`} of a {typeOf(garment.garmentType).label.toLowerCase()}. Tap a photo to see it full size; Add more or Back to change them.
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.strip}>
               {shotsFor(garment.garmentType)
@@ -753,7 +792,7 @@ function Studio() {
                   const part = parts.find((p) => p.slot === shot.slot)!;
                   const state = part.quality?.status ?? null;
                   return (
-                    <Pressable key={shot.slot} style={s.stripItem} onPress={() => setScreen("shots")}>
+                    <Pressable key={shot.slot} style={s.stripItem} onPress={() => setViewing({ uri: part.url, label: shot.label })}>
                       <View style={[s.stripThumb, state === "warn" && s.warnBorder, state === "block" && s.badBorder]}>
                         <Image source={{ uri: part.url }} style={s.fill} />
                         {state && <View style={[s.dot, s.dotAbs, { backgroundColor: state === "ok" ? C.good : state === "warn" ? C.warn : C.bad }]} />}
@@ -769,9 +808,7 @@ function Studio() {
                 <Text style={s.stripLabel}>Add more</Text>
               </Pressable>
             </ScrollView>
-            <View style={s.select}>
-              <Text style={s.selectText}>{typeOf(garment.garmentType).label}</Text>
-            </View>
+            <Text style={s.support}>Garment type: {typeOf(garment.garmentType).label}</Text>
             {warnings.map((w) => (
               <View key={w.title} style={s.warning}>
                 <Text style={s.warningTitle}>{w.title}</Text>
@@ -913,9 +950,11 @@ function Studio() {
                 <Text style={s.title}>Your image is ready</Text>
                 <Text style={s.copy}>Download the result or start a new garment.</Text>
                 <View style={s.frame}>
-                  <Image source={{ uri: primary.imageUrl }} style={s.fill} resizeMode="cover" />
+                  <Pressable style={s.fill} onPress={() => setViewing({ uri: primary.imageUrl!, label: "Your image" })}>
+                    <Image source={{ uri: primary.imageUrl }} style={s.fill} resizeMode="cover" />
+                  </Pressable>
                 </View>
-                <Secondary label="Open full size" onPress={() => void Linking.openURL(primary.imageUrl!)} />
+                <Secondary label="Open full size" onPress={() => setViewing({ uri: primary.imageUrl!, label: "Your image" })} />
               </>
             ) : (
               <>
@@ -925,7 +964,7 @@ function Studio() {
                 <Action label="Try again" disabled={busy} onPress={() => void generatePrimary(true)} />
               </>
             )}
-            <Secondary label="Start a New Garment" onPress={startOver} />
+            <Secondary label="Next product" onPress={startOver} />
           </View>
         )}
       </ScrollView>
@@ -933,7 +972,8 @@ function Studio() {
       {/* Garment type picker */}
       <Modal visible={typeOpen} transparent animationType="fade" onRequestClose={() => setTypeOpen(false)}>
         <Pressable style={s.backdrop} onPress={() => setTypeOpen(false)}>
-          <View style={s.sheet}>
+          {/* Taps inside the sheet (a "Soon" row, the title) must not fall through and close it. */}
+          <Pressable style={s.sheet} onPress={() => undefined}>
             <Text style={s.sheetTitle}>Garment type</Text>
             <ScrollView style={{ maxHeight: 420 }}>
               {(Object.keys(groups) as (keyof typeof groups)[]).map((group) => (
@@ -955,7 +995,7 @@ function Studio() {
                 </View>
               ))}
             </ScrollView>
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
 
