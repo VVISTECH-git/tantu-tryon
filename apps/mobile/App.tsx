@@ -30,7 +30,7 @@ import { C, R } from "./src/theme";
  * phone adds the camera and keeps working when the shop's network is slow.
  */
 
-type Screen = "splash" | "signin" | "type" | "shots" | "analyzing" | "confirm" | "flats" | "generating" | "result" | "account" | "saved";
+type Screen = "splash" | "signin" | "type" | "shots" | "analyzing" | "confirm" | "flats" | "generating" | "result" | "account" | "saved" | "platform";
 
 const PRICE_1K = 10_00;
 const PRICE_2K = 20_00;
@@ -55,6 +55,12 @@ function Studio() {
   // "photographer": products and photos only, nothing that spends.
   const [role, setRole] = useState("admin");
   const photographer = role === "photographer";
+  const [platformAdmin, setPlatformAdmin] = useState(false);
+  const [platform, setPlatform] = useState<api.PlatformSettings | null>(null);
+  const [pickModel, setPickModel] = useState<string | null>(null);
+  const [grantShop, setGrantShop] = useState<string | null>(null);
+  const [grantRupees, setGrantRupees] = useState("100");
+  const [platformNote, setPlatformNote] = useState<string | null>(null);
   const [accountBack, setAccountBack] = useState<Screen>("type");
   const [garmentType, setGarmentType] = useState(DEFAULT_GARMENT_TYPE);
   const [productId, setProductId] = useState("");
@@ -99,6 +105,7 @@ function Studio() {
         setBalance(me.balancePaise);
         setSignedInAs(me.username ?? me.name);
         setRole(me.role);
+        setPlatformAdmin(me.platformAdmin);
         target = "type";
       } catch {
         target = "signin";
@@ -118,6 +125,7 @@ function Studio() {
       setBalance(me.balancePaise);
       setSignedInAs(me.username ?? me.name);
       setRole(me.role);
+      setPlatformAdmin(me.platformAdmin);
       setPassword("");
       setScreen("type");
     } catch (problem) {
@@ -145,6 +153,8 @@ function Studio() {
         return "flats";
       case "account":
         return accountBack;
+      case "platform":
+        return "account";
       default:
         return null;
     }
@@ -169,6 +179,55 @@ function Studio() {
     setAccountBack(screen);
     setScreen("account");
     void refreshBalance();
+  }
+
+  async function openPlatform() {
+    setScreen("platform");
+    setPlatform(null);
+    setPlatformNote(null);
+    try {
+      const p = await api.platformSettings();
+      setPlatform(p);
+      setPickModel(p.chosen);
+      setGrantShop((current) => current ?? p.shops.find((sh) => sh.house)?.id ?? p.shops[0]?.id ?? null);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not load the platform settings.");
+    }
+  }
+
+  async function saveModel() {
+    if (!pickModel) return;
+    setBusy(true);
+    setPlatformNote(null);
+    try {
+      await api.chooseModel(pickModel);
+      setPlatform((p) => (p ? { ...p, chosen: pickModel } : p));
+      const o = platform?.options.find((x) => x.id === pickModel);
+      setPlatformNote(`Model saved: ${o ? `${o.name} · ${o.detail}` : pickModel}. Every new image uses it.`);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not save the model.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function grant() {
+    const rupees = Number(grantRupees);
+    if (!grantShop || !(rupees > 0)) return;
+    setBusy(true);
+    setPlatformNote(null);
+    try {
+      await api.grantCredit(grantShop, rupees);
+      const p = await api.platformSettings();
+      setPlatform(p);
+      const shop = p.shops.find((sh) => sh.id === grantShop);
+      setPlatformNote(`Granted ₹${rupees} to ${shop?.name ?? "the shop"}. Balance now ${api.rupees(shop?.balancePaise ?? 0)}.`);
+      void refreshBalance();
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not grant the credit.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function refreshBalance() {
@@ -305,6 +364,8 @@ function Studio() {
       setBalance(null);
       setSignedInAs(null);
       setRole("admin");
+      setPlatformAdmin(false);
+      setPlatform(null);
       setUsername("");
       setPassword("");
       setBusy(false);
@@ -768,7 +829,78 @@ function Studio() {
                 </View>
               </View>
             </View>
+            {platformAdmin && <Action label="Platform settings" onPress={() => void openPlatform()} />}
             <Secondary label="Back" onPress={() => setScreen(accountBack)} />
+          </View>
+        )}
+
+        {screen === "platform" && (
+          <View style={s.stack}>
+            <Text style={s.title}>Platform</Text>
+            <Text style={s.copy}>Tantu’s own settings, for every shop. Only you see this.</Text>
+            {platformNote && <Text style={[s.support, { color: C.good }]}>{platformNote}</Text>}
+            {!platform ? (
+              <Spinner text="Reading Google's prices…" />
+            ) : (
+              <>
+                <Text style={s.sectionLabel}>Image model</Text>
+                <Text style={s.support}>
+                  Prices per image from Google, {platform.prices.source === "live" ? "read just now" : "from the last reading"} · $1 = ₹{platform.rate.inrPerUsd.toFixed(2)}
+                </Text>
+                <View style={{ gap: 8 }}>
+                  {platform.options.map((o) => {
+                    const on = pickModel === o.id;
+                    const inUse = platform.chosen === o.id;
+                    return (
+                      <Pressable
+                        key={o.id}
+                        disabled={!o.selectable}
+                        onPress={() => setPickModel(o.id)}
+                        style={[s.modelRow, on && s.modelRowOn, !o.selectable && { opacity: 0.45 }]}
+                      >
+                        <View style={[s.radio, on && s.radioOn]}>{on && <View style={s.radioDot} />}</View>
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <Text style={s.shotName}>
+                            {o.name} <Text style={s.shotWhere}>· {o.detail}</Text>
+                          </Text>
+                          {inUse && <Text style={[s.shotWhere, { color: C.good }]}>In use</Text>}
+                        </View>
+                        <Text style={s.modelPrice}>{o.normalPaise == null ? "–" : `₹${(o.normalPaise / 100).toFixed(2)}`}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Action label={busy ? "Saving…" : "Save model"} disabled={busy || !pickModel || pickModel === platform.chosen} onPress={() => void saveModel()} />
+
+                <Text style={[s.sectionLabel, { marginTop: 10 }]}>Grant credit</Text>
+                <View style={{ gap: 8 }}>
+                  {platform.shops.map((sh) => {
+                    const on = grantShop === sh.id;
+                    return (
+                      <Pressable key={sh.id} onPress={() => setGrantShop(sh.id)} style={[s.modelRow, on && s.modelRowOn]}>
+                        <View style={[s.radio, on && s.radioOn]}>{on && <View style={s.radioDot} />}</View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.shotName}>{sh.name}</Text>
+                          <Text style={s.shotWhere}>{sh.owner ?? "no login"}{sh.house ? " · Tantu's own" : ""}</Text>
+                        </View>
+                        <Text style={s.modelPrice}>{api.rupees(sh.balancePaise)}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <View style={[s.row, { gap: 8 }]}>
+                  <TextInput
+                    style={[s.input, { flex: 1 }]}
+                    value={grantRupees}
+                    onChangeText={(t) => setGrantRupees(t.replace(/[^0-9]/g, ""))}
+                    keyboardType="number-pad"
+                    placeholder="Rupees"
+                    placeholderTextColor={C.textMuted}
+                  />
+                  <Chip label={busy ? "…" : "Grant"} accent disabled={busy || !grantShop || !(Number(grantRupees) > 0)} onPress={() => void grant()} />
+                </View>
+              </>
+            )}
           </View>
         )}
 
@@ -1158,6 +1290,12 @@ const s = StyleSheet.create({
   navIdText: { color: C.accentPale, fontSize: 12, fontWeight: "700" },
   lateId: { gap: 8, padding: 14, borderRadius: R.md, borderWidth: 1, borderColor: C.warnBorder, backgroundColor: "rgba(224,162,58,0.08)" },
   lateIdTitle: { color: C.warn, fontSize: 14, fontWeight: "700", textAlign: "center" },
+  modelRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: C.border, backgroundColor: "rgba(255,255,255,0.03)" },
+  modelRowOn: { borderColor: "rgba(240,141,66,0.6)", backgroundColor: "rgba(240,141,66,0.08)" },
+  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: C.textMuted, alignItems: "center", justifyContent: "center" },
+  radioOn: { borderColor: C.accentStrong },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: C.accentStrong },
+  modelPrice: { color: C.text, fontSize: 14, fontWeight: "700" },
   savedUnder: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 7, borderRadius: R.pill, borderWidth: 1, borderColor: "rgba(240,141,66,0.35)", backgroundColor: "rgba(240,141,66,0.1)" },
   savedUnderText: { color: C.textSoft, fontSize: 12 },
   savedUnderId: { color: C.accentPale, fontSize: 14, fontWeight: "700" },

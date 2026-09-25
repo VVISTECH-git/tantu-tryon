@@ -78,9 +78,35 @@ export async function logout(): Promise<void> {
   }
 }
 
-export async function account(): Promise<{ name: string; username: string | null; role: string; balancePaise: number }> {
-  const out = await call<{ account: { name: string; username?: string | null; role?: string }; balancePaise: number }>("/api/account");
-  return { name: out.account.name, username: out.account.username ?? null, role: out.account.role ?? "admin", balancePaise: out.balancePaise };
+export async function account(): Promise<{ name: string; username: string | null; role: string; platformAdmin: boolean; balancePaise: number }> {
+  const out = await call<{ account: { name: string; username?: string | null; role?: string; platformAdmin?: boolean }; balancePaise: number }>("/api/account");
+  return {
+    name: out.account.name,
+    username: out.account.username ?? null,
+    role: out.account.role ?? "owner",
+    platformAdmin: out.account.platformAdmin === true,
+    balancePaise: out.balancePaise,
+  };
+}
+
+export interface PlatformSettings {
+  chosen: string;
+  rate: { inrPerUsd: number; source: string; at: string };
+  prices: { source: string; at: string };
+  options: { id: string; name: string; detail: string; selectable: boolean; normalPaise: number | null; batchPaise: number | null }[];
+  shops: { id: string; name: string; owner: string | null; house: boolean; balancePaise: number }[];
+}
+
+export async function platformSettings(): Promise<PlatformSettings> {
+  return call<PlatformSettings>("/api/platform/settings");
+}
+
+export async function chooseModel(option: string): Promise<void> {
+  await call("/api/platform/model", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ option }) });
+}
+
+export async function grantCredit(shopId: string, rupees: number): Promise<void> {
+  await call("/api/platform/grant", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ shopId, rupees }) });
 }
 
 export interface LocalPhoto {
