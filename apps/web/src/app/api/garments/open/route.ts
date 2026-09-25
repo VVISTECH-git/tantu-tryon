@@ -1,5 +1,5 @@
 import { DEFAULT_GARMENT_TYPE, garmentType } from "@/content/shots";
-import { PRODUCT_ID_PATTERN, missingSlots, openProductGarment, publicGarment } from "@/lib/garments";
+import { PRODUCT_ID_PATTERN, createUploadGarment, missingSlots, openProductGarment, publicGarment } from "@/lib/garments";
 import { requireAccount, unauthorised } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -13,7 +13,15 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     const account = await requireAccount();
-    const body = (await request.json().catch(() => ({}))) as { productId?: string; type?: string };
+    const body = (await request.json().catch(() => ({}))) as { productId?: string; type?: string; noProductId?: boolean };
+    // Without a product ID: a fresh record each time, marked "No product ID",
+    // which can be given one later from its shot screen.
+    if (body.noProductId === true) {
+      const type = garmentType(body.type ?? DEFAULT_GARMENT_TYPE);
+      if (!type.enabled) return Response.json({ error: `${type.label} is coming soon.` }, { status: 400 });
+      const garment = await createUploadGarment(account.id, type.value);
+      return Response.json({ garment: publicGarment(garment), missing: missingSlots(garment) }, { headers: { "Cache-Control": "no-store" } });
+    }
     const productId = (body.productId ?? "").trim();
     if (!PRODUCT_ID_PATTERN.test(productId)) {
       return Response.json({ error: "Enter the product ID: letters and numbers, up to 40 characters." }, { status: 400 });

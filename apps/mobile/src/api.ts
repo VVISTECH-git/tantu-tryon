@@ -132,6 +132,38 @@ async function uploadThroughServer(photo: LocalPhoto, slot: string, garmentId: s
   return call<UploadResult>("/api/garments/upload", { method: "POST", body: form });
 }
 
+/**
+ * Where the saree is in a photo, for the crop screen's starting box: a small
+ * copy goes to the server (the original stays on the phone), which answers
+ * with fractions of the photo, or null when it cannot tell.
+ */
+export async function detectFabric(uri: string): Promise<{ x: number; y: number; w: number; h: number } | null> {
+  try {
+    const { ImageManipulator, SaveFormat } = await import("expo-image-manipulator");
+    const context = ImageManipulator.manipulate(uri);
+    context.resize({ width: 480 });
+    const small = await (await context.renderAsync()).saveAsync({ compress: 0.7, format: SaveFormat.JPEG });
+    const out = await call<{ box: { x: number; y: number; w: number; h: number } | null }>("/api/detect-fabric", {
+      method: "POST",
+      headers: { "content-type": "image/jpeg" },
+      body: new File(small.uri) as unknown as Blob,
+    });
+    return out.box;
+  } catch {
+    return null;
+  }
+}
+
+/** A new record with no product ID; it can be given one later from its shot screen. */
+export async function openWithoutProductId(type: string): Promise<GarmentView> {
+  const out = await call<{ garment: GarmentView }>("/api/garments/open", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ noProductId: true, type }),
+  });
+  return out.garment;
+}
+
 /** Open (or reopen) the record for one product ID; every photograph after this is saved against it. */
 export async function openProduct(productId: string, type: string): Promise<GarmentView> {
   const out = await call<{ garment: GarmentView }>("/api/garments/open", {

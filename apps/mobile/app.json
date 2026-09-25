@@ -50,6 +50,12 @@
         {
           "cameraPermission": "Tantu uses the camera to photograph the saree on the rod, with a guide showing where each shot goes."
         }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Tantu uses the phone's motion sensor to tell you when it is held straight and still for a sharp, square photo of the saree."
+        }
       ]
     ],
     "extra": {
@@ -58,6 +64,14 @@
         "projectId": "3227338a-3c05-4287-ad4b-955be94e269a"
       }
     },
-    "owner": "vvistechs-team"
+    "owner": "vvistechs-team",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/3227338a-3c05-4287-ad4b-955be94e269a",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    }
   }
 }
