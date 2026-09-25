@@ -86,6 +86,10 @@ function Studio() {
   // session is checked in the background; whichever finishes last decides
   // when the splash gives way to sign-in or straight into the studio.
   const skipSplash = useRef<() => void>(() => undefined);
+  // The sign-in card sits at the bottom of the page; on iPhone the keyboard
+  // covered it, so typing went on blind (25 Sep). Bring it up above the keys.
+  const mainScroll = useRef<ScrollView>(null);
+  const showSigninCard = () => setTimeout(() => mainScroll.current?.scrollToEnd({ animated: true }), 350);
   useEffect(() => {
     if (screen !== "splash") return;
     let target: Screen | null = null;
@@ -543,7 +547,7 @@ function Studio() {
         </View>
       )}
 
-      <ScrollView contentContainerStyle={s.main} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={mainScroll} contentContainerStyle={s.main} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         {error && screen !== "signin" && <Text style={s.error}>{error}</Text>}
 
         {backTarget && screen !== "account" && (
@@ -588,7 +592,10 @@ function Studio() {
                   style={[s.input, focused === "username" && s.inputFocus]}
                   value={username}
                   onChangeText={setUsername}
-                  onFocus={() => setFocused("username")}
+                  onFocus={() => {
+                    setFocused("username");
+                    showSigninCard();
+                  }}
                   onBlur={() => setFocused(null)}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -607,7 +614,10 @@ function Studio() {
                     style={[s.input, { paddingRight: 72 }, focused === "password" && s.inputFocus]}
                     value={password}
                     onChangeText={setPassword}
-                    onFocus={() => setFocused("password")}
+                    onFocus={() => {
+                      setFocused("password");
+                      showSigninCard();
+                    }}
                     onBlur={() => setFocused(null)}
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
