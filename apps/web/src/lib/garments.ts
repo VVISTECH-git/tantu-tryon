@@ -176,6 +176,10 @@ export function sheetSlots(garment: Garment): PartSlot[] {
   // No border close-up: the BORDER cell is cut from the edges of the body
   // photo, which was framed with both borders in. See `derivedBorder`.
   if (!present.has("border") && present.has("body")) present.add("border");
+  // No pallu photo: the saree is uniform end to end, so the body photo
+  // stands in for the PALLU panel too — the same fabric, told apart from
+  // itself is not something the sheet needs to pretend to show.
+  if (!present.has("pallu") && present.has("body")) present.add("pallu");
   const chosen: PartSlot[] = SHEET_LEAD.filter((slot) => present.has(slot));
   for (const slot of SHEET_FILL) {
     if (chosen.length >= SHEET_CELLS) break;
@@ -237,6 +241,10 @@ export async function sheetFor(garment: Garment): Promise<{ data: string; key: s
       if (!part && slot === "border") {
         const body = garment.parts.find((p) => p.slot === "body")!;
         return { key: slot, label: "BORDER", data: await derivedBorder(await partBase64(body), body.rotate) };
+      }
+      if (!part && slot === "pallu") {
+        const body = garment.parts.find((p) => p.slot === "body")!;
+        return { key: slot, label: "PALLU", data: await partBase64(body), rotate: body.rotate };
       }
       return { key: slot, label: slot.toUpperCase().replace("_", " "), data: await partBase64(part!), rotate: part!.rotate };
     }),

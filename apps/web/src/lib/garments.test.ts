@@ -35,14 +35,15 @@ function garment(parts: GarmentPartRow[], answers: Garment["answers"] = {}): Gar
 }
 
 describe("readiness", () => {
-  it("needs body and pallu", () => {
-    expect(missingSlots(garment([part("body")]))).toEqual(["pallu"]);
+  it("needs only body — pallu is optional, for a saree that looks the same end to end", () => {
+    expect(missingSlots(garment([part("body")]))).toEqual([]);
+    expect(isReady(garment([part("body")]))).toBe(true);
     expect(isReady(garment([part("body"), part("pallu")]))).toBe(true);
   });
 
   it("treats a blocked required shot as missing", () => {
-    const g = garment([part("body"), part("pallu", block)]);
-    expect(missingSlots(g)).toEqual(["pallu"]);
+    const g = garment([part("body", block)]);
+    expect(missingSlots(g)).toEqual(["body"]);
     expect(isReady(g)).toBe(false);
   });
 
@@ -69,6 +70,11 @@ describe("sheet cells", () => {
   it("derives the border from the body photo when no close-up was taken", () => {
     const parts = ["body", "pallu", "body_motif", "whole"].map((s) => part(s));
     expect(sheetSlots(garment(parts))).toEqual(["body", "pallu", "border", "body_motif"]);
+  });
+
+  it("derives the pallu from the body photo when the saree is the same end to end", () => {
+    const parts = ["body", "border", "blouse"].map((s) => part(s));
+    expect(sheetSlots(garment(parts))).toEqual(["body", "pallu", "border", "blouse"]);
   });
 
   it("derives the border in place of a blocked close-up", () => {
