@@ -30,7 +30,7 @@
 
 import type { GarmentWords } from "./garmentWords";
 import { C1P1_V41_VERSION, composeC1P1V41 } from "./locked/c1p1V41";
-import { C1P2_COURTYARD, C1P2_V72_VERSION, composeC1P2V72 } from "./locked/c1p2V72";
+import { C1P2_COURTYARD, C1P2_V71_VERSION, composeC1P2V71 } from "./locked/c1p2V71";
 import * as lockedV3 from "./locked/promptTemplatesV3";
 
 export type { GarmentWords } from "./garmentWords";
@@ -597,7 +597,7 @@ export function promptVersion(template: PromptTemplate, plan?: PartPlan): string
   // v3.3 (26 Sep): pose right after the reference and stated firmly; the P2 pallu tucked at the hip; no bare waist.
   // P1 is locked at v4 "one fabric" (26 Sep): see locked/c1p1V4.ts.
   if (plan?.pallu === "same" && template.id === "P1") return plan.worn ? C1P1_V41_VERSION : "v3-one-print-LOCKED";
-  if (plan?.pallu === "same" && template.id === "P2" && plan.worn) return C1P2_V72_VERSION;
+  if (plan?.pallu === "same" && template.id === "P2" && plan.worn) return C1P2_V71_VERSION;
   if (plan?.pallu === "same") return "v3.3-one-print";
   return template.frozen ? `v${template.frozen.version}` : "draft";
 }
@@ -879,11 +879,11 @@ export function composePrompt(
     return fill(locked, p, words, subject, plan);
   }
 
-  // C1P2 is LOCKED at v7.2 "rules first" (26 Sep): the input and its rules lead,
+  // C1P2 is LOCKED at v7.1 "rules first" (26 Sep): the input and its rules lead,
   // the pallu is the body's design all the way down. Only for a turned body photo.
   if (onePrintPlan && plan?.worn && template.id === "P2") {
     const blouseColour = words.borderColour && !same(words.borderColour, words.bodyColour);
-    const locked = composeC1P2V72({
+    const locked = composeC1P2V71({
       kind: [words.fibre, words.craft, words.type].filter(Boolean).join(" "),
       fabricDesc: words.bodyDesc,
       borderDesc: `${words.borderDesc}${words.borderWidth ? `, ${words.borderWidth} wide` : ""}`,
