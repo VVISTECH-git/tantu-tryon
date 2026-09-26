@@ -29,7 +29,7 @@
  */
 
 import type { GarmentWords } from "./garmentWords";
-import { C1P1_V4_VERSION, composeC1P1V4 } from "./locked/c1p1V4";
+import { C1P1_V41_VERSION, composeC1P1V41 } from "./locked/c1p1V41";
 import * as lockedV3 from "./locked/promptTemplatesV3";
 
 export type { GarmentWords } from "./garmentWords";
@@ -595,7 +595,7 @@ export function promptVersion(template: PromptTemplate, plan?: PartPlan): string
   // v3.2 (26 Sep): motifs turn with the drape; on the hanging pallu they lie on their side, tips outward.
   // v3.3 (26 Sep): pose right after the reference and stated firmly; the P2 pallu tucked at the hip; no bare waist.
   // P1 is locked at v4 "one fabric" (26 Sep): see locked/c1p1V4.ts.
-  if (plan?.pallu === "same" && template.id === "P1") return plan.worn ? C1P1_V4_VERSION : "v3-one-print-LOCKED";
+  if (plan?.pallu === "same" && template.id === "P1") return plan.worn ? C1P1_V41_VERSION : "v3-one-print-LOCKED";
   if (plan?.pallu === "same") return "v3.3-one-print";
   return template.frozen ? `v${template.frozen.version}` : "draft";
 }
@@ -861,13 +861,13 @@ export function composePrompt(
     .filter(Boolean)
     .join(" ");
 
-  // C1P1 is LOCKED at v4 "one fabric" (26 Sep): with only a body photograph the
+  // C1P1 is LOCKED at v4.1 "one fabric, nothing at her side" (26 Sep): with only a body photograph the
   // saree is one fabric, never "body" and "pallu". Its wording lives in the locked
   // module; only this product's words, the model and the scene are filled in.
   // Only for a body photograph turned to the worn view (a rod photo from the app): v4 says so.
   if (onePrintPlan && plan?.worn && template.id === "P1") {
     const kind = [words.fibre, words.craft, words.type].filter(Boolean).join(" ");
-    const locked = composeC1P1V4({
+    const locked = composeC1P1V41({
       kind,
       fabricDesc: words.bodyDesc,
       borderDesc: `${words.borderDesc}${words.borderWidth ? `, ${words.borderWidth} wide` : ""}`,
