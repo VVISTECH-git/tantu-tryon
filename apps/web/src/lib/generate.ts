@@ -88,7 +88,7 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
 
   // The sheet first: building it costs nothing, and a garment whose
   // photographs cannot be fetched should fail before any money moves.
-  let sheet: { data: string; mime: string };
+  let sheet: { data: string; mime: string; key: string | null };
   try {
     sheet = await sheetFor(input.garment);
   } catch (error) {
@@ -112,6 +112,8 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
     const [row] = await db.select().from(generations).where(eq(generations.id, reserved.id)).limit(1);
     return { ok: true, generation: toOutput(row!) };
   }
+  // Which sheet went in with the prompt: the platform Generations page shows both.
+  if (sheet.key) await db.update(generations).set({ sheetKey: sheet.key }).where(eq(generations.id, reserved.id));
 
   try {
     const image = await generateImage({
