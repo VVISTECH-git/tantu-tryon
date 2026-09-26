@@ -1169,7 +1169,7 @@ function Studio() {
         )}
       </Modal>
 
-      {/* Product tag scanner: the code fills the ID and opens the product */}
+      {/* Product tag scanner: the code only fills the Product ID box; the person checks it and taps Continue */}
       <Modal visible={scanning} animationType="slide" onRequestClose={() => setScanning(false)} statusBarTranslucent>
         {scanning && (
           <QrScan
@@ -1177,7 +1177,6 @@ function Studio() {
             onCode={(code) => {
               setScanning(false);
               setProductId(code);
-              void openProduct(code);
             }}
           />
         )}
