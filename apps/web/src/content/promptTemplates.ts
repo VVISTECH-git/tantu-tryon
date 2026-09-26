@@ -29,6 +29,7 @@
  */
 
 import type { GarmentWords } from "./garmentWords";
+import { C1P1_V4_VERSION, composeC1P1V4 } from "./locked/c1p1V4";
 import * as lockedV3 from "./locked/promptTemplatesV3";
 
 export type { GarmentWords } from "./garmentWords";
@@ -593,8 +594,9 @@ export function promptVersion(template: PromptTemplate, plan?: PartPlan): string
   // v3.1 (25 Sep): pallu = body with nothing across it, copy the motif exactly, Case 1 pose words.
   // v3.2 (26 Sep): motifs turn with the drape; on the hanging pallu they lie on their side, tips outward.
   // v3.3 (26 Sep): pose right after the reference and stated firmly; the P2 pallu tucked at the hip; no bare waist.
-  // P1 is locked at v3 (26 Sep): see locked/promptTemplatesV3.ts.
-  if (plan?.pallu === "same") return template.id === "P1" ? "v3-one-print-LOCKED" : "v3.3-one-print";
+  // P1 is locked at v4 "one fabric" (26 Sep): see locked/c1p1V4.ts.
+  if (plan?.pallu === "same" && template.id === "P1") return plan.worn ? C1P1_V4_VERSION : "v3-one-print-LOCKED";
+  if (plan?.pallu === "same") return "v3.3-one-print";
   return template.frozen ? `v${template.frozen.version}` : "draft";
 }
 
@@ -844,10 +846,9 @@ export function composePrompt(
   const bg = BACKGROUNDS.find((b) => b.id === s.background) ?? BACKGROUNDS[0]!;
 
   const onePrintPlan = plan?.pallu === "same" && s.attachMode === "sheet" && !fromPhoto;
-  // C1P1 is LOCKED at v3, word for word as it made UNCLE's P1 on 25 Sep: fixes for
-  // other poses had drawn a hanging pallu into P1 (26 Sep). Composed only from the
-  // locked copy, so nothing changed in this file can reach it.
-  if (onePrintPlan && template.id === "P1") {
+  // A body photograph not turned to the worn view (an SLK catalogue product): C1P1
+  // stays LOCKED at v3, word for word, as it was before v4.
+  if (onePrintPlan && !plan?.worn && template.id === "P1") {
     const lockedP1 = lockedV3.TEMPLATES.find((t) => t.id === "P1")!;
     return lockedV3.composePrompt(lockedP1, words, s as lockedV3.Selections, files, plan);
   }
@@ -859,6 +860,22 @@ export function composePrompt(
   )
     .filter(Boolean)
     .join(" ");
+
+  // C1P1 is LOCKED at v4 "one fabric" (26 Sep): with only a body photograph the
+  // saree is one fabric, never "body" and "pallu". Its wording lives in the locked
+  // module; only this product's words, the model and the scene are filled in.
+  // Only for a body photograph turned to the worn view (a rod photo from the app): v4 says so.
+  if (onePrintPlan && plan?.worn && template.id === "P1") {
+    const kind = [words.fibre, words.craft, words.type].filter(Boolean).join(" ");
+    const locked = composeC1P1V4({
+      kind,
+      fabricDesc: words.bodyDesc,
+      borderDesc: `${words.borderDesc}${words.borderWidth ? `, ${words.borderWidth} wide` : ""}`,
+      blouseGarment: capitalise(blouseLine(words, plan!).garment),
+      scene,
+    });
+    return fill(locked, p, words, subject, plan);
+  }
 
   // One print (no pallu photographed, sheet mode, generated model): v3.
   // Everything else composes exactly as the frozen v2.
