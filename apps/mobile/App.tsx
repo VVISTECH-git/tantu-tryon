@@ -751,7 +751,10 @@ function Studio() {
               <Text style={s.fieldLabel}>Product ID</Text>
               <View style={[s.row, { gap: 8 }]}>
               <TextInput
-                style={[s.input, { flex: 1 }, focused === "product" && s.inputFocus]}
+                // Shop codes run to 24+ characters (SW-B605-KAW-CNA-003-0260): smaller type, not
+                // scaled up by the phone's text size, so the whole code shows beside Scan.
+                allowFontScaling={false}
+                style={[s.input, { flex: 1, fontSize: 14, paddingHorizontal: 12, letterSpacing: -0.2 }, focused === "product" && s.inputFocus]}
                 value={productId}
                 onChangeText={setProductId}
                 onFocus={() => setFocused("product")}
