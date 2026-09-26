@@ -2,7 +2,7 @@ import { CameraView, scanFromURLAsync, useCameraPermissions } from "expo-camera"
 import * as ImagePicker from "expo-image-picker";
 import { extractTextFromImage, isSupported as isTextReaderSupported } from "expo-text-extractor";
 import { codeFromTagText } from "./tagCode";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, R } from "./theme";
@@ -29,6 +29,35 @@ export function QrScan({ onCode, onCancel }: { onCode: (code: string) => void; o
   const [reading, setReading] = useState(false);
   const done = useRef(false);
   const insets = useSafeAreaInsets();
+  const camera = useRef<CameraView>(null);
+  const snapping = useRef(false);
+  const [readingPrint, setReadingPrint] = useState(false);
+
+  // Tags whose QR a phone cannot decode (26 Sep) still carry the code in
+  // print: while no QR has been read, a silent still is taken every few
+  // seconds and its printed code read on the phone.
+  useEffect(() => {
+    if (!permission?.granted || !isTextReaderSupported) return;
+    const timer = setInterval(() => {
+      if (done.current || snapping.current || !camera.current) return;
+      snapping.current = true;
+      setReadingPrint(true);
+      void (async () => {
+        try {
+          const shot = await camera.current?.takePictureAsync({ quality: 0.7, shutterSound: false });
+          if (!shot || done.current) return;
+          const printed = codeFromTagText(await extractTextFromImage(shot.uri).catch(() => [] as string[]));
+          if (printed) found(printed);
+        } catch {
+          // A still could not be taken this time; the next tick tries again.
+        } finally {
+          snapping.current = false;
+          setReadingPrint(false);
+        }
+      })();
+    }, 2500);
+    return () => clearInterval(timer);
+  }, [permission?.granted]);
 
   function found(raw: string | undefined): boolean {
     if (done.current) return true;
@@ -80,6 +109,7 @@ export function QrScan({ onCode, onCancel }: { onCode: (code: string) => void; o
   return (
     <View style={st.root}>
       <CameraView
+        ref={camera}
         style={StyleSheet.absoluteFill}
         facing="back"
         autofocus="on"
@@ -97,7 +127,8 @@ export function QrScan({ onCode, onCancel }: { onCode: (code: string) => void; o
       </View>
       <View style={st.centre} pointerEvents="none">
         <View style={st.window} />
-        <Text style={st.hint}>Hold the phone about 20 cm away. Zoom in until the QR code fills the box.</Text>
+        <Text style={st.hint}>Hold the phone about 20 cm away, with the QR code and the printed code in the box. Zoom in if they look small.</Text>
+        {readingPrint && <Text style={st.status}>Reading the printed code…</Text>}
       </View>
       <View style={[st.bottom, { paddingBottom: insets.bottom + 16 }]}>
         <View style={st.zoomRow}>
@@ -128,6 +159,7 @@ const st = StyleSheet.create({
   title: { color: "#fff", fontSize: 16, fontWeight: "600" },
   close: { color: "#fff", fontSize: 22, width: 28, textAlign: "center" },
   window: { width: 250, height: 250, borderRadius: R.lg, borderWidth: 3, borderColor: C.accentStrong },
+  status: { color: C.accentStrong, fontSize: 14, fontWeight: "600", textShadowColor: "#000", textShadowRadius: 6 },
   hint: { color: "#fff", fontSize: 15, textAlign: "center", textShadowColor: "#000", textShadowRadius: 6, maxWidth: 300 },
   zoomRow: { flexDirection: "row", alignItems: "center", gap: 18 },
   zoomBtn: { width: 48, height: 48, borderRadius: 24, borderWidth: 1, borderColor: "rgba(255,255,255,0.6)", alignItems: "center", justifyContent: "center" },
