@@ -1,6 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import * as Updates from "expo-updates";
 import * as ImagePicker from "expo-image-picker";
+import * as MediaLibrary from "expo-media-library/legacy";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, BackHandler, Image, Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
@@ -551,19 +552,44 @@ function Studio() {
       live = false;
     };
   }, [garment?.id, screen]);
+  /** The finished image, downloaded full size into the phone's cache. */
+  async function downloadImage(url: string, name: string): Promise<File> {
+    const dest = new File(Paths.cache, `${name.replace(/[^A-Za-z0-9_-]+/g, "-")}.jpg`);
+    if (dest.exists) dest.delete();
+    return File.downloadFileAsync(url, dest);
+  }
+
+  /** Save: straight into Photos (build 1.0.1 carries the media library). */
   async function saveImage(url: string, name: string) {
+    setSaving(true);
+    try {
+      const permission = await MediaLibrary.requestPermissionsAsync(true);
+      if (!permission.granted) {
+        Alert.alert("Photos access is off", "Allow Tantu to add photos in Settings → Tantu → Photos, then try again.");
+        return;
+      }
+      const file = await downloadImage(url, name);
+      await MediaLibrary.saveToLibraryAsync(file.uri);
+      Alert.alert("Saved to Photos");
+    } catch (problem) {
+      Alert.alert("Could not save the image", problem instanceof Error ? problem.message : "Try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /** Forward: the phone's share sheet (WhatsApp, AirDrop, ...). Android opens the image instead. */
+  async function shareImage(url: string, name: string) {
     if (Platform.OS !== "ios") {
       void Linking.openURL(url);
       return;
     }
     setSaving(true);
     try {
-      const dest = new File(Paths.cache, `${name.replace(/[^A-Za-z0-9_-]+/g, "-")}.jpg`);
-      if (dest.exists) dest.delete();
-      const file = await File.downloadFileAsync(url, dest);
+      const file = await downloadImage(url, name);
       await Share.share({ url: file.uri });
     } catch (problem) {
-      Alert.alert("Could not save the image", problem instanceof Error ? problem.message : "Try again.");
+      Alert.alert("Could not share the image", problem instanceof Error ? problem.message : "Try again.");
     } finally {
       setSaving(false);
     }
@@ -1069,9 +1095,14 @@ function Studio() {
                   </Pressable>
                 </View>
                 <Action
-                  label={saving ? "Preparing…" : "Save or share image"}
+                  label={saving ? "Saving…" : "Save to Photos"}
                   disabled={saving}
                   onPress={() => void saveImage(primary.imageUrl!, `${garment?.productCode ?? "tantu"}-${primary.promptId}`)}
+                />
+                <Secondary
+                  label="Forward"
+                  disabled={saving}
+                  onPress={() => void shareImage(primary.imageUrl!, `${garment?.productCode ?? "tantu"}-${primary.promptId}`)}
                 />
                 <Secondary label="Open full size" onPress={() => setViewing({ uri: primary.imageUrl!, label: "Your image" })} />
               </>
@@ -1142,9 +1173,9 @@ function Studio() {
             <ZoomImage uri={viewing.uri} />
             <View style={s.viewerBar}>
               <Text style={s.viewerLabel}>{viewing.label}</Text>
-              {/* Both open the phone's share sheet: Forward to WhatsApp or AirDrop, or Save Image to Photos. */}
+              {/* Forward: the share sheet. Save: straight into Photos. */}
               <Pressable
-                onPress={() => void saveImage(viewing.uri, `${garment?.productCode ?? "tantu"}-${viewing.label}`)}
+                onPress={() => void shareImage(viewing.uri, `${garment?.productCode ?? "tantu"}-${viewing.label}`)}
                 disabled={saving}
                 hitSlop={10}
                 style={{ marginLeft: "auto", marginRight: 20 }}
@@ -1424,9 +1455,9 @@ function Action({ label, onPress, disabled, compact }: { label: string; onPress:
   );
 }
 
-function Secondary({ label, onPress }: { label: string; onPress: () => void }) {
+function Secondary({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
   return (
-    <Pressable style={s.secondary} onPress={onPress}>
+    <Pressable style={[s.secondary, disabled && { opacity: 0.5 }]} onPress={onPress} disabled={disabled}>
       <Text style={s.secondaryText}>{label}</Text>
     </Pressable>
   );
