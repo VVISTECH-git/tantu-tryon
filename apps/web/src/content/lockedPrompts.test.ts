@@ -27,6 +27,15 @@ describe("locked prompts", () => {
     expect(promptVersion(p1, plan)).toBe("v4.1-one-fabric-LOCKED");
   });
 
+  it("C1P2 is exactly the locked v7.1 rules-first prompt", () => {
+    const p2 = TEMPLATES.find((t) => t.id === "P2")!;
+    const golden = readFileSync(join(__dirname, "__golden__", "C1P2-v71-locked.txt"), "utf8").replace(/\r/g, "");
+    const text = composePrompt(p2, words, selections, [{ slot: "body", file: "b.png" }], plan);
+    expect(text).toBe(golden);
+    expect(text).not.toMatch(/\{[A-Za-z_]+\}| {2}|\.\./);
+    expect(promptVersion(p2, plan)).toBe("v7.1-rules-first-LOCKED");
+  });
+
   it("C1P1 v4.1 describes one fabric and never says pallu", () => {
     const p1 = TEMPLATES.find((t) => t.id === "P1")!;
     const text = composePrompt(p1, words, selections, [{ slot: "body", file: "b.png" }], plan);
