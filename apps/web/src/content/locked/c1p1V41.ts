@@ -1,6 +1,9 @@
 /*
-  LOCKED, 26 Sep 2026. C1P1 (body photograph only, pose P1), prompt v4
-  "one fabric". With only a BODY photograph the saree is described as one
+  LOCKED, 26 Sep 2026. C1P1 (body photograph only, pose P1), prompt v4.1
+  "one fabric, nothing at her side". v4 put a strip of the saree beside her
+  left arm on the phone (11:56), and Gemini decorated its visible end: v4.1
+  keeps the rest of the saree straight down her back, hidden, and drops the
+  word "end". Otherwise word for word v4. With only a BODY photograph the saree is described as one
   fabric from end to end: no "body" and "pallu" as separate parts, no list
   of things it must not have (naming a pallu made Gemini draw one). Tested
   by hand on UNCLE in Gemini chat: fabric copied with its sprigs, nothing
@@ -12,9 +15,9 @@
   arguments.
 */
 
-export const C1P1_V4_VERSION = "v4-one-fabric-LOCKED";
+export const C1P1_V41_VERSION = "v4.1-one-fabric-LOCKED";
 
-export function composeC1P1V4(x: {
+export function composeC1P1V41(x: {
   /** "saree", or "silk Kalamkari saree" when fibre and craft are known. */
   kind: string;
   fabricDesc: string;
@@ -48,11 +51,11 @@ export function composeC1P1V4(x: {
     [
       "PLACEMENT MAP:",
       "1. BLOUSE: {blouse_region} The fitted top, both sleeves and the neckline. Both sleeves are fully visible.",
-      "2. SAREE FABRIC: everything else. The skirt from the waist to the hem, the pleats at the front of the waist, the band of fabric crossing the chest, and the end of the {type} at the shoulder. The chest band runs from {her} right hip up to the top of {her} left shoulder, with the {border_colour} border along its upper edge. It covers {her} left breast, {her} left ribs and the left side of {her} torso completely, then passes over the top of the left shoulder. {Her} right shoulder and the right side of {her} chest are the only places where the blouse is visible above the waist.",
-      "3. THE END OF THE SAREE: seen from the front, it shows only as a small pleated peak on top of the left shoulder; the rest of it falls down {her} back, out of sight. {Her} left side, from the shoulder to the hip, shows only the chest band and the fitted blouse sleeve.",
+      "2. SAREE FABRIC: everything else. The skirt from the waist to the hem, the pleats at the front of the waist, the band of fabric crossing the chest, and the pleated peak at the shoulder. The chest band runs from {her} right hip up to the top of {her} left shoulder, with the {border_colour} border along its upper edge. It covers {her} left breast, {her} left ribs and the left side of {her} torso completely, then passes over the top of the left shoulder. {Her} right shoulder and the right side of {her} chest are the only places where the blouse is visible above the waist.",
+      "3. OVER THE SHOULDER: seen from the front, the {type} shows only as a small pleated peak on top of the left shoulder. From there the rest of the {type} falls straight down the middle of {her} back, completely hidden behind {her} body. Nothing hangs beside or behind {her} left arm: between {her} left arm and {her} body, and outside {her} left arm, only the background is seen. {Her} left side, from the shoulder to the hip, shows only the chest band and the fitted blouse sleeve.",
       "4. BORDER: along the hem, along the upper edge of the chest band, and along the edges of the pleated peak, exactly as narrow as shown.",
     ].join("\n"),
-    "POSE: A professional fashion catalog photo of {subject} wearing this {type}. {She} stands facing the camera directly in a symmetrical, centered pose, with both hands clasped together at {her} waist. The end of the {type} is gathered into 5 to 7 narrow, straight, parallel pleats, pinned at the top of the left shoulder, and thrown back over the shoulder so it falls down {her} back. At the shoulder the pleats rise together as one small pointed peak, about a hand's height above the shoulder line; below the shoulder it is behind {her} and cannot be seen from the front. The pleats at the front of the waist are 5 to 7 straight vertical folds tucked in at the centre of the waist, falling evenly to the hem. All pleats are clean, straight and evenly spaced, like pressed fabric folds. {She} has a direct, confident gaze and a neutral-to-soft expression. Full-length portrait, tightly framed so {her} figure fills most of the vertical frame, with the top of {her} head, the hem of the {type} and the ground under {her} feet all inside the frame, shot straight-on at eye level with minimal headroom and minimal space around {her}.",
+    "POSE: A professional fashion catalog photo of {subject} wearing this {type}. {She} stands facing the camera directly in a symmetrical, centered pose, with both hands clasped together at {her} waist. Over the left shoulder the {type} is gathered into 5 to 7 narrow, straight, parallel pleats, pinned at the top of the shoulder, and thrown back so it falls straight down the middle of {her} back. At the shoulder the pleats rise together as one small pointed peak, about a hand's height above the shoulder line; below the shoulder the {type} is completely hidden behind {her} body, and no part of it shows beside {her} arms. The pleats at the front of the waist are 5 to 7 straight vertical folds tucked in at the centre of the waist, falling evenly to the hem. All pleats are clean, straight and evenly spaced, like pressed fabric folds. {She} has a direct, confident gaze and a neutral-to-soft expression. Full-length portrait, tightly framed so {her} figure fills most of the vertical frame, with the top of {her} head, the hem of the {type} and the ground under {her} feet all inside the frame, shot straight-on at eye level with minimal headroom and minimal space around {her}.",
     `SCENE: ${x.scene}`,
     "OUTPUT: Return only the image: ONE photograph in portrait orientation, 3:4, taller than wide, with the one model filling the frame, at the highest resolution available. The print is rendered sharply everywhere on the {type}: every motif's outline and inner detail crisp and in focus, as in a high-resolution catalogue photograph that buyers will zoom into. No caption, no notes, no commentary.",
   ].join("\n\n");
