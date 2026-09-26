@@ -327,7 +327,7 @@ const ONE_PRINT_NO_NEW =
   drew a cross band and a new motif layout on the hanging pallu.
 */
 const ONE_PRINT_PALLU_SAME =
-  "The pallu is cut from the same length of fabric as the skirt, so it looks exactly like the BODY photograph: from the shoulder to its lower edge it shows the same motifs as the skirt, at the same size, with the same spacing, the same way up. The border runs only down its two long edges.";
+  "The pallu is cut from the same length of fabric as the skirt, so it looks exactly like the BODY photograph: from the shoulder to its lower edge it shows the same motifs as the skirt, at the same size, with the same spacing, lying on their side with their tips toward its outer edge. The border runs only down its two long edges.";
 
 /*
   Every saree: copy the motif, not an idea of it. UNCLE's fat, mustard-filled
@@ -576,7 +576,8 @@ export interface PartPlan {
 /** The version a composed prompt belongs to, for the generation record. */
 export function promptVersion(template: PromptTemplate, plan?: PartPlan): string {
   // v3.1 (25 Sep): pallu = body with nothing across it, copy the motif exactly, Case 1 pose words.
-  if (plan?.pallu === "same") return "v3.1-one-print";
+  // v3.2 (26 Sep): motifs turn with the drape; on the hanging pallu they lie on their side, tips outward.
+  if (plan?.pallu === "same") return "v3.2-one-print";
   return template.frozen ? `v${template.frozen.version}` : "draft";
 }
 
@@ -688,7 +689,7 @@ function referenceV3(files: Attachment[], type: string, plan: PartPlan, person?:
     files.length === 1 ? "The label is printed above the panel." : "Read the label printed above each panel to know which part it is.",
     ...(plan.worn
       ? [
-          `The BODY photograph has been turned to show the fabric the way it is worn: the ${type}'s length runs from left to right, the border along the bottom edge of the photograph is the hem border, and the border along the top edge is the waist border, tucked in at the waist. The print is shown the right way up. Every motif stands on the model exactly as it stands in the photograph, on the skirt, in the pleats and on the chest band: motifs that stand upright in the photograph stand upright on her and never lie on their side.`,
+          `The BODY photograph has been turned to show the fabric the way it is worn: the ${type}'s length runs from left to right, the border along the bottom edge of the photograph is the hem border, and the border along the top edge is the waist border, tucked in at the waist. On the skirt and in the pleats every motif stands exactly as in the photograph, pointing up toward the waist, and never lies on its side. Above the waist the fabric turns with the drape and the motifs turn with it: each motif always points toward the waist border, the same edge it points toward on the skirt. On the chest band, which rises from the waist to the shoulder, the upper edge is the hem border and the lower edge is the waist border, so the motifs point toward the band's lower edge. On the pallu that hangs from the shoulder the fabric runs lengthwise from top to bottom, so the motifs lie on their side: the long edge that continues up across the chest to the neck is the hem border, the outer long edge away from ${person?.her ?? "her"} body is the waist border, and every motif's tip points across the pallu toward that outer edge, away from ${person?.her ?? "her"} body. The motifs on the pallu never stand upright.`,
         ]
       : []),
     ...(files.some((f) => f.slot === "border")
