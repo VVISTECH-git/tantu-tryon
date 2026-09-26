@@ -333,6 +333,10 @@ const ONE_PRINT_PALLU_SAME =
   Every saree: copy the motif, not an idea of it. UNCLE's fat, mustard-filled
   kalamkari mangoes came back as slim beige textbook paisleys (25 Sep).
 */
+/* v3.3: said inside the pose, where the angle is set (26 Sep: bare midriff in a side view). */
+const ONE_PRINT_WAIST =
+  "At the waist the blouse meets the saree with no bare skin showing between them, from this angle as from every angle.";
+
 const ONE_PRINT_COPY_MOTIF =
   "Copy every motif exactly as it appears in the BODY photograph: its shape and proportions, its fill colours, its outline and inner detail, and the smaller motifs, sprigs or dots between the main motifs, in the same arrangement and spacing, on the same ground colour. Do not replace a motif with a standard, simplified or more common version of it, and do not change the ground colour.";
 
@@ -343,7 +347,7 @@ const ONE_PRINT_PALLU_FORWARD_MAP = [
   "PLACEMENT MAP:",
   "1. BLOUSE: {blouse_region} The fitted top, sleeves and neckline. The right side of the chest and the right sleeve are fully visible as blouse.",
   "2. SAREE print, the print in the BODY panel: everything else. The waist, the pleats at the front of the waist, the whole skirt to the hem, the band of fabric that crosses the chest, and the pallu. The chest band is wide, not a strip: it covers {her} left breast, {her} left ribs and {her} waist completely, so the blouse shows only on {her} right shoulder and the right side of {her} chest.",
-  `3. The pallu: one pleated panel that comes from behind over the left shoulder and hangs straight down the front of {her} left side to just above the hem, flat and open so its print reads. ${ONE_PRINT_PALLU_SAME} Its lower edge is plain body fabric.`,
+  `3. The pallu: one pleated panel that comes from behind over the left shoulder and falls down the front of {her} left side to {her} hip, flat and open so its print reads; there its lower part is gathered and tucked into the waist at {her} left hip, so the pallu's end is never seen. ${ONE_PRINT_PALLU_SAME}`,
   "4. BORDER: along the hem, along the upper edge of the chest band, and along both long edges of the hanging pallu panel, exactly as narrow as shown.",
   `Not allowed: no blouse fabric and no bare skin on {her} left side above the waist. The pallu panel must not be folded back, bunched, or hidden behind the arm, and must not reach the floor or pool on the ground. No zari or border trim on the blouse. ${ONE_PRINT_NO_NEW}`,
 ].join("\n");
@@ -481,7 +485,7 @@ export const TEMPLATES: PromptTemplate[] = [
       "PLACEMENT MAP:",
       "1. BLOUSE: {blouse_region} The fitted top, both sleeves and the neckline. {Her} right shoulder and the right side of {her} chest show blouse.",
       `2. SAREE print, the print in the BODY panel: the fabric at the waist, the band of fabric crossing the chest, and the pallu. ${ONE_PRINT_CHEST}`,
-      `3. The pallu: it goes back over the top of the left shoulder, and its free end is brought forward from behind and rests over {her} left forearm, hanging down from the forearm with its print facing the camera. ${ONE_PRINT_PALLU_SAME} Its end is plain body fabric.`,
+      `3. The pallu: it goes back over the top of the left shoulder, and its free end is brought forward from behind and rests over {her} left forearm, hanging down from the forearm with its print facing the camera. ${ONE_PRINT_PALLU_SAME} Its end hangs below the bottom edge of the frame and is not seen.`,
       "4. BORDER: along the upper edge of the chest band, and along the edges of the pallu end resting on the forearm, exactly as narrow as shown.",
       `Not allowed: no blouse fabric visible on the left side above the waist. The pallu must not cover the left sleeve or the upper arm; it rests on the bare forearm below the sleeve. No zari or border trim on the blouse. No cape, no flap, no loose sheet of fabric over the shoulder. ${ONE_PRINT_NO_NEW}`,
     ].join("\n"),
@@ -525,8 +529,18 @@ export const TEMPLATES: PromptTemplate[] = [
 */
 const ONE_PRINT_POSE_SWAPS: [string, string][] = [
   [
+    // v3.3: the pallu's end is tucked away. Seen near the hem, Gemini gave it a
+    // decorated end three runs out of four, whatever the prompt forbade.
     "so its full length, pattern and border are visible to just above the hem.",
-    "so its full length and its border are visible to just above the hem, showing the same print as the skirt with nothing across it.",
+    "down to {her} left hip, where its lower part is gathered and tucked into the waist, so the pallu's end is never seen. It shows the same print as the skirt with nothing across it.",
+  ],
+  [
+    "shoulders and hips turned about 30 degrees,",
+    "shoulders and hips turned only about 30 degrees, never in profile, {her} chest and face toward the camera,",
+  ],
+  [
+    "{Her} right hand rests lightly on {her} right hip;",
+    "{Her} right hand is placed on {her} right hip with the elbow bent outward, clearly visible; {her} hands are never clasped together;",
   ],
   [
     "so the entire pallu design, its border and its end edge are displayed to the camera down to mid-calf against the {body_colour} {type}.",
@@ -577,7 +591,8 @@ export interface PartPlan {
 export function promptVersion(template: PromptTemplate, plan?: PartPlan): string {
   // v3.1 (25 Sep): pallu = body with nothing across it, copy the motif exactly, Case 1 pose words.
   // v3.2 (26 Sep): motifs turn with the drape; on the hanging pallu they lie on their side, tips outward.
-  if (plan?.pallu === "same") return "v3.2-one-print";
+  // v3.3 (26 Sep): pose right after the reference and stated firmly; the P2 pallu tucked at the hip; no bare waist.
+  if (plan?.pallu === "same") return "v3.3-one-print";
   return template.frozen ? `v${template.frozen.version}` : "draft";
 }
 
@@ -840,7 +855,9 @@ export function composePrompt(
   // Everything else composes exactly as the frozen v2.
   const onePrint = onePrintPlan;
   const blocks = onePrint
-    ? [referenceV3(files, words.type, plan!, p), task(words.type, s.rules), HOUSE_RULES_V3, garmentV3(words, plan!), template.onePrintMap, template.onePrintPose ?? template.pose, `SCENE: ${scene}`, OUTPUT_V3]
+    ? // v3.3: the pose comes right after the reference. At the end of a long
+      // prompt it was ignored twice on UNCLE's P2 (26 Sep: profile, hands clasped).
+      [referenceV3(files, words.type, plan!, p), `${template.onePrintPose ?? template.pose} ${ONE_PRINT_WAIST}`, task(words.type, s.rules), HOUSE_RULES_V3, garmentV3(words, plan!), template.onePrintMap, `SCENE: ${scene}`, OUTPUT_V3]
     : [reference(files, words.type, s.attachMode, fromPhoto ? p : undefined), task(words.type, s.rules), HOUSE_RULES, garment(words), template.map, template.pose, `SCENE: ${scene}`, OUTPUT];
 
   return blocks
