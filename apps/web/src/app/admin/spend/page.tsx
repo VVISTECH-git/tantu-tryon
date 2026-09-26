@@ -51,6 +51,11 @@ export default async function SpendPage() {
       <p className="label">Admin</p>
       <h1 className="mt-1 text-[24px] font-semibold tracking-tight">Platform</h1>
       <p className="mt-1 text-[13px] text-ink-soft">Tantu&apos;s own settings: they apply to every shop. Customers never see this page.</p>
+      <p className="mt-2 text-[13.5px]">
+        <a href="/admin/generations" className="text-accent underline">
+          Generations: input sheet, exact prompt and result for every run →
+        </a>
+      </p>
 
       <form action={setImageModelAction} className="mt-6 rounded-xl border border-line bg-surface p-5">
         <h2 className="text-[15px] font-semibold">Image model</h2>

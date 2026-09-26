@@ -236,6 +236,8 @@ export const generations = pgTable(
     status: text().notNull(),
     imageKey: text(),
     imageMime: text(),
+    /** The input sheet sent with the prompt, so a result can be traced to exactly what went in. */
+    sheetKey: text(),
     error: text(),
     costPaise: integer().notNull().default(0),
     ratePaisePerUsd: integer().notNull(),
