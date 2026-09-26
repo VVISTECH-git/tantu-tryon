@@ -2,7 +2,7 @@
   "expo": {
     "name": "Tantu",
     "slug": "tantu-tryon",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -55,6 +55,14 @@
         "expo-sensors",
         {
           "motionPermission": "Tantu uses the phone's motion sensor to tell you when it is held straight and still for a sharp, square photo of the saree."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Tantu picks saree photos from your library.",
+          "savePhotosPermission": "Tantu saves your finished catalogue images to Photos.",
+          "isAccessMediaLocationEnabled": false
         }
       ]
     ],

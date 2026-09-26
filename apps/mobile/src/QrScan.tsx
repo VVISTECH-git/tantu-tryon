@@ -1,5 +1,7 @@
 import { CameraView, scanFromURLAsync, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
+import { extractTextFromImage, isSupported as isTextReaderSupported } from "expo-text-extractor";
+import { codeFromTagText } from "./tagCode";
 import { useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -45,10 +47,14 @@ export function QrScan({ onCode, onCancel }: { onCode: (code: string) => void; o
           ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 1 })
           : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 1 });
       if (pick.canceled || !pick.assets[0]) return;
-      const results = await scanFromURLAsync(pick.assets[0].uri, ["qr"]);
-      if (!results.some((r) => found(r.data))) {
-        Alert.alert("No QR code found", "Take the photo closer, so the QR code is sharp and fills more of the picture.");
-      }
+      const uri = pick.assets[0].uri;
+      const results = await scanFromURLAsync(uri, ["qr"]).catch(() => []);
+      if (results.some((r) => found(r.data))) return;
+      // The QR could not be read: read the code printed on the tag instead.
+      const lines = isTextReaderSupported ? await extractTextFromImage(uri).catch(() => [] as string[]) : [];
+      const printed = codeFromTagText(lines);
+      if (printed && found(printed)) return;
+      Alert.alert("No product code found", "Take the photo closer, so the tag's printed code is sharp and fills more of the picture.");
     } catch (problem) {
       Alert.alert("Could not read the photo", problem instanceof Error ? problem.message : "Try again.");
     } finally {
