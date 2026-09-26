@@ -931,14 +931,13 @@ function Studio() {
                     </Text>
                     {madeByPose[p.id] ? (
                       <Pressable
-                        onPress={() => void saveImage(madeByPose[p.id]!, `${garment?.productCode ?? "tantu"}-${p.id}`)}
-                        disabled={saving}
+                        onPress={() => setViewing({ uri: madeByPose[p.id]!, label: `${p.id} image` })}
                         hitSlop={8}
                         style={[s.madeChip, s.madeChipOn]}
-                        accessibilityLabel={`Generated. Save the ${p.id} image`}
+                        accessibilityLabel={`Generated. View the ${p.id} image`}
                       >
                         <View style={[s.dot, { backgroundColor: C.good }]} />
-                        <Text style={[s.madeText, { color: C.good }]}>Generated · Save</Text>
+                        <Text style={[s.madeText, { color: C.good }]}>Generated · View</Text>
                       </Pressable>
                     ) : (
                       <View style={s.madeChip}>
@@ -1143,14 +1142,24 @@ function Studio() {
             <ZoomImage uri={viewing.uri} />
             <View style={s.viewerBar}>
               <Text style={s.viewerLabel}>{viewing.label}</Text>
+              {/* Both open the phone's share sheet: Forward to WhatsApp or AirDrop, or Save Image to Photos. */}
               <Pressable
                 onPress={() => void saveImage(viewing.uri, `${garment?.productCode ?? "tantu"}-${viewing.label}`)}
                 disabled={saving}
-                hitSlop={12}
-                style={{ marginLeft: "auto", marginRight: 22 }}
+                hitSlop={10}
+                style={{ marginLeft: "auto", marginRight: 20 }}
+                accessibilityLabel="Forward"
+              >
+                <Text style={s.viewerSave}>Forward</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void saveImage(viewing.uri, `${garment?.productCode ?? "tantu"}-${viewing.label}`)}
+                disabled={saving}
+                hitSlop={10}
+                style={{ marginRight: 22 }}
                 accessibilityLabel="Save"
               >
-                <Text style={s.viewerSave}>{saving ? "Saving…" : "Save"}</Text>
+                <Text style={s.viewerSave}>{saving ? "…" : "Save"}</Text>
               </Pressable>
               <Pressable onPress={() => setViewing(null)} hitSlop={12} accessibilityLabel="Close">
                 <Text style={s.viewerClose}>✕</Text>
