@@ -13,6 +13,8 @@ interface GeminiPart {
   text?: string;
   inlineData?: { data?: string; mimeType?: string };
   inline_data?: { data?: string; mime_type?: string };
+  /** A trial image or note from the model's thinking, not the answer. */
+  thought?: boolean;
 }
 
 /**
@@ -203,9 +205,18 @@ export async function generateImage(options: GenerateImageOptions): Promise<Gene
   // 2.5-generation models reject imageSize outright; only send it where it is understood.
   if (options.imageSize && /gemini-3/.test(model)) imageConfig.imageSize = options.imageSize;
 
+  // Thinking "high" for the 3.1 Flash image models (Google: default "minimal",
+  // supported "minimal" and "high"). On minimal the app dropped rules the same
+  // prompt kept in Gemini chat (UNCLE C1P2, 26 Sep). Pro thinks by default and
+  // takes no level here.
+  const thinks = /gemini-3\.1-flash(-lite)?-image/.test(model);
   const body = JSON.stringify({
     contents: [{ parts }],
-    generationConfig: { responseModalities: ["IMAGE"], imageConfig },
+    generationConfig: {
+      responseModalities: ["IMAGE"],
+      imageConfig,
+      ...(thinks ? { thinkingConfig: { thinkingLevel: "high" } } : {}),
+    },
   });
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -241,12 +252,14 @@ export async function generateImage(options: GenerateImageOptions): Promise<Gene
       promptFeedback?: { blockReason?: string };
     };
     const candidate = json.candidates?.[0];
-    for (const part of candidate?.content?.parts ?? []) {
-      const inline = part.inlineData ?? part.inline_data;
-      if (inline?.data) {
-        const mime = part.inlineData?.mimeType ?? part.inline_data?.mime_type ?? "image/png";
-        return { data: inline.data, mime, model, ms: Date.now() - started };
-      }
+    // The last image that is not a thought: thinking can return trial images first.
+    const finalPart = [...(candidate?.content?.parts ?? [])]
+      .reverse()
+      .find((part) => !part.thought && (part.inlineData ?? part.inline_data)?.data);
+    if (finalPart) {
+      const inline = (finalPart.inlineData ?? finalPart.inline_data)!;
+      const mime = finalPart.inlineData?.mimeType ?? finalPart.inline_data?.mime_type ?? "image/png";
+      return { data: inline.data!, mime, model, ms: Date.now() - started };
     }
 
     const reason = candidate?.finishReason ?? json.promptFeedback?.blockReason;
