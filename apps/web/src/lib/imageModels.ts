@@ -34,9 +34,15 @@ export const IMAGE_OPTIONS: ImageOption[] = [
   { id: "pro-1k", model: "gemini-3-pro-image", priceSize: "1K", name: "Nano Banana Pro", detail: "1K", selectable: true },
   { id: "pro-2k", model: "gemini-3-pro-image", priceSize: "2K", name: "Nano Banana Pro", detail: "2K", selectable: true },
   { id: "nb-2.5", model: "gemini-2.5-flash-image", priceSize: "1K", name: "Nano Banana (2.5)", detail: "Google shuts it down on 2 Oct 2026", selectable: false },
+  // Through OpenRouter, not Google (27 Sep): the slug's slash sends the call there.
+  { id: "qwen3-2k", model: "qwen/qwen-image-3", priceSize: "2K", name: "Qwen Image 3", detail: "2K · OpenRouter", selectable: true },
+  { id: "qwen3-1k", model: "qwen/qwen-image-3", priceSize: "1K", name: "Qwen Image 3", detail: "1K · OpenRouter", selectable: true },
 ];
 
-export const DEFAULT_IMAGE_OPTION = "lite-1k";
+/** Rows priced from OpenRouter's list, not Google's page. */
+const isOpenRouter = (o: ImageOption) => o.model.includes("/");
+
+export const DEFAULT_IMAGE_OPTION = "qwen3-2k";
 
 export function imageOption(id: string | null | undefined): ImageOption {
   const found = IMAGE_OPTIONS.find((o) => o.id === id && o.selectable);
@@ -59,6 +65,10 @@ const HAND_CHECKED: PriceTable = {
   "pro-1k": { normal: 0.134, batch: 0.067 },
   "pro-2k": { normal: 0.134, batch: 0.067 },
   "nb-2.5": { normal: 0.039, batch: 0.0195 },
+  // openrouter.ai/api/v1/images/models/qwen/qwen-image-3/endpoints, 27 Sep: $0.03 an
+  // image at 1K and 2K alike, plus $0.003 for each input image. No batch tier.
+  "qwen3-2k": { normal: 0.03, batch: null },
+  "qwen3-1k": { normal: 0.03, batch: null },
 };
 const HAND_CHECKED_ON = "2026-09-25";
 
@@ -182,7 +192,8 @@ export async function livePrices(): Promise<Reading<PriceTable>> {
   try {
     const table = parsePricing(await fetchText(PRICING_URL));
     const found = Object.keys(table).length;
-    if (found < IMAGE_OPTIONS.length - 1) throw new Error(`Google's page changed: only ${found} of ${IMAGE_OPTIONS.length} prices found`);
+    const googleRows = IMAGE_OPTIONS.filter((o) => !isOpenRouter(o)).length;
+    if (found < googleRows - 1) throw new Error(`Google's page changed: only ${found} of ${googleRows} prices found`);
     await Promise.all([write(KEYS.prices, JSON.stringify(table)), write(KEYS.pricesAt, now)]);
     return { value: { ...HAND_CHECKED, ...table }, source: "live", at: now };
   } catch (error) {

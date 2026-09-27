@@ -60,7 +60,7 @@ export default async function SpendPage() {
       <form action={setImageModelAction} className="mt-6 rounded-xl border border-line bg-surface p-5">
         <h2 className="text-[15px] font-semibold">Image model</h2>
         <p className="mt-1 text-[13px] text-ink-soft">
-          Every everyday image is made with the model you pick here. Prices are Google&apos;s, per image, converted at ${"1"} = ₹{rate.value.toFixed(2)}.
+          Every everyday image is made with the model you pick here. Prices are Google&apos;s (Qwen: OpenRouter&apos;s list), per image, converted at ${"1"} = ₹{rate.value.toFixed(2)}.
         </p>
         <p className="mt-1 text-[12.5px] text-ink-faint">
           <Freshness label="Prices" reading={prices} /> · <Freshness label="Dollar rate" reading={rate} />

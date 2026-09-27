@@ -185,7 +185,7 @@ export async function reserveGeneration(input: ReserveInput): Promise<ReserveRes
         promptVersion: input.promptVersion,
         promptText: input.promptText,
         look: input.look,
-        provider: "gemini",
+        provider: input.model.includes("/") ? "openrouter" : "gemini",
         model: input.model,
         status: "running",
         costPaise,
