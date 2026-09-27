@@ -63,6 +63,27 @@ function aws(): AwsClient {
  * send exactly that Content-Type or the signature fails — the caller passes
  * the same string to both.
  */
+/**
+ * Every object in the bucket with its size. R2 has no "how big is this
+ * bucket" call, so the Storage page walks the listing, 1,000 keys a page.
+ */
+export async function listObjects(prefix = ""): Promise<{ key: string; size: number; lastModified: string }[]> {
+  const out: { key: string; size: number; lastModified: string }[] = [];
+  let token = "";
+  do {
+    const url = `https://${ACCOUNT}.r2.cloudflarestorage.com/${BUCKET}?list-type=2&max-keys=1000${prefix ? `&prefix=${encodeURIComponent(prefix)}` : ""}${token ? `&continuation-token=${encodeURIComponent(token)}` : ""}`;
+    const res = await aws().fetch(url);
+    if (!res.ok) throw new Error(`Storage listing failed: ${res.status}`);
+    const xml = await res.text();
+    for (const [, item] of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)) {
+      const field = (tag: string) => (item!.match(new RegExp(`<${tag}>([^<]*)</${tag}>`)) ?? [])[1] ?? "";
+      out.push({ key: field("Key"), size: Number(field("Size")), lastModified: field("LastModified") });
+    }
+    token = (xml.match(/<NextContinuationToken>([^<]*)<\/NextContinuationToken>/) ?? [])[1] ?? "";
+  } while (token);
+  return out;
+}
+
 export async function presignPut(key: string, contentType: string, seconds = 300): Promise<string> {
   const url = new URL(objectUrl(key));
   url.searchParams.set("X-Amz-Expires", String(seconds));

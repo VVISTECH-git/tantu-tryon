@@ -56,6 +56,11 @@ export default async function SpendPage() {
           Generations: input sheet, exact prompt and result for every run →
         </a>
       </p>
+      <p className="mt-1 text-[13.5px]">
+        <a href="/admin/storage" className="text-accent underline">
+          Storage: how much space the photos and images take →
+        </a>
+      </p>
 
       <form action={setImageModelAction} className="mt-6 rounded-xl border border-line bg-surface p-5">
         <h2 className="text-[15px] font-semibold">Image model</h2>
