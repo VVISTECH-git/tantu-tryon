@@ -1,5 +1,6 @@
 import { guessMime } from "../mime";
 import type { ProviderImage, RenderJobInput, RenderMode, TryOnProvider } from "../types";
+import { generateImageOpenRouter, isOpenRouterModel } from "./openrouter";
 
 /**
  * Google's image model, driven by a composed prompt plus every reference image.
@@ -187,14 +188,17 @@ export interface GeneratedImage {
  * the ledger can record the cost honestly.
  */
 export async function generateImage(options: GenerateImageOptions): Promise<GeneratedImage> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not set. Add it to .env.local — get one at https://aistudio.google.com/apikey.");
-  }
   if (!options.prompt.trim()) throw new Error("An empty prompt was about to be sent.");
   if (options.images.length === 0) throw new Error("No reference images to work from.");
 
   const model = options.model || process.env.GEMINI_IMAGE_MODEL || STANDARD_MODEL;
+  // A slug with a slash (qwen/qwen-image-3) is served through OpenRouter, not Google.
+  if (isOpenRouterModel(model)) return generateImageOpenRouter({ ...options, model });
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not set. Add it to .env.local — get one at https://aistudio.google.com/apikey.");
+  }
   const parts: GeminiPart[] = [{ text: options.prompt }];
   for (const image of options.images) {
     const data = image.data.replace(/^data:[^;]+;base64,/, "");
