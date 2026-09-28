@@ -1,6 +1,6 @@
 import { DEFAULT_GARMENT_TYPE, garmentType } from "@/content/shots";
 import { PRODUCT_ID_PATTERN, createUploadGarment, missingSlots, openProductGarment, publicGarment } from "@/lib/garments";
-import { openAutoProduct, peekAutoProductId } from "@/lib/autoProductId";
+import { deviceFrom, openAutoProduct, peekAutoProductId } from "@/lib/autoProductId";
 import { requireAccount, unauthorised } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     if (body.auto === true) {
       const type = garmentType(body.type ?? DEFAULT_GARMENT_TYPE);
       if (!type.enabled) return Response.json({ error: `${type.label} is coming soon.` }, { status: 400 });
-      const garment = await openAutoProduct(account.id, type.value);
+      const garment = await openAutoProduct(account.id, type.value, deviceFrom(request));
       return Response.json({ garment: publicGarment(garment), missing: missingSlots(garment) }, { headers: { "Cache-Control": "no-store" } });
     }
     if (body.noProductId === true && account.role === "photographer") {
@@ -48,10 +48,10 @@ export async function POST(request: Request) {
 }
 
 /** The product ID the next automatic Continue would get (photographer login). */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const account = await requireAccount();
-    return Response.json({ nextId: await peekAutoProductId(account.id) }, { headers: { "Cache-Control": "no-store" } });
+    return Response.json({ nextId: await peekAutoProductId(account.id, deviceFrom(request)) }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return unauthorised(error) ?? Response.json({ error: "Could not read the next product ID." }, { status: 500 });
   }

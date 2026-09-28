@@ -71,9 +71,35 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * This phone's own id, made once and kept (28 Sep): an automatic product ID
+ * is held by the phone it was given to until a photo is saved under it.
+ */
+const DEVICE_KEY = "tantu.device";
+let device: string | null = null;
+
+async function deviceId(): Promise<string> {
+  if (device) return device;
+  try {
+    device = await SecureStore.getItemAsync(DEVICE_KEY);
+  } catch {
+    device = null;
+  }
+  if (!device) {
+    device = newKey();
+    try {
+      await SecureStore.setItemAsync(DEVICE_KEY, device);
+    } catch {
+      // Kept for this run; a new id next launch only means a new number is held.
+    }
+  }
+  return device;
+}
+
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("x-tantu-client", "mobile");
+  headers.set("x-tantu-device", await deviceId());
   if (token) headers.set("authorization", `Bearer ${token}`);
   let response: Response;
   try {
