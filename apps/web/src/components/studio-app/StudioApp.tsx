@@ -869,12 +869,18 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                     <span className="st-muted">↗</span>
                   </a>
                 )}
-                {account.platformAdmin && (
-                  <a className="st-row" href="/admin/spend" style={{ textDecoration: "none", color: "inherit" }}>
-                    <b>{T.profile.spend}</b>
-                    <span className="st-muted">↗</span>
-                  </a>
-                )}
+                {account.platformAdmin &&
+                  ([
+                    ["/admin/spend", T.profile.spend],
+                    ["/admin/products", T.profile.products],
+                    ["/admin/generations", T.profile.generations],
+                    ["/admin/storage", T.profile.storage],
+                  ] as const).map(([href, label]) => (
+                    <a key={href} className="st-row" href={href} style={{ textDecoration: "none", color: "inherit" }}>
+                      <b>{label}</b>
+                      <span className="st-muted">↗</span>
+                    </a>
+                  ))}
               </div>
               <button type="button" className="st-secondary" onClick={async () => { await api.logout(); /* eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full reload clears every piece of studio state after sign-out */ window.location.href = "/app"; }}>
                 {T.profile.logout}
