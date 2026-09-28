@@ -106,6 +106,12 @@ function Studio() {
     })();
   }, []);
   const [busySlot, setBusySlot] = useState<string | null>(null);
+  // Photos taken on this phone for the open product, shown from the phone
+  // itself: the stored original is 12-15 MB and took ages to come back (28 Sep).
+  const [localPhotos, setLocalPhotos] = useState<Record<string, string>>({});
+  useEffect(() => setLocalPhotos({}), [garment?.id]);
+  /** What to show for a stored photo: this phone's own copy, else the small preview, else the original. */
+  const shown = (part: { slot: string; url: string; previewUrl?: string }) => localPhotos[part.slot] ?? part.previewUrl ?? part.url;
   const [cameraShot, setCameraShot] = useState<Shot | null>(null);
   const [cropPick, setCropPick] = useState<{ shot: Shot; photo: api.LocalPhoto } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -325,6 +331,7 @@ function Studio() {
    */
   async function upload(shot: Shot, photo: api.LocalPhoto) {
     setBusySlot(shot.slot);
+    setLocalPhotos((prev) => ({ ...prev, [shot.slot]: photo.uri }));
     try {
       let sent = photo;
       if (/hei[cf]/i.test(photo.mimeType ?? "")) {
@@ -339,8 +346,15 @@ function Studio() {
         batch.current = api.newKey();
       }
       setGarment(result.garment);
+      // A new product's id arrives with the first photo: keep showing it from the phone.
+      if (!fresh) setLocalPhotos({ [shot.slot]: photo.uri });
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "Upload failed.");
+      setLocalPhotos((prev) => {
+        const next = { ...prev };
+        delete next[shot.slot];
+        return next;
+      });
     } finally {
       setBusySlot(null);
     }
@@ -683,9 +697,9 @@ function Studio() {
             </View>
 
             <View style={s.fan} pointerEvents="none">
-              <Image source={{ uri: `${api.API_BASE}/splash/b_1.jpg` }} style={[s.fanCard, { left: 6, top: 12, transform: [{ rotate: "-11deg" }] }]} />
-              <Image source={{ uri: `${api.API_BASE}/splash/b_5.jpg` }} style={[s.fanCard, { right: 6, top: 12, transform: [{ rotate: "10deg" }] }]} />
-              <Image source={{ uri: `${api.API_BASE}/splash/b_3.jpg` }} style={[s.fanCard, s.fanCentre]} />
+              <Image source={SPLASH_PHOTOS[0]} fadeDuration={0} style={[s.fanCard, { left: 6, top: 12, transform: [{ rotate: "-11deg" }] }]} />
+              <Image source={SPLASH_PHOTOS[4]} fadeDuration={0} style={[s.fanCard, { right: 6, top: 12, transform: [{ rotate: "10deg" }] }]} />
+              <Image source={SPLASH_PHOTOS[2]} fadeDuration={0} style={[s.fanCard, s.fanCentre]} />
             </View>
 
             <View style={s.signinCard}>
@@ -848,6 +862,7 @@ function Studio() {
               type={garmentType}
               garment={garment}
               busySlot={busySlot}
+              shown={shown}
               opened={opened}
               onOpen={(slot) => setOpened((prev) => new Set(prev).add(slot))}
               onFold={(slot) => setOpened((prev) => { const next = new Set(prev); next.delete(slot); return next; })}
@@ -902,9 +917,9 @@ function Studio() {
                   const part = parts.find((p) => p.slot === shot.slot)!;
                   const state = part.quality?.status ?? null;
                   return (
-                    <Pressable key={shot.slot} style={s.stripItem} onPress={() => setViewing({ uri: part.url, label: shot.label })}>
+                    <Pressable key={shot.slot} style={s.stripItem} onPress={() => setViewing({ uri: shown(part), label: shot.label })}>
                       <View style={[s.stripThumb, state === "warn" && s.warnBorder, state === "block" && s.badBorder]}>
-                        <Image source={{ uri: part.url }} style={s.fill} />
+                        <Image source={{ uri: shown(part) }} style={s.fill} />
                         {state && <View style={[s.dot, s.dotAbs, { backgroundColor: state === "ok" ? C.good : state === "warn" ? C.warn : C.bad }]} />}
                       </View>
                       <Text style={s.stripLabel}>{shot.label}</Text>
@@ -937,6 +952,7 @@ function Studio() {
               type={garment.garmentType}
               garment={garment}
               busySlot={busySlot}
+              shown={shown}
               optionalOnly
               opened={opened}
               onOpen={(slot) => setOpened((prev) => new Set(prev).add(slot))}
@@ -1265,6 +1281,19 @@ function Studio() {
  * a smaller set below 780px of height; here the web's full-size set is scaled
  * down just enough to fit the screen below the mark, never above web size.
  */
+/*
+  In the app, not fetched: loaded from the server, the splash opened empty and
+  the photos popped in after it (28 Sep, in front of people). Same five files
+  as apps/web/public/splash.
+*/
+const SPLASH_PHOTOS = [
+  require("./assets/splash/b_1.jpg"),
+  require("./assets/splash/b_2.jpg"),
+  require("./assets/splash/b_3.jpg"),
+  require("./assets/splash/b_4.jpg"),
+  require("./assets/splash/b_5.jpg"),
+] as number[];
+
 function Splash({ onSkip, deviceW }: { onSkip: () => void; deviceW: number }) {
   const { height: winH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -1276,8 +1305,8 @@ function Splash({ onSkip, deviceW }: { onSkip: () => void; deviceW: number }) {
   const smallH = (small * 4) / 3;
   const big = 186 * k;
   const bigH = (big * 4) / 3;
-  const photo = (n: number) => `${api.API_BASE}/splash/b_${n}.jpg`;
-  const cards: { src: string; style: object; z?: number }[] = [
+  const photo = (n: number) => SPLASH_PHOTOS[n - 1]!;
+  const cards: { src: number; style: object; z?: number }[] = [
     { src: photo(1), style: { left: 0, top: 12 * k, width: small, height: smallH, transform: [{ rotate: "-10deg" }] } },
     { src: photo(2), style: { right: 0, top: 0, width: small, height: smallH, transform: [{ rotate: "9deg" }] } },
     { src: photo(3), style: { left: W / 2 - big / 2, top: 150 * k, width: big, height: bigH, transform: [{ rotate: "-2deg" }] }, z: 2 },
@@ -1299,7 +1328,7 @@ function Splash({ onSkip, deviceW }: { onSkip: () => void; deviceW: number }) {
       <View style={{ width: W, height: H, marginTop: 30 }}>
         {cards.map((c, i) => (
           <View key={i} style={[s.splashShot, c.style, c.z ? { zIndex: c.z, elevation: 10 } : null]}>
-            <Image source={{ uri: c.src }} style={s.fill} resizeMode="cover" />
+            <Image source={c.src} style={s.fill} resizeMode="cover" fadeDuration={0} />
           </View>
         ))}
       </View>
@@ -1337,6 +1366,7 @@ function ShotList({
   onClear,
   onHow,
   onView,
+  shown,
 }: {
   type: string;
   garment: GarmentView | null;
@@ -1350,6 +1380,7 @@ function ShotList({
   onClear: (shot: Shot) => void;
   onHow: (shot: Shot) => void;
   onView: (uri: string, label: string) => void;
+  shown: (part: { slot: string; url: string; previewUrl?: string }) => string;
 }) {
   let shots = shotsFor(type);
   if (optionalOnly) shots = shots.filter((sh) => !sh.required);
@@ -1366,9 +1397,9 @@ function ShotList({
         const full = p?.quality?.reasons.map((r) => r.message).join(" ") ?? "";
         return (
           <View key={shot.slot} style={[s.shot, state === "warn" && s.warnBorder, state === "block" && s.badBorder]}>
-            <Pressable style={s.shotThumb} onPress={() => (p ? onView(p.url, shot.label) : onCamera(shot))}>
+            <Pressable style={s.shotThumb} onPress={() => (p ? onView(shown(p), shot.label) : onCamera(shot))}>
               {p ? (
-                <Image source={{ uri: p.url }} style={s.fill} />
+                <Image source={{ uri: shown(p) }} style={s.fill} />
               ) : (
                 <>
                   <Image source={{ uri: `${api.API_BASE}${shot.frame ?? shot.sample}` }} style={[s.fill, { opacity: 0.38 }]} />

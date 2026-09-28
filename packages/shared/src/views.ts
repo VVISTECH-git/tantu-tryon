@@ -21,6 +21,8 @@ export interface GarmentPartView {
   height: number | null;
   rotate: 0 | 90 | 180 | 270;
   quality?: PartQuality;
+  /** A small copy for screens; the original at `url` is what the image model gets. */
+  previewUrl?: string;
 }
 
 export interface GarmentAnswersView {

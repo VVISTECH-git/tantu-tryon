@@ -47,7 +47,10 @@ export async function loadStorageUsage(): Promise<StorageUsage> {
   const referenced = new Set<string>();
   for (const g of garmentRows) {
     if (g.sheetKey) referenced.add(g.sheetKey);
-    for (const part of (g.parts ?? []) as { key?: string }[]) if (part.key) referenced.add(part.key);
+    for (const part of (g.parts ?? []) as { key?: string; previewKey?: string }[]) {
+      if (part.key) referenced.add(part.key);
+      if (part.previewKey) referenced.add(part.previewKey);
+    }
   }
   for (const r of generationRows) {
     if (r.imageKey) referenced.add(r.imageKey);
