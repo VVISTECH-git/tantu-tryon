@@ -10,7 +10,7 @@ import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-
 import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
 import { TANTU_MARK_GRADIENT, TANTU_MARK_PATHS, TANTU_MARK_VIEWBOX } from "@tantu/shared/brand";
 import { ShotCamera, type CapturedPhoto } from "./src/ShotCamera";
-import { EditView } from "./src/EditView";
+import { PhotoReview } from "./src/PhotoReview";
 import type { PhotoEdit } from "@tantu/shared/photoEdit";
 import { DetailImage, ZoomImage } from "./src/ZoomImage";
 import { QrScan } from "./src/QrScan";
@@ -1355,10 +1355,10 @@ function Studio() {
         </View>
       </Modal>
 
-      {/* A photo from the library: the same edit screen as the camera, before it is saved */}
+      {/* A photo from the library: the same review (and optional edit) as the camera, before it is saved */}
       <Modal visible={cropPick !== null} animationType="slide" onRequestClose={() => setCropPick(null)} statusBarTranslucent>
         {cropPick && (
-          <EditView
+          <PhotoReview
             photo={cropPick.photo}
             backLabel="Cancel"
             onBack={() => setCropPick(null)}
