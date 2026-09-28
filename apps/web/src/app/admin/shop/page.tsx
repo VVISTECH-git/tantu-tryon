@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { db, garments, generations } from "@/db";
 import { requirePage } from "@/lib/page-auth";
 import { usersOf } from "@/lib/session";
@@ -18,7 +18,7 @@ export default async function ShopPage() {
   const [balance, people, [products], [month], recent] = await Promise.all([
     balancePaise(account.id),
     usersOf(account.id),
-    db.select({ n: sql<number>`count(*)::int` }).from(garments).where(eq(garments.accountId, account.id)),
+    db.select({ n: sql<number>`count(*)::int` }).from(garments).where(and(eq(garments.accountId, account.id), isNull(garments.deletedAt))),
     db
       .select({ n: sql<number>`count(*)::int`, paise: sql<number>`coalesce(sum(${generations.creditsPaise}), 0)::int` })
       .from(generations)

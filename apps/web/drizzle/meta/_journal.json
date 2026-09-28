@@ -43,6 +43,13 @@
       "when": 1790397863233,
       "tag": "0005_public_ultimo",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790590030049,
+      "tag": "0006_magical_mauler",
+      "breakpoints": true
     }
   ]
 }

@@ -31,6 +31,7 @@ function garment(parts: GarmentPartRow[], answers: Garment["answers"] = {}): Gar
     sheetKey: null,
     createdAt: new Date(0),
     updatedAt: new Date(0),
+    deletedAt: null,
   };
 }
 

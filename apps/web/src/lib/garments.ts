@@ -1,12 +1,12 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, isNull } from "drizzle-orm";
 import sharp from "sharp";
-import { db, garments, type Garment, type GarmentPartRow, type PartQuality } from "@/db";
+import { db, garments, generations, type Garment, type GarmentPartRow, type PartQuality } from "@/db";
 import { garmentWordsFrom, type DescribedGarment, type GarmentWords } from "@/content/garmentWords";
 import type { Attachment, PartPlan } from "@/content/promptTemplates";
 import { SHEET_CELLS, SHEET_FILL, SHEET_LEAD, garmentType, requiredSlots } from "@/content/shots";
 import { buildContactSheet } from "@/lib/contactSheet";
 import { fetchBase64, fetchProduct, partsBySlot } from "@/lib/slk";
-import { assetUrl, getObject, keys, putObject, readAsset, saveUpload, storageConfigured } from "@/lib/storage";
+import { assetUrl, getObject, keys, putObject, readAsset, remove, saveUpload, storageConfigured } from "@/lib/storage";
 
 /**
  * A garment row: the saree, described well enough to photograph.
@@ -155,7 +155,7 @@ export const PRODUCT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 _\-/.]{0,39}$/;
  * so photographs taken on another day land in the same place.
  */
 export async function openProductGarment(accountId: string, productId: string, type: string): Promise<Garment> {
-  const rows = await db.select().from(garments).where(and(eq(garments.accountId, accountId), eq(garments.productCode, productId)));
+  const rows = await db.select().from(garments).where(and(eq(garments.accountId, accountId), eq(garments.productCode, productId), isNull(garments.deletedAt)));
   const existing = rows.sort((a, b) => +b.updatedAt - +a.updatedAt)[0];
   if (existing) return existing;
   const chosen = garmentType(type);
@@ -168,23 +168,45 @@ export async function openProductGarment(accountId: string, productId: string, t
 
 /** Whether another record in this shop already carries the product ID. */
 export async function productIdTaken(accountId: string, productId: string, exceptId: string): Promise<boolean> {
-  const rows = await db.select({ id: garments.id }).from(garments).where(and(eq(garments.accountId, accountId), eq(garments.productCode, productId)));
+  const rows = await db.select({ id: garments.id }).from(garments).where(and(eq(garments.accountId, accountId), eq(garments.productCode, productId), isNull(garments.deletedAt)));
   return rows.some((r) => r.id !== exceptId);
 }
 
 /** The account's records, newest first, for the list of saved products. */
 export async function listGarments(accountId: string, limit = 200): Promise<Garment[]> {
-  return db.select().from(garments).where(eq(garments.accountId, accountId)).orderBy(desc(garments.updatedAt)).limit(limit);
+  return db.select().from(garments).where(and(eq(garments.accountId, accountId), isNull(garments.deletedAt))).orderBy(desc(garments.updatedAt)).limit(limit);
 }
 
 export async function getGarment(id: string, accountId: string): Promise<Garment | null> {
-  const [row] = await db.select().from(garments).where(eq(garments.id, id)).limit(1);
+  const [row] = await db.select().from(garments).where(and(eq(garments.id, id), isNull(garments.deletedAt))).limit(1);
   return row && row.accountId === accountId ? row : null;
 }
 
 export async function latestGarmentForCode(accountId: string, code: string): Promise<Garment | null> {
-  const rows = await db.select().from(garments).where(eq(garments.productCode, code));
+  const rows = await db.select().from(garments).where(and(eq(garments.productCode, code), isNull(garments.deletedAt)));
   return rows.filter((r) => r.accountId === accountId).sort((a, b) => +b.createdAt - +a.createdAt)[0] ?? null;
+}
+
+/**
+ * An admin deletes a product (28 Sep). With no images made from it, the
+ * record and its photo files go. With images, those images must keep their
+ * record and the Generations page must still show what went into them, so
+ * the row is only marked deleted, its photos kept, and every list and lookup
+ * skips it; opening the same product ID again starts a fresh record.
+ */
+export async function deleteGarment(garment: Garment): Promise<"removed" | "hidden"> {
+  const [made] = await db.select({ n: count() }).from(generations).where(eq(generations.garmentId, garment.id));
+  if ((made?.n ?? 0) > 0) {
+    await db.update(garments).set({ deletedAt: new Date() }).where(eq(garments.id, garment.id));
+    return "hidden";
+  }
+  await db.delete(garments).where(eq(garments.id, garment.id));
+  if (storageConfigured()) {
+    const files = [...garment.parts.flatMap((p) => [p.key, p.previewKey]), garment.sheetKey].filter((k): k is string => Boolean(k));
+    // The record is gone either way; a file left behind shows as unused on the Storage page.
+    await Promise.all(files.map((k) => remove(k).catch(() => undefined)));
+  }
+  return "removed";
 }
 
 /** Parts change what the sheet shows, so the cached sheet goes with them. */

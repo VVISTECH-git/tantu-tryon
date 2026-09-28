@@ -612,6 +612,31 @@ function Studio() {
     }
   }
 
+  /** Owner or platform admin only (28 Sep). Generated images are kept. */
+  function confirmDelete() {
+    if (!garment) return;
+    const name = garment.productCode ?? "this product";
+    Alert.alert(`Delete ${name}?`, "Its photos are removed and it leaves Saved products. Images already generated from it are kept.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => void deleteNow() },
+    ]);
+  }
+
+  async function deleteNow() {
+    if (!garment) return;
+    setBusy(true);
+    try {
+      await api.deleteProduct(garment.id);
+      const back = shotsBack;
+      startOver();
+      if (back === "saved") void showSaved();
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not delete the product.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function startOver() {
     setPose(PRIMARY_PROMPT);
     setProductId("");
@@ -901,6 +926,11 @@ function Studio() {
               disabled={!ready || busy}
               onPress={() => void analyzeNow()}
             />
+            )}
+            {garment && (role === "owner" || platformAdmin) && (
+              <Pressable onPress={confirmDelete} disabled={busy || busySlot !== null} hitSlop={10} style={{ alignSelf: "center", marginTop: 8 }}>
+                <Text style={s.deleteLink}>Delete this product</Text>
+              </Pressable>
             )}
           </View>
         )}
@@ -1619,6 +1649,7 @@ const s = StyleSheet.create({
   chipBtn: { minHeight: 32, paddingHorizontal: 12, borderRadius: R.pill, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.04)", justifyContent: "center" },
   chipAccent: { backgroundColor: "rgba(219,113,36,0.16)", borderColor: "rgba(219,113,36,0.24)" },
   chipBtnText: { color: C.text, fontSize: 12, fontWeight: "500" },
+  deleteLink: { color: C.bad, fontSize: 14, textDecorationLine: "underline" },
   link: { color: C.accentPale, fontSize: 12, fontWeight: "600", textDecorationLine: "underline", marginLeft: 4 },
   ori: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 7, paddingVertical: 1, borderRadius: R.pill, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
   oriText: { color: C.text, fontSize: 11, fontWeight: "600" },

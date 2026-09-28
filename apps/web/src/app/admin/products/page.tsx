@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requirePage } from "@/lib/page-auth";
 import { productInputsById, productRows } from "@/lib/productInputs";
+import { DeleteProduct } from "./DeleteProduct";
 
 export const dynamic = "force-dynamic";
 
@@ -87,6 +88,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                 </Link>
               </p>
             )}
+            <DeleteProduct id={g.id} name={g.productCode ?? "this product"} />
           </>
         )}
       </div>
