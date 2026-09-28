@@ -9,7 +9,8 @@
     ".": "./src/index.ts",
     "./shots": "./src/shots.ts",
     "./views": "./src/views.ts",
-    "./brand": "./src/brand.ts"
+    "./brand": "./src/brand.ts",
+    "./photoEdit": "./src/photoEdit.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

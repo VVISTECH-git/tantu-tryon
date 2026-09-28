@@ -2,10 +2,11 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import * as SecureStore from "expo-secure-store";
 import { DeviceMotion } from "expo-sensors";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Shot } from "@tantu/shared/shots";
-import { CropView } from "./CropView";
+import { EditView } from "./EditView";
+import type { PhotoEdit } from "@tantu/shared/photoEdit";
 import { C, R } from "./theme";
 
 /**
@@ -23,6 +24,10 @@ export interface CapturedPhoto {
   uri: string;
   width: number;
   height: number;
+  /** Chosen on the edit screen; burned into the photo before it is sent. */
+  edit?: PhotoEdit | null;
+  /** A small copy with the crop and turns, to show at once. */
+  shownUri?: string;
 }
 
 const WIDE_KEY = "tantu.wideLens";
@@ -48,7 +53,6 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [pictureSize, setPictureSize] = useState<string | undefined>(undefined);
-  const [cropping, setCropping] = useState(false);
   const [lenses, setLenses] = useState<string[]>([]);
   const [wide, setWide] = useState(false);
   const [pose, setPose] = useState<Pose | null>(null);
@@ -188,28 +192,15 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
     );
   }
 
-  if (captured && cropping) {
-    return <CropView photo={captured} onDone={(p) => onCapture({ uri: p.uri, width: p.width, height: p.height })} onCancel={() => setCropping(false)} />;
-  }
-
+  // Straight to the edit screen, the box already round the saree (28 Sep): one tap on Use keeps just the fabric.
   if (captured) {
     return (
-      <View style={s.page}>
-        <Image source={{ uri: captured.uri }} style={StyleSheet.absoluteFill} resizeMode="contain" />
-        <View style={s.reviewBar}>
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Pressable style={[s.secondary, { flex: 1 }]} onPress={() => setCaptured(null)}>
-              <Text style={s.secondaryText}>Retake</Text>
-            </Pressable>
-            <Pressable style={[s.secondary, { flex: 1 }]} onPress={() => setCropping(true)}>
-              <Text style={s.secondaryText}>Crop</Text>
-            </Pressable>
-          </View>
-          <Pressable style={s.action} onPress={() => onCapture(captured)}>
-            <Text style={s.actionText}>Use photo</Text>
-          </Pressable>
-        </View>
-      </View>
+      <EditView
+        photo={captured}
+        backLabel="Retake"
+        onBack={() => setCaptured(null)}
+        onDone={(out) => onCapture({ uri: out.photo.uri, width: out.photo.width, height: out.photo.height, edit: out.edit, shownUri: out.shownUri })}
+      />
     );
   }
 
@@ -315,7 +306,6 @@ const s = StyleSheet.create({
   lensBtn: { width: 64, height: 40, borderRadius: R.pill, borderWidth: 1, borderColor: "rgba(255,255,255,0.4)", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.35)" },
   lensBtnOn: { backgroundColor: C.accentPale, borderColor: C.accentPale },
   lensText: { color: "#fff", fontSize: 14, fontWeight: "700" },
-  reviewBar: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 20, paddingBottom: 40, gap: 10, backgroundColor: "rgba(0,0,0,0.55)" },
   action: { minHeight: 52, borderRadius: R.pill, backgroundColor: C.actionTop, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
   actionText: { color: "#fff8f1", fontSize: 15, fontWeight: "600" },
   secondary: { minHeight: 48, borderRadius: R.pill, borderWidth: 1, borderColor: "rgba(255,255,255,0.3)", alignItems: "center", justifyContent: "center" },
