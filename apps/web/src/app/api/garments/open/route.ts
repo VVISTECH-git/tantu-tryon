@@ -1,5 +1,6 @@
 import { DEFAULT_GARMENT_TYPE, garmentType } from "@/content/shots";
 import { PRODUCT_ID_PATTERN, createUploadGarment, missingSlots, openProductGarment, publicGarment } from "@/lib/garments";
+import { openAutoProduct, peekAutoProductId } from "@/lib/autoProductId";
 import { requireAccount, unauthorised } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -13,7 +14,18 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     const account = await requireAccount();
-    const body = (await request.json().catch(() => ({}))) as { productId?: string; type?: string; noProductId?: boolean };
+    const body = (await request.json().catch(() => ({}))) as { productId?: string; type?: string; noProductId?: boolean; auto?: boolean };
+    // The photographer login gets its product IDs given out (9001, 9002, …)
+    // and may not start a record without one (28 Sep).
+    if (body.auto === true) {
+      const type = garmentType(body.type ?? DEFAULT_GARMENT_TYPE);
+      if (!type.enabled) return Response.json({ error: `${type.label} is coming soon.` }, { status: 400 });
+      const garment = await openAutoProduct(account.id, type.value);
+      return Response.json({ garment: publicGarment(garment), missing: missingSlots(garment) }, { headers: { "Cache-Control": "no-store" } });
+    }
+    if (body.noProductId === true && account.role === "photographer") {
+      return Response.json({ error: "The photographer login always gets a product ID. Tap Continue to photos." }, { status: 403 });
+    }
     // Without a product ID: a fresh record each time, marked "No product ID",
     // which can be given one later from its shot screen.
     if (body.noProductId === true) {
@@ -32,5 +44,15 @@ export async function POST(request: Request) {
     return Response.json({ garment: publicGarment(garment), missing: missingSlots(garment) }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return unauthorised(error) ?? Response.json({ error: error instanceof Error ? error.message : "Could not open the product." }, { status: 500 });
+  }
+}
+
+/** The product ID the next automatic Continue would get (photographer login). */
+export async function GET() {
+  try {
+    const account = await requireAccount();
+    return Response.json({ nextId: await peekAutoProductId(account.id) }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    return unauthorised(error) ?? Response.json({ error: "Could not read the next product ID." }, { status: 500 });
   }
 }

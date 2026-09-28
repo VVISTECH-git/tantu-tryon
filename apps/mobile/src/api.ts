@@ -212,6 +212,22 @@ export async function openWithoutProductId(type: string): Promise<GarmentView> {
   return out.garment;
 }
 
+/** The product ID the photographer's next Continue will get (9001, 9002, …). */
+export async function nextAutoProductId(): Promise<string> {
+  const out = await call<{ nextId: string }>("/api/garments/open");
+  return out.nextId;
+}
+
+/** Give out the next automatic product ID and open its record (photographer login). */
+export async function openAutoProduct(type: string): Promise<GarmentView> {
+  const out = await call<{ garment: GarmentView }>("/api/garments/open", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ auto: true, type }),
+  });
+  return out.garment;
+}
+
 /** Open (or reopen) the record for one product ID; every photograph after this is saved against it. */
 export async function openProduct(productId: string, type: string): Promise<GarmentView> {
   const out = await call<{ garment: GarmentView }>("/api/garments/open", {
