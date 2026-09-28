@@ -97,7 +97,7 @@ export async function addUploadedPart(
   takenBy?: string | null,
 ): Promise<Garment> {
   const key = storedKey ?? (await saveUpload(garment.id, slot, bytes, mime));
-  const previewKey = await savePreview(key, bytes);
+  const [previewKey, thumbKey] = await Promise.all([savePreview(key, bytes), saveThumb(key, bytes)]);
   const part: GarmentPartRow = {
     slot,
     key,
@@ -107,6 +107,7 @@ export async function addUploadedPart(
     rotate: 0,
     ...(quality ? { quality } : {}),
     ...(previewKey ? { previewKey, previewUrl: assetUrl(previewKey) } : {}),
+    ...(thumbKey ? { thumbKey, thumbUrl: assetUrl(thumbKey) } : {}),
     ...(takenBy ? { takenBy } : {}),
     takenAt: new Date().toISOString(),
   };
@@ -123,6 +124,7 @@ export async function recordPart(
   size: { width: number; height: number },
   quality: PartQuality,
   takenBy: string | null,
+  thumbKey: string | null = null,
 ): Promise<Garment> {
   const part: GarmentPartRow = {
     slot,
@@ -134,6 +136,7 @@ export async function recordPart(
     quality,
     previewKey,
     previewUrl: assetUrl(previewKey),
+    ...(thumbKey ? { thumbKey, thumbUrl: assetUrl(thumbKey) } : {}),
     ...(takenBy ? { takenBy } : {}),
     takenAt: new Date().toISOString(),
   };
@@ -155,6 +158,19 @@ export async function savePreview(key: string, bytes: Uint8Array): Promise<strin
     const previewKey = `${key.replace(/\.[a-z0-9]+$/i, "")}.preview.jpg`;
     await putObject(previewKey, small, "image/jpeg");
     return previewKey;
+  } catch {
+    return null;
+  }
+}
+
+/** The list copy of a photo, stored beside it as <key>.thumb.jpg: upright, 240 px, JPEG 72. */
+export async function saveThumb(key: string, bytes: Uint8Array): Promise<string | null> {
+  if (!storageConfigured()) return null;
+  try {
+    const tiny = await sharp(bytes).rotate().resize({ width: 240, height: 240, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 72 }).toBuffer();
+    const thumbKey = `${key.replace(/\.[a-z0-9]+$/i, "").replace(/\.preview$/, "")}.thumb.jpg`;
+    await putObject(thumbKey, tiny, "image/jpeg");
+    return thumbKey;
   } catch {
     return null;
   }
@@ -248,7 +264,7 @@ export async function deleteGarment(garment: Garment): Promise<"removed" | "hidd
   }
   await db.delete(garments).where(eq(garments.id, garment.id));
   if (storageConfigured()) {
-    const files = [...garment.parts.flatMap((p) => [p.key, p.previewKey]), garment.sheetKey].filter((k): k is string => Boolean(k));
+    const files = [...garment.parts.flatMap((p) => [p.key, p.previewKey, p.thumbKey]), garment.sheetKey].filter((k): k is string => Boolean(k));
     // The record is gone either way; a file left behind shows as unused on the Storage page.
     await Promise.all(files.map((k) => remove(k).catch(() => undefined)));
   }
@@ -278,7 +294,11 @@ export async function updateGarment(
 export function publicGarment(garment: Garment): Garment {
   return {
     ...garment,
-    parts: garment.parts.map((p) => (p.key ? { ...p, url: assetUrl(p.key), ...(p.previewKey ? { previewUrl: assetUrl(p.previewKey) } : {}) } : p)),
+    parts: garment.parts.map((p) =>
+      p.key
+        ? { ...p, url: assetUrl(p.key), ...(p.previewKey ? { previewUrl: assetUrl(p.previewKey) } : {}), ...(p.thumbKey ? { thumbUrl: assetUrl(p.thumbKey) } : {}) }
+        : p,
+    ),
   };
 }
 

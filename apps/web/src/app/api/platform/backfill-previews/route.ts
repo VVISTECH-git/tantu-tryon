@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, garments, type GarmentPartRow } from "@/db";
-import { savePreview } from "@/lib/garments";
+import { savePreview, saveThumb } from "@/lib/garments";
 import { requirePlatform, unauthorised } from "@/lib/session";
 import { assetUrl, getObject } from "@/lib/storage";
 
@@ -23,7 +23,8 @@ export async function POST(request: Request) {
     const limit = Math.min(Math.max(Number(new URL(request.url).searchParams.get("limit") ?? 15), 1), 40);
     const rows = await db.select({ id: garments.id, parts: garments.parts }).from(garments);
 
-    const needs = (p: GarmentPartRow) => Boolean(p.key) && !p.previewKey;
+    // A preview, and (28 Sep) the tiny list thumbnail, for every photo that lacks one.
+    const needs = (p: GarmentPartRow) => Boolean(p.key) && (!p.previewKey || !p.thumbKey);
     let made = 0;
     let failed = 0;
     const problems: string[] = [];
@@ -36,11 +37,14 @@ export async function POST(request: Request) {
           parts.push(part);
           continue;
         }
-        const bytes = await getObject(part.key!).catch(() => null);
-        const previewKey = bytes && bytes.byteLength > 0 ? await savePreview(part.key!, bytes) : null;
-        if (!previewKey) problems.push(`${part.key}: ${bytes ? "could not be read as an image" : "not found in storage"}`);
-        if (previewKey) {
-          parts.push({ ...part, previewKey, previewUrl: assetUrl(previewKey) });
+        // The thumbnail comes from the preview when there is one: far less to read than the original.
+        const bytes = await getObject(part.previewKey ?? part.key!).catch(() => null);
+        const ok = bytes && bytes.byteLength > 0;
+        const previewKey = part.previewKey ?? (ok ? await savePreview(part.key!, bytes) : null);
+        const thumbKey = part.thumbKey ?? (ok ? await saveThumb(part.key!, bytes) : null);
+        if (!previewKey || !thumbKey) problems.push(`${part.key}: ${bytes ? "could not be read as an image" : "not found in storage"}`);
+        if (previewKey && thumbKey) {
+          parts.push({ ...part, previewKey, previewUrl: assetUrl(previewKey), thumbKey, thumbUrl: assetUrl(thumbKey) });
           made++;
         } else {
           parts.push(part);

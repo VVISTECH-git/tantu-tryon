@@ -51,7 +51,7 @@ export async function productRows(): Promise<ProductRow[]> {
         id: g.id,
         productCode: g.productCode,
         title: g.title,
-        photos: g.parts.map((p) => ({ slot: p.slot, thumbUrl: p.previewKey ? assetUrl(p.previewKey) : p.key ? assetUrl(p.key) : p.url })),
+        photos: g.parts.map((p) => ({ slot: p.slot, thumbUrl: p.thumbKey ? assetUrl(p.thumbKey) : p.previewKey ? assetUrl(p.previewKey) : p.key ? assetUrl(p.key) : p.url })),
         takenBy: [...new Set(g.parts.map((p) => p.takenBy).filter((t): t is string => Boolean(t)))],
         lastTakenAt: times.at(-1) ?? null,
         sheetReady: Boolean(g.sheetKey && g.sheetKey.endsWith(".w2.jpg")),
