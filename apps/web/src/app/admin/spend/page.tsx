@@ -61,6 +61,11 @@ export default async function SpendPage() {
           Storage: how much space the photos and images take →
         </a>
       </p>
+      <p className="mt-1 text-[13.5px]">
+        <a href="/admin/products" className="text-accent underline">
+          Products: everything captured on the phones, with photos, who took them and the inputs →
+        </a>
+      </p>
 
       <form action={setImageModelAction} className="mt-6 rounded-xl border border-line bg-surface p-5">
         <h2 className="text-[15px] font-semibold">Image model</h2>
