@@ -139,6 +139,13 @@ export interface GarmentPartRow {
   rotate: 0 | 90 | 180 | 270;
   /** Set for photographs uploaded here; SLK's photographs carry none. */
   quality?: PartQuality;
+  /**
+   * A small copy (1600 px, JPEG) for showing on screens only. The original
+   * above stays untouched and is what the image model gets; loading a
+   * 12-15 MB original just to show it made the phone crawl (28 Sep).
+   */
+  previewKey?: string;
+  previewUrl?: string;
   /** The login that took it, and when: the tracking that replaces sending photos on WhatsApp. */
   takenBy?: string;
   takenAt?: string;

@@ -97,6 +97,7 @@ export async function addUploadedPart(
   takenBy?: string | null,
 ): Promise<Garment> {
   const key = storedKey ?? (await saveUpload(garment.id, slot, bytes, mime));
+  const previewKey = await savePreview(key, bytes);
   const part: GarmentPartRow = {
     slot,
     key,
@@ -105,11 +106,29 @@ export async function addUploadedPart(
     height: size.height,
     rotate: 0,
     ...(quality ? { quality } : {}),
+    ...(previewKey ? { previewKey, previewUrl: assetUrl(previewKey) } : {}),
     ...(takenBy ? { takenBy } : {}),
     takenAt: new Date().toISOString(),
   };
   const parts = [...garment.parts.filter((p) => p.slot !== slot), part];
   return updateGarment(garment.id, { parts, answers: blouseAnswer(garment, parts) });
+}
+
+/**
+ * The screen copy of a photo, stored beside it as <key>.preview.jpg: upright,
+ * 1600 px on its long side, JPEG 80. Only for showing; never sent to the image
+ * model. A photo whose preview cannot be made is still recorded.
+ */
+async function savePreview(key: string, bytes: Uint8Array): Promise<string | null> {
+  if (!storageConfigured()) return null;
+  try {
+    const small = await sharp(bytes).rotate().resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer();
+    const previewKey = `${key.replace(/\.[a-z0-9]+$/i, "")}.preview.jpg`;
+    await putObject(previewKey, small, "image/jpeg");
+    return previewKey;
+  } catch {
+    return null;
+  }
 }
 
 export async function removePart(garment: Garment, slot: string): Promise<Garment> {
@@ -189,7 +208,10 @@ export async function updateGarment(
  * an R2 object follows the current public base.
  */
 export function publicGarment(garment: Garment): Garment {
-  return { ...garment, parts: garment.parts.map((p) => (p.key ? { ...p, url: assetUrl(p.key) } : p)) };
+  return {
+    ...garment,
+    parts: garment.parts.map((p) => (p.key ? { ...p, url: assetUrl(p.key), ...(p.previewKey ? { previewUrl: assetUrl(p.previewKey) } : {}) } : p)),
+  };
 }
 
 export function wordsFor(garment: Garment): GarmentWords {
