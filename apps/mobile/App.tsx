@@ -13,6 +13,7 @@ import { ShotCamera, type CapturedPhoto } from "./src/ShotCamera";
 import { CropView } from "./src/CropView";
 import { DetailImage, ZoomImage } from "./src/ZoomImage";
 import { QrScan } from "./src/QrScan";
+import { SwipeRow } from "./src/SwipeRow";
 import {
   DEFAULT_GARMENT_TYPE,
   garmentType as typeOf,
@@ -613,23 +614,30 @@ function Studio() {
   }
 
   /** Owner or platform admin only (28 Sep). Generated images are kept. */
-  function confirmDelete() {
-    if (!garment) return;
-    const name = garment.productCode ?? "this product";
+  /**
+   * Owner or platform admin only (28 Sep): from inside a product, or by
+   * sliding its row left in Saved products. Generated images are kept.
+   */
+  function confirmDelete(target: { id: string; productCode: string | null } | null = garment, fromList = false) {
+    if (!target) return;
+    const name = target.productCode ?? "this product";
     Alert.alert(`Delete ${name}?`, "Its photos are removed and it leaves Saved products. Images already generated from it are kept.", [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => void deleteNow() },
+      { text: "Delete", style: "destructive", onPress: () => void deleteNow(target.id, fromList) },
     ]);
   }
 
-  async function deleteNow() {
-    if (!garment) return;
+  async function deleteNow(id: string, fromList: boolean) {
     setBusy(true);
     try {
-      await api.deleteProduct(garment.id);
-      const back = shotsBack;
-      startOver();
-      if (back === "saved") void showSaved();
+      await api.deleteProduct(id);
+      if (fromList) {
+        setSaved((prev) => prev?.filter((p) => p.id !== id) ?? null);
+      } else {
+        const back = shotsBack;
+        startOver();
+        if (back === "saved") void showSaved();
+      }
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "Could not delete the product.");
     } finally {
@@ -835,7 +843,8 @@ function Studio() {
               <Text style={s.support}>Nothing saved yet.</Text>
             ) : (
               saved.map((item) => (
-                <Pressable key={item.id} style={s.savedRow} onPress={() => void reopen(item)} disabled={busy}>
+                <SwipeRow key={item.id} enabled={role === "owner" || platformAdmin} onDelete={() => confirmDelete({ id: item.id, productCode: item.productId }, true)}>
+                <Pressable style={s.savedRow} onPress={() => void reopen(item)} disabled={busy}>
                   <View style={s.savedThumb}>{item.thumb ? <Image source={{ uri: item.thumb }} style={s.fill} /> : null}</View>
                   <View style={{ flex: 1, gap: 3 }}>
                     <Text style={s.shotName}>{item.productId ?? "No product ID"}</Text>
@@ -849,6 +858,7 @@ function Studio() {
                   </View>
                   <Text style={s.selectChevron}>›</Text>
                 </Pressable>
+                </SwipeRow>
               ))
             )}
           </View>
@@ -928,7 +938,7 @@ function Studio() {
             />
             )}
             {garment && (role === "owner" || platformAdmin) && (
-              <Pressable onPress={confirmDelete} disabled={busy || busySlot !== null} hitSlop={10} style={{ alignSelf: "center", marginTop: 8 }}>
+              <Pressable onPress={() => confirmDelete()} disabled={busy || busySlot !== null} hitSlop={10} style={{ alignSelf: "center", marginTop: 8 }}>
                 <Text style={s.deleteLink}>Delete this product</Text>
               </Pressable>
             )}
