@@ -1,6 +1,6 @@
 import { DEFAULT_GARMENT_TYPE, garmentType } from "@/content/shots";
 import { PRODUCT_ID_PATTERN, createUploadGarment, missingSlots, openProductGarment, publicGarment } from "@/lib/garments";
-import { deviceFrom, openAutoProduct, peekAutoProductId } from "@/lib/autoProductId";
+import { deviceFrom, openAutoProduct, peekAutoProductId, usedFrom } from "@/lib/autoProductId";
 import { requireAccount, unauthorised } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -14,13 +14,13 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     const account = await requireAccount();
-    const body = (await request.json().catch(() => ({}))) as { productId?: string; type?: string; noProductId?: boolean; auto?: boolean };
+    const body = (await request.json().catch(() => ({}))) as { productId?: string; type?: string; noProductId?: boolean; auto?: boolean; used?: unknown };
     // The photographer login gets its product IDs given out (9001, 9002, …)
     // and may not start a record without one (28 Sep).
     if (body.auto === true) {
       const type = garmentType(body.type ?? DEFAULT_GARMENT_TYPE);
       if (!type.enabled) return Response.json({ error: `${type.label} is coming soon.` }, { status: 400 });
-      const garment = await openAutoProduct(account.id, type.value, deviceFrom(request));
+      const garment = await openAutoProduct(account.id, type.value, deviceFrom(request), usedFrom(body.used));
       return Response.json({ garment: publicGarment(garment), missing: missingSlots(garment) }, { headers: { "Cache-Control": "no-store" } });
     }
     if (body.noProductId === true && account.role === "photographer") {
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const account = await requireAccount();
-    return Response.json({ nextId: await peekAutoProductId(account.id, deviceFrom(request)) }, { headers: { "Cache-Control": "no-store" } });
+    return Response.json({ nextId: await peekAutoProductId(account.id, deviceFrom(request), usedFrom(new URL(request.url).searchParams.get("used"))) }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return unauthorised(error) ?? Response.json({ error: "Could not read the next product ID." }, { status: 500 });
   }

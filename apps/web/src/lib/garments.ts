@@ -114,6 +114,35 @@ export async function addUploadedPart(
   return updateGarment(garment.id, { parts, answers: blouseAnswer(garment, parts) });
 }
 
+/** Record a photo already in storage with its preview already beside it (both sent by the phone). */
+export async function recordPart(
+  garment: Garment,
+  slot: PartSlot,
+  key: string,
+  previewKey: string,
+  size: { width: number; height: number },
+  quality: PartQuality,
+  takenBy: string | null,
+): Promise<Garment> {
+  const part: GarmentPartRow = {
+    slot,
+    key,
+    url: assetUrl(key),
+    width: size.width,
+    height: size.height,
+    rotate: 0,
+    quality,
+    previewKey,
+    previewUrl: assetUrl(previewKey),
+    ...(takenBy ? { takenBy } : {}),
+    takenAt: new Date().toISOString(),
+  };
+  // Read fresh: photos now arrive in the background, one after another.
+  const current = (await getGarment(garment.id, garment.accountId)) ?? garment;
+  const parts = [...current.parts.filter((p) => p.slot !== slot), part];
+  return updateGarment(garment.id, { parts, answers: blouseAnswer(current, parts) });
+}
+
 /**
  * The screen copy of a photo, stored beside it as <key>.preview.jpg: upright,
  * 1600 px on its long side, JPEG 80. Only for showing; never sent to the image
@@ -157,6 +186,12 @@ export const PRODUCT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 _\-/.]{0,39}$/;
 export async function openProductGarment(accountId: string, productId: string, type: string): Promise<Garment> {
   const rows = await db.select().from(garments).where(and(eq(garments.accountId, accountId), eq(garments.productCode, productId), isNull(garments.deletedAt)));
   const existing = rows.sort((a, b) => +b.updatedAt - +a.updatedAt)[0];
+  if (existing?.autoIssued && existing.parts.length === 0) {
+    // An automatic number no photo was taken under: the ID typed here wins,
+    // and the phone that held it gets a new number (28 Sep).
+    const [taken] = await db.update(garments).set({ autoIssued: false, updatedAt: new Date() }).where(eq(garments.id, existing.id)).returning();
+    return taken!;
+  }
   if (existing) return existing;
   const chosen = garmentType(type);
   const [garment] = await db
@@ -164,6 +199,17 @@ export async function openProductGarment(accountId: string, productId: string, t
     .values({ accountId, source: "upload", productCode: productId, garmentType: chosen.value, family: chosen.family, title: `${chosen.label} ${productId}`, words: {}, answers: {}, parts: [] })
     .returning();
   return garment!;
+}
+
+/**
+ * Before an ID is given by hand: an automatic number with no photos under it
+ * gives way (its empty record goes), so the hand-given ID wins (28 Sep).
+ */
+export async function freeUnusedAutoId(accountId: string, productId: string, exceptId: string): Promise<void> {
+  const rows = await db.select().from(garments).where(and(eq(garments.accountId, accountId), eq(garments.productCode, productId), isNull(garments.deletedAt)));
+  for (const g of rows) {
+    if (g.id !== exceptId && g.autoIssued && g.parts.length === 0) await deleteGarment(g);
+  }
 }
 
 /** Whether another record in this shop already carries the product ID. */

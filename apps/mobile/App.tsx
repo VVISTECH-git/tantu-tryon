@@ -14,6 +14,7 @@ import { CropView } from "./src/CropView";
 import { DetailImage, ZoomImage } from "./src/ZoomImage";
 import { QrScan } from "./src/QrScan";
 import { SwipeRow } from "./src/SwipeRow";
+import * as uploadQueue from "./src/uploadQueue";
 import {
   DEFAULT_GARMENT_TYPE,
   garmentType as typeOf,
@@ -115,6 +116,39 @@ function Studio() {
   useEffect(() => setLocalPhotos({}), [garment?.id]);
   /** What to show for a stored photo: this phone's own copy, else the small preview, else the original. */
   const shown = (part: { slot: string; url: string; previewUrl?: string }) => localPhotos[part.slot] ?? part.previewUrl ?? part.url;
+  // Photos going up in the background (28 Sep): the photographer does not wait for them.
+  const [queue, setQueue] = useState<uploadQueue.QueueState>({ items: [], sending: false, waitingForInternet: false });
+  useEffect(() => uploadQueue.subscribe(setQueue), []);
+  const garmentRef = useRef<GarmentView | null>(null);
+  garmentRef.current = garment;
+  useEffect(() => {
+    uploadQueue.setHandlers(
+      (item, result) => {
+        const open = garmentRef.current?.id === item.garmentId;
+        if (open) setGarment(result.garment);
+        // Moved on already: a photo that must be retaken is said out loud, naming the product.
+        if (!open && result.quality?.status === "block") {
+          Alert.alert(
+            `${item.productCode ?? "A product"} · ${item.label} needs a retake`,
+            `${result.quality.reasons.find((r) => r.level === "block")?.message ?? "The photo cannot be used."} Open ${item.productCode ?? "it"} from Saved products to take it again.`,
+          );
+        }
+      },
+      (item, message) => {
+        if (garmentRef.current?.id === item.garmentId) {
+          setLocalPhotos((prev) => {
+            const next = { ...prev };
+            delete next[item.slot];
+            return next;
+          });
+        }
+        Alert.alert(`${item.productCode ?? "A product"} · ${item.label} was not saved`, `${message} Please take it again.`);
+      },
+    );
+  }, []);
+  /** This product's photos still on their way, by slot: the phone's own copy. */
+  const pending: Record<string, string> = {};
+  for (const it of queue.items) if (it.garmentId === garment?.id) pending[it.slot] = it.uri;
   const [cameraShot, setCameraShot] = useState<Shot | null>(null);
   const [cropPick, setCropPick] = useState<{ shot: Shot; photo: api.LocalPhoto } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -169,6 +203,7 @@ function Studio() {
         setSignedInAs(me.username ?? me.name);
         setRole(me.role);
         setPlatformAdmin(me.platformAdmin);
+        uploadQueue.kick();
         target = "type";
       } catch {
         target = "signin";
@@ -191,6 +226,7 @@ function Studio() {
       setRole(me.role);
       setPlatformAdmin(me.platformAdmin);
       setPassword("");
+      uploadQueue.kick();
       setScreen("type");
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "Could not sign in.");
@@ -339,24 +375,32 @@ function Studio() {
    * quality, because the server cannot read HEIC.
    */
   async function upload(shot: Shot, photo: api.LocalPhoto) {
-    setBusySlot(shot.slot);
     setLocalPhotos((prev) => ({ ...prev, [shot.slot]: photo.uri }));
-    try {
-      let sent = photo;
-      if (/hei[cf]/i.test(photo.mimeType ?? "")) {
+    let sent = photo;
+    if (/hei[cf]/i.test(photo.mimeType ?? "")) {
+      setBusySlot(shot.slot);
+      try {
         const rendered = await ImageManipulator.manipulate(photo.uri).renderAsync();
         const saved = await rendered.saveAsync({ compress: 1, format: SaveFormat.JPEG });
         sent = { uri: saved.uri, width: saved.width, height: saved.height, mimeType: "image/jpeg" };
+      } finally {
+        setBusySlot(null);
       }
-      const fresh = garment?.id ?? null;
-      const result = await api.uploadPart(sent, shot.slot, fresh, garmentType);
-      if (!fresh) {
-        setPrimary(null);
-        batch.current = api.newKey();
-      }
+    }
+    // The product is open: the photo joins the queue and sends in the background.
+    if (garment) {
+      uploadQueue.enqueue(sent, { garmentId: garment.id, productCode: garment.productCode ?? null, slot: shot.slot, label: shot.label, type: garmentType });
+      return;
+    }
+    // No product yet (not reached from today's screens): send now, as before.
+    setBusySlot(shot.slot);
+    try {
+      const result = await api.uploadPart(sent, shot.slot, null, garmentType);
+      setPrimary(null);
+      batch.current = api.newKey();
       setGarment(result.garment);
       // A new product's id arrives with the first photo: keep showing it from the phone.
-      if (!fresh) setLocalPhotos({ [shot.slot]: photo.uri });
+      setLocalPhotos({ [shot.slot]: photo.uri });
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "Upload failed.");
       setLocalPhotos((prev) => {
@@ -439,6 +483,16 @@ function Studio() {
     }
   }
 
+  /** Photos still sending would wait for the next sign-in; say so first. */
+  function requestSignOut() {
+    const n = uploadQueue.pendingCount();
+    if (n === 0) return void signOut();
+    Alert.alert(`${n} photo${n === 1 ? " is" : "s are"} still sending`, "Wait a moment so they reach the server. If you sign out now, they send after the next sign-in on this phone.", [
+      { text: "Wait", style: "cancel" },
+      { text: "Sign out anyway", style: "destructive", onPress: () => void signOut() },
+    ]);
+  }
+
   async function signOut() {
     setBusy(true);
     try {
@@ -468,9 +522,9 @@ function Studio() {
   useEffect(() => {
     if (screen !== "type" || !photographer) return;
     let live = true;
-    setNextAutoId(null);
+    // What is already known stays on screen (28 Sep: "…" flashed on every Back); this only refreshes it.
     api
-      .nextAutoProductId()
+      .nextAutoProductId(uploadQueue.pendingGarmentIds())
       .then((id) => live && setNextAutoId(id))
       .catch(() => undefined);
     return () => {
@@ -478,11 +532,30 @@ function Studio() {
     };
   }, [screen, photographer]);
 
+  const takenHere = garment ? garment.parts.length + Object.keys(pending).length : 0;
+  useEffect(() => {
+    if (screen !== "shots" || !photographer || !garment) return;
+    if (takenHere === 0) {
+      // Nothing taken: this number is still this phone's, and Back shows it at once.
+      setNextAutoId(garment.productCode ?? null);
+      return;
+    }
+    // Photos taken: fetch the next number now, so "Done · next product" shows it at once.
+    let live = true;
+    api
+      .nextAutoProductId([...new Set([...uploadQueue.pendingGarmentIds(), garment.id])])
+      .then((id) => live && setNextAutoId(id))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [screen, photographer, garment?.id, takenHere > 0, queue.items.length]);
+
   async function openAutoProduct() {
     setBusy(true);
     setError(null);
     try {
-      const g = await api.openAutoProduct(garmentType);
+      const g = await api.openAutoProduct(garmentType, uploadQueue.pendingGarmentIds());
       setGarment(g);
       setGarmentType(g.garmentType);
       setProductId(g.productCode ?? "");
@@ -697,12 +770,13 @@ function Studio() {
   // ── Derived ─────────────────────────────────────────────────────────────
 
   const parts = garment?.parts ?? [];
-  const has = (slot: string) => parts.some((p) => p.slot === slot);
+  const has = (slot: string) => parts.some((p) => p.slot === slot) || slot in pending;
+  const sendingHere = Object.keys(pending).length;
   const required = requiredSlots(garmentType);
   const missing = required.filter((slot) => !has(slot));
   const blocked = required.filter((slot) => parts.find((p) => p.slot === slot)?.quality?.status === "block");
   const label = (slot: string) => shotFor(garmentType, slot)?.label ?? slot;
-  const ready = garment !== null && missing.length === 0 && blocked.length === 0 && busySlot === null;
+  const ready = garment !== null && missing.length === 0 && blocked.length === 0 && busySlot === null && sendingHere === 0;
   const price = PRICE_1K;
   const groups = useMemo(() => garmentTypeGroups(), []);
   const { width: deviceW } = useWindowDimensions();
@@ -732,7 +806,7 @@ function Studio() {
                 </Pressable>
               </>
             )}
-            <Pressable onPress={() => void signOut()} hitSlop={8} disabled={screen === "analyzing" || screen === "generating"} style={{ opacity: screen === "analyzing" || screen === "generating" ? 0.35 : 1 }}>
+            <Pressable onPress={requestSignOut} hitSlop={8} disabled={screen === "analyzing" || screen === "generating"} style={{ opacity: screen === "analyzing" || screen === "generating" ? 0.35 : 1 }}>
               <Text style={s.link}>Sign out</Text>
             </Pressable>
           </View>
@@ -834,6 +908,7 @@ function Studio() {
         {screen === "type" && (
           <View style={s.stack}>
             <Text style={s.title}>Which product?</Text>
+            {queue.items.length > 0 && <QueueNote queue={queue} />}
             <Text style={s.copy}>Every photo you take next is saved against this product ID.</Text>
             {photographer ? (
             <View style={s.field}>
@@ -950,10 +1025,13 @@ function Studio() {
               {required.length - missing.length} of {required.length} required
               {blocked.length > 0 ? ` · ${blocked.length === 1 ? "1 needs a retake" : `${blocked.length} need a retake`}` : ""}
             </Text>
+            {queue.items.length > 0 && <QueueNote queue={queue} />}
             <ShotList
               type={garmentType}
               garment={garment}
               busySlot={busySlot}
+              pending={pending}
+              offline={queue.waitingForInternet}
               shown={shown}
               opened={opened}
               onOpen={(slot) => setOpened((prev) => new Set(prev).add(slot))}
@@ -972,9 +1050,11 @@ function Studio() {
                     ? `Still needed: ${missing.map(label).join(" and ")}.`
                     : blocked.length > 0
                       ? `Retake ${blocked.map(label).join(" and ")}.`
-                      : `All photos are saved under ${garment?.productCode ?? "this product"}.`}
+                      : sendingHere > 0
+                        ? "All photos taken. They finish sending by themselves; go on to the next product."
+                        : `All photos are saved under ${garment?.productCode ?? "this product"}.`}
                 </Text>
-                <Action label="Done · next product" disabled={busySlot !== null} onPress={startOver} />
+                <Action label={nextAutoId && nextAutoId !== garment?.productCode ? `Done · next product ${nextAutoId}` : "Done · next product"} disabled={busySlot !== null} onPress={startOver} />
               </>
             ) : (
             <Action
@@ -985,7 +1065,9 @@ function Studio() {
                     ? `Continue · retake ${blocked.map(label).join(" and ")} first`
                     : busySlot
                       ? "Checking the photo…"
-                      : "Continue"
+                      : sendingHere > 0
+                        ? "Sending photos…"
+                        : "Continue"
               }
               disabled={!ready || busy}
               onPress={() => void analyzeNow()}
@@ -1009,7 +1091,7 @@ function Studio() {
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.strip}>
               {shotsFor(garment.garmentType)
-                .filter((shot) => has(shot.slot))
+                .filter((shot) => parts.some((p) => p.slot === shot.slot))
                 .map((shot) => {
                   const part = parts.find((p) => p.slot === shot.slot)!;
                   const state = part.quality?.status ?? null;
@@ -1455,10 +1537,26 @@ function TantuMark({ size }: { size: number }) {
   );
 }
 
+/** How many photos are still going up, on the product screens. */
+function QueueNote({ queue }: { queue: uploadQueue.QueueState }) {
+  const n = queue.items.length;
+  const photos = `${n} photo${n === 1 ? "" : "s"}`;
+  return (
+    <View style={[s.row, { justifyContent: "center", gap: 8 }]}>
+      {!queue.waitingForInternet && <ActivityIndicator size="small" color={C.accentStrong} />}
+      <Text style={[s.support, queue.waitingForInternet && { color: C.warn }]}>
+        {queue.waitingForInternet ? `No internet: ${photos} waiting. They send by themselves when it is back.` : `Sending ${photos} in the background…`}
+      </Text>
+    </View>
+  );
+}
+
 function ShotList({
   type,
   garment,
   busySlot,
+  pending = {},
+  offline = false,
   optionalOnly,
   opened,
   onOpen,
@@ -1473,6 +1571,10 @@ function ShotList({
   type: string;
   garment: GarmentView | null;
   busySlot: string | null;
+  /** Photos on their way, by slot: the phone's own copy. */
+  pending?: Record<string, string>;
+  /** No internet right now: waiting photos say so. */
+  offline?: boolean;
   optionalOnly?: boolean;
   opened: Set<string>;
   onOpen: (slot: string) => void;
@@ -1487,20 +1589,23 @@ function ShotList({
   let shots = shotsFor(type);
   if (optionalOnly) shots = shots.filter((sh) => !sh.required);
   const part = (slot: string) => garment?.parts.find((p) => p.slot === slot) ?? null;
-  const visible = shots.filter((sh) => sh.required || part(sh.slot) || opened.has(sh.slot));
+  const visible = shots.filter((sh) => sh.required || part(sh.slot) || sh.slot in pending || opened.has(sh.slot));
   const folded = shots.filter((sh) => !visible.includes(sh));
   return (
     <View style={{ gap: 10 }}>
       {visible.map((shot) => {
         const p = part(shot.slot);
-        const state = p?.quality?.status ?? (p ? "ok" : null);
+        const waiting = pending[shot.slot];
+        const state = waiting ? null : (p?.quality?.status ?? (p ? "ok" : null));
         const busy = busySlot === shot.slot;
         const headline = p?.quality?.reasons[0]?.message.split(".")[0] ?? "";
         const full = p?.quality?.reasons.map((r) => r.message).join(" ") ?? "";
         return (
           <View key={shot.slot} style={[s.shot, state === "warn" && s.warnBorder, state === "block" && s.badBorder]}>
-            <Pressable style={s.shotThumb} onPress={() => (p ? onView(shown(p), shot.label, p.url) : onCamera(shot))}>
-              {p ? (
+            <Pressable style={s.shotThumb} onPress={() => (waiting ? onView(waiting, shot.label, waiting) : p ? onView(shown(p), shot.label, p.url) : onCamera(shot))}>
+              {waiting ? (
+                <Image source={{ uri: waiting }} style={s.fill} />
+              ) : p ? (
                 <Image source={{ uri: shown(p) }} style={s.fill} />
               ) : (
                 <>
@@ -1521,7 +1626,12 @@ function ShotList({
                   <Text style={[s.tagText, shot.required ? { color: "#ffd9c2" } : { color: C.textMuted }]}>{shot.required ? "REQUIRED" : "OPTIONAL"}</Text>
                 </View>
               </View>
-              {state ? (
+              {waiting ? (
+                <View style={s.row}>
+                  {offline ? <View style={[s.dot, { backgroundColor: C.warn }]} /> : <ActivityIndicator size="small" color={C.accentStrong} />}
+                  <Text style={[s.check, { color: offline ? C.warn : C.textSoft }]}>{offline ? "Taken · waiting for internet" : "Taken · sending"}</Text>
+                </View>
+              ) : state ? (
                 <View style={s.row}>
                   <View style={[s.dot, { backgroundColor: state === "ok" ? C.good : state === "warn" ? C.warn : C.bad }]} />
                   <Text style={[s.check, { color: state === "ok" ? C.good : state === "warn" ? C.warn : C.bad }]}>{state === "ok" ? "Looks good" : headline}</Text>
@@ -1534,7 +1644,12 @@ function ShotList({
               )}
               {state && state !== "ok" && full !== `${headline}.` && <Text style={s.checkCopy}>{full}</Text>}
               <View style={[s.row, { flexWrap: "wrap" }]}>
-                {p ? (
+                {waiting ? (
+                  <>
+                    <Chip label="Retake" disabled={busy} onPress={() => onCamera(shot)} />
+                    <Chip label="Upload" disabled={busy} onPress={() => onUpload(shot)} />
+                  </>
+                ) : p ? (
                   <>
                     <Chip label="Retake" accent={state === "block"} disabled={busy} onPress={() => onCamera(shot)} />
                     <Chip label="Upload" disabled={busy} onPress={() => onUpload(shot)} />

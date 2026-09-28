@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import { shotFor } from "@/content/shots";
 import type { Garment } from "@/db";
-import { addUploadedPart, type PartSlot } from "@/lib/garments";
+import { addUploadedPart, recordPart, type PartSlot } from "@/lib/garments";
 import { checkQuality } from "@/lib/quality";
 
 /**
@@ -36,5 +36,28 @@ export async function recordPhoto(garment: Garment, slot: PartSlot, bytes: Uint8
   const shot = shotFor(garment.garmentType, slot);
   const quality = await checkQuality({ bytes: Buffer.from(bytes), width, height, expected: shot?.orientation ?? null });
   const updated = await addUploadedPart(garment, slot, bytes, mime, { width, height }, quality, storedKey, takenBy);
+  return { garment: updated, quality };
+}
+
+/**
+ * The phone sent its own screen copy (28 Sep): the size comes from the
+ * original's header (its first bytes; the whole file only if the header does
+ * not fit), the quality check from the preview. The check measures at 512 px,
+ * so a 1600 px preview gives the same verdict as the original.
+ */
+export async function recordPhotoWithPreview(
+  garment: Garment,
+  slot: PartSlot,
+  key: string,
+  originalStart: Uint8Array,
+  previewKey: string,
+  previewBytes: Uint8Array,
+  takenBy: string | null,
+  wholeOriginal: () => Promise<Uint8Array>,
+) {
+  const size = await uprightSize(originalStart).catch(async () => uprightSize(await wholeOriginal()));
+  const shot = shotFor(garment.garmentType, slot);
+  const quality = await checkQuality({ bytes: Buffer.from(previewBytes), width: size.width, height: size.height, expected: shot?.orientation ?? null });
+  const updated = await recordPart(garment, slot, key, previewKey, size, quality, takenBy);
   return { garment: updated, quality };
 }

@@ -187,14 +187,14 @@ export interface LocalPhoto {
  * carry), then recorded. Falls back to the multipart route where the server
  * has no storage to hand out URLs for.
  */
-export async function uploadPart(photo: LocalPhoto, slot: string, garmentId: string | null, type: string): Promise<UploadResult> {
+export async function uploadPart(photo: LocalPhoto, slot: string, garmentId: string | null, type: string, previewUri?: string | null): Promise<UploadResult> {
   const contentType = photo.mimeType ?? "image/jpeg";
-  let target: { garmentId: string; key: string; url: string };
+  let target: { garmentId: string; key: string; url: string; previewKey?: string; previewUrl?: string };
   try {
     target = await call("/api/garments/upload-url", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ slot, type, garmentId, contentType }),
+      body: JSON.stringify({ slot, type, garmentId, contentType, withPreview: Boolean(previewUri) }),
     });
   } catch (error) {
     // 501: no storage here. 404: a server from before direct uploads.
@@ -205,11 +205,17 @@ export async function uploadPart(photo: LocalPhoto, slot: string, garmentId: str
   const put = await fetch(target.url, { method: "PUT", headers: { "content-type": contentType }, body: new File(photo.uri) as unknown as Blob }).catch(() => {
     throw new ApiError("No internet connection, so the photo was not sent. Check Wi-Fi or mobile data, then try again.", 0);
   });
-  if (!put.ok) throw new ApiError(`The photo could not be sent (${put.status}). Please try again.`, put.status);
+  if (!put.ok) throw new ApiError(`The photo could not be sent (${put.status}). Please try again.`, put.status >= 500 ? put.status : 0);
+  // The phone's own screen copy beside it: the server then reads only the original's first bytes.
+  let previewKey: string | undefined;
+  if (previewUri && target.previewUrl && target.previewKey) {
+    const sent = await fetch(target.previewUrl, { method: "PUT", headers: { "content-type": "image/jpeg" }, body: new File(previewUri) as unknown as Blob }).catch(() => null);
+    if (sent?.ok) previewKey = target.previewKey;
+  }
   return call<UploadResult>("/api/garments/upload-done", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ garmentId: target.garmentId, slot, key: target.key }),
+    body: JSON.stringify({ garmentId: target.garmentId, slot, key: target.key, previewKey }),
   });
 }
 
@@ -256,17 +262,17 @@ export async function openWithoutProductId(type: string): Promise<GarmentView> {
 }
 
 /** The product ID the photographer's next Continue will get (9001, 9002, …). */
-export async function nextAutoProductId(): Promise<string> {
-  const out = await call<{ nextId: string }>("/api/garments/open");
+export async function nextAutoProductId(used: string[] = []): Promise<string> {
+  const out = await call<{ nextId: string }>(`/api/garments/open${used.length ? `?used=${used.join(",")}` : ""}`);
   return out.nextId;
 }
 
 /** Give out the next automatic product ID and open its record (photographer login). */
-export async function openAutoProduct(type: string): Promise<GarmentView> {
+export async function openAutoProduct(type: string, used: string[] = []): Promise<GarmentView> {
   const out = await call<{ garment: GarmentView }>("/api/garments/open", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ auto: true, type }),
+    body: JSON.stringify({ auto: true, type, used }),
   });
   return out.garment;
 }
