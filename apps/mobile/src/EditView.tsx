@@ -226,7 +226,34 @@ export function EditView({ photo, onDone, onBack, backLabel }: { photo: Photo; o
 
   return (
     <View style={s.page}>
-      {view ? (
+      {view && tool !== "crop" ? (
+        // Outside Crop, only the cropped photo is shown, as in the phone's own editor (28 Sep).
+        (() => {
+          const cw = crop.w * view.w;
+          const ch = crop.h * view.h;
+          const k = Math.min(areaW / cw, areaH / ch);
+          const w = cw * k;
+          const h = ch * k;
+          const left = SIDE + (areaW - w) / 2;
+          const top0 = top + (areaH - h) / 2;
+          return (
+            <View style={{ position: "absolute", left, top: top0, width: w, height: h, overflow: "hidden" }}>
+              <Image source={{ uri: view.uri }} style={{ position: "absolute", left: -crop.x * view.w * k, top: -crop.y * view.h * k, width: view.w * k, height: view.h * k }} resizeMode="stretch" />
+              {brightness !== 0 && <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: veil }]} />}
+              {tool === "straighten" && (
+                <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+                  {[1, 2].map((i) => (
+                    <View key={`h${i}`} style={[s.gridH, { top: `${(i * 100) / 3}%` }]} />
+                  ))}
+                  {[1, 2].map((i) => (
+                    <View key={`v${i}`} style={[s.gridV, { left: `${(i * 100) / 3}%` }]} />
+                  ))}
+                </View>
+              )}
+            </View>
+          );
+        })()
+      ) : view ? (
         <>
           <Image source={{ uri: view.uri }} style={{ position: "absolute", left: offX, top: offY, width: dispW, height: dispH }} resizeMode="stretch" />
           {brightness !== 0 && <View pointerEvents="none" style={{ position: "absolute", left: offX, top: offY, width: dispW, height: dispH, backgroundColor: veil }} />}
@@ -235,18 +262,7 @@ export function EditView({ photo, onDone, onBack, backLabel }: { photo: Photo; o
           <View pointerEvents="none" style={[s.mask, { left: offX, top: offY + box.y + box.h, width: dispW, height: dispH - box.y - box.h }]} />
           <View pointerEvents="none" style={[s.mask, { left: offX, top: offY + box.y, width: box.x, height: box.h }]} />
           <View pointerEvents="none" style={[s.mask, { left: offX + box.x + box.w, top: offY + box.y, width: dispW - box.x - box.w, height: box.h }]} />
-          <View style={[s.box, { left: offX + box.x, top: offY + box.y, width: box.w, height: box.h }]} {...responders.move.panHandlers}>
-            {tool === "straighten" && (
-              <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-                {[1, 2].map((i) => (
-                  <View key={`h${i}`} style={[s.gridH, { top: `${(i * 100) / 3}%` }]} />
-                ))}
-                {[1, 2].map((i) => (
-                  <View key={`v${i}`} style={[s.gridV, { left: `${(i * 100) / 3}%` }]} />
-                ))}
-              </View>
-            )}
-          </View>
+          <View style={[s.box, { left: offX + box.x, top: offY + box.y, width: box.w, height: box.h }]} {...responders.move.panHandlers} />
           {(["tl", "tr", "bl", "br"] as const).map((grip) => (
             <View
               key={grip}
@@ -285,7 +301,7 @@ export function EditView({ photo, onDone, onBack, backLabel }: { photo: Photo; o
           <Pressable style={[s.secondary, { flex: 1 }]} disabled={busy} onPress={onBack}>
             <Text style={s.secondaryText}>{backLabel}</Text>
           </Pressable>
-          {!whole && (
+          {!whole && tool === "crop" && (
             <Pressable style={[s.secondary, { flex: 1 }]} disabled={busy} onPress={() => setCrop({ x: 0, y: 0, w: 1, h: 1 })}>
               <Text style={s.secondaryText}>Full photo</Text>
             </Pressable>

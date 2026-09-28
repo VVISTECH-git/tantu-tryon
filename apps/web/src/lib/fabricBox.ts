@@ -134,7 +134,7 @@ function outerEdge(
  * columns that are largely fabric, then the tallest run of rows within them.
  * Null when there is no clear answer; findFabric then tries the older way.
  */
-export async function findFabricAgainstWall(bytes: Uint8Array): Promise<FabricBox | null> {
+export async function findFabricAgainstWall(bytes: Uint8Array, report?: { fill: number }): Promise<FabricBox | null> {
   const { data, info } = await sharp(bytes)
     .rotate()
     .removeAlpha()
@@ -203,6 +203,8 @@ export async function findFabricAgainstWall(bytes: Uint8Array): Promise<FabricBo
     const smooth = members.map((m) => m.t).sort((a, b) => a - b);
     return smooth[Math.floor(smooth.length / 2)]! < 14;
   });
+  // Nothing along the edges looks like wall: the saree fills the photo.
+  if (report) report.fill = 1;
   if (!palette.length) return null;
   const smoothBg = samples.filter((s) => palette.some((c) => dist(s.c, c) < 40)).map((s) => s.t).sort((a, b) => a - b);
   const maxTexture = Math.max(10, (smoothBg[Math.floor(smoothBg.length * 0.9)] ?? 10) * 1.6);
@@ -216,6 +218,7 @@ export async function findFabricAgainstWall(bytes: Uint8Array): Promise<FabricBo
     }
   }
 
+  if (report) report.fill = fabric.reduce((sum, v) => sum + v, 0) / (w * h);
   const cols = Array.from({ length: w }, (_, x) => {
     let n = 0;
     for (let y = 0; y < h; y++) n += fabric[y * w + x]!;
@@ -238,6 +241,7 @@ export async function findFabricAgainstWall(bytes: Uint8Array): Promise<FabricBo
   const bw = (right - left + 1) / w;
   const bh = (bottom - top + 1) / h;
   if (bw < 0.25 || bh < 0.25) return null;
+  if (report) report.fill = bw * bh;
   // The saree already fills the photo: nothing worth cutting.
   if (bw > 0.94 && bh > 0.94) return null;
   // Only when there really is wall around it: beside the box (at its height)
@@ -257,9 +261,15 @@ export async function findFabricAgainstWall(bytes: Uint8Array): Promise<FabricBo
   };
   const edgeX = Math.round(w * 0.04);
   const edgeY = Math.round(h * 0.04);
-  if (left > edgeX && wallShare(0, left - 1, top, bottom) < 0.6) return null;
-  if (right < w - 1 - edgeX && wallShare(right + 1, w - 1, top, bottom) < 0.6) return null;
-  if (top > edgeY && wallShare(left, right, 0, top - 1) < 0.6) return null;
+  const walled =
+    !(left > edgeX && wallShare(0, left - 1, top, bottom) < 0.6) &&
+    !(right < w - 1 - edgeX && wallShare(right + 1, w - 1, top, bottom) < 0.6) &&
+    !(top > edgeY && wallShare(left, right, 0, top - 1) < 0.6);
+  if (!walled) {
+    // No real wall round it: the saree (a plain stretch and all) fills the photo.
+    if (report) report.fill = 1;
+    return null;
+  }
   const padX = 0.02;
   const padY = 0.015;
   const x = Math.max(0, left / w - padX);
@@ -365,4 +375,15 @@ async function findFabricBusyCore(bytes: Uint8Array): Promise<FabricBox | null> 
   const x = Math.max(0, left / w - padX);
   const y = Math.max(0, top / h - padY);
   return { x, y, w: Math.min(1, (right + 1) / w + padX) - x, h: Math.min(1, (bottom + 1) / h + padY) - y };
+}
+
+/**
+ * For the camera's live guide (28 Sep): how much of the frame the saree
+ * fills (0-1), and where it is. Stepping closer gives the saree the camera's
+ * full detail; cropping afterwards only throws wall away.
+ */
+export async function frameFill(bytes: Uint8Array): Promise<{ fill: number; box: FabricBox | null }> {
+  const report = { fill: 1 };
+  const box = await findFabricAgainstWall(bytes, report).catch(() => null);
+  return { fill: Math.round(report.fill * 100) / 100, box };
 }

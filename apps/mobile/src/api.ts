@@ -252,6 +252,27 @@ export async function detectFabric(uri: string): Promise<{ x: number; y: number;
   }
 }
 
+/**
+ * For the camera's live guide (28 Sep): how much of the frame the saree
+ * fills (0-1) in a quick still, and where it sits. Free (pixel arithmetic on
+ * the server, no AI). Null when it cannot be checked (no internet).
+ */
+export async function frameFill(uri: string): Promise<{ fill: number; box: { x: number; y: number; w: number; h: number } | null } | null> {
+  try {
+    const { ImageManipulator, SaveFormat } = await import("expo-image-manipulator");
+    const context = ImageManipulator.manipulate(uri);
+    context.resize({ width: 320 });
+    const small = await (await context.renderAsync()).saveAsync({ compress: 0.6, format: SaveFormat.JPEG });
+    return await call<{ fill: number; box: { x: number; y: number; w: number; h: number } | null }>("/api/detect-fabric?fill=1", {
+      method: "POST",
+      headers: { "content-type": "image/jpeg" },
+      body: new File(small.uri) as unknown as Blob,
+    });
+  } catch {
+    return null;
+  }
+}
+
 /** A new record with no product ID; it can be given one later from its shot screen. */
 export async function openWithoutProductId(type: string): Promise<GarmentView> {
   const out = await call<{ garment: GarmentView }>("/api/garments/open", {

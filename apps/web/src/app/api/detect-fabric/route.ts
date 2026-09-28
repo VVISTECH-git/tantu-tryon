@@ -1,4 +1,4 @@
-import { findFabric } from "@/lib/fabricBox";
+import { findFabric, frameFill } from "@/lib/fabricBox";
 import { requireAccount, unauthorised } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -17,6 +17,10 @@ export async function POST(request: Request) {
     const bytes = new Uint8Array(await request.arrayBuffer());
     if (bytes.byteLength === 0 || bytes.byteLength > 3_000_000) {
       return Response.json({ error: "Send a small JPEG of the photo." }, { status: 400 });
+    }
+    // ?fill=1: the camera's live guide wants how much of the frame the saree fills.
+    if (new URL(request.url).searchParams.get("fill") === "1") {
+      return Response.json(await frameFill(bytes), { headers: { "Cache-Control": "no-store" } });
     }
     const box = await findFabric(bytes).catch(() => null);
     return Response.json({ box }, { headers: { "Cache-Control": "no-store" } });

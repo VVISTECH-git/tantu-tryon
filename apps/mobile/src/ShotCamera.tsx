@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Shot } from "@tantu/shared/shots";
-import { EditView } from "./EditView";
+import { PhotoReview } from "./PhotoReview";
+import * as api from "./api";
 import type { PhotoEdit } from "@tantu/shared/photoEdit";
 import { C, R } from "./theme";
 
@@ -36,6 +37,13 @@ const TILT_OK = 4;
 const ROLL_OK = 3;
 /** Degrees per second of turning that still count as still. */
 const STILL_OK = 12;
+/**
+ * How much of the frame the saree should fill (28 Sep). A saree filling only
+ * half the photo gets half the camera's detail, and cropping later cannot
+ * bring it back; the guide asks the photographer to step closer instead.
+ */
+const FILL_OK = 0.55;
+const FILL_EVERY_MS = 2500;
 
 interface Pose {
   /** How far the camera points up or down, degrees. */
@@ -57,6 +65,10 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
   const [wide, setWide] = useState(false);
   const [pose, setPose] = useState<Pose | null>(null);
   const poseRef = useRef<Pose | null>(null);
+  // How much of the frame the saree fills, from a quiet still every few seconds.
+  const [framing, setFraming] = useState<{ fill: number; box: { y: number } | null } | null>(null);
+  const checking = useRef(false);
+  const shooting = useRef(false);
   const cameraRef = useRef<CameraView>(null);
   const { width: winW, height: winH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -97,8 +109,35 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
     return () => sub?.remove();
   }, [upright]);
 
+  // The framing check: a small still, looked at on the server (free, no AI). Never while shooting.
+  useEffect(() => {
+    if (!permission?.granted || captured) return;
+    const timer = setInterval(() => {
+      if (checking.current || shooting.current || !cameraRef.current) return;
+      checking.current = true;
+      void (async () => {
+        try {
+          const still = await cameraRef.current?.takePictureAsync({ quality: 0.3, shutterSound: false });
+          if (still && !shooting.current) {
+            const found = await api.frameFill(still.uri);
+            if (found && !shooting.current) setFraming(found);
+          }
+        } catch {
+          // Skipped this time; the next tick tries again.
+        } finally {
+          checking.current = false;
+        }
+      })();
+    }, FILL_EVERY_MS);
+    return () => clearInterval(timer);
+  }, [permission?.granted, captured]);
+
   const level = pose ? pose.rightWay && pose.tilt < TILT_OK && pose.roll < ROLL_OK : false;
-  const ready = level && !!pose?.still;
+  const framed = !framing || framing.fill >= FILL_OK;
+  const ready = level && !!pose?.still && framed;
+  const fillHint = framing && !framed
+    ? `${framing.box && framing.box.y > 0.3 ? "Aim lower and step closer" : "Step closer"} · the saree fills ${Math.round(framing.fill * 100)}% of the photo`
+    : null;
   const hint = !pose
     ? shot.where
     : !pose.rightWay
@@ -109,9 +148,11 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
         ? `Point the phone straight at the saree · ${Math.round(pose.tilt)}° off`
         : pose.roll >= ROLL_OK
           ? `Straighten the phone · ${Math.round(pose.roll)}° off`
-          : !pose.still
-            ? "Straight. Hold still"
-            : "Straight and still";
+          : fillHint
+            ? fillHint
+            : !pose.still
+              ? "Straight. Hold still"
+              : "Straight, still and filling the frame";
 
   // The preview window: the photo's own shape, as large as the space allows.
   const topBar = 46 + insets.top;
@@ -153,7 +194,11 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
   async function shoot() {
     if (!cameraRef.current || busy) return;
     setBusy(true);
+    shooting.current = true;
     try {
+      // A framing still may be in progress: let it finish (at most a second) so the camera is free.
+      const freeBy = Date.now() + 1000;
+      while (checking.current && Date.now() < freeBy) await new Promise((r) => setTimeout(r, 50));
       if (poseRef.current && !poseRef.current.still) {
         setWaiting(true);
         const until = Date.now() + 1500;
@@ -165,6 +210,7 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
       const photo = await cameraRef.current.takePictureAsync({ quality: 1 });
       if (photo) setCaptured({ uri: photo.uri, width: photo.width, height: photo.height });
     } finally {
+      shooting.current = false;
       setBusy(false);
       setWaiting(false);
     }
@@ -192,13 +238,16 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
     );
   }
 
-  // Straight to the edit screen, the box already round the saree (28 Sep): one tap on Use keeps just the fabric.
+  // The shot, before it is saved: Use photo is the quick default; Edit is there when it is needed (28 Sep).
   if (captured) {
     return (
-      <EditView
+      <PhotoReview
         photo={captured}
         backLabel="Retake"
-        onBack={() => setCaptured(null)}
+        onBack={() => {
+          setCaptured(null);
+          setFraming(null);
+        }}
         onDone={(out) => onCapture({ uri: out.photo.uri, width: out.photo.width, height: out.photo.height, edit: out.edit, shownUri: out.shownUri })}
       />
     );
