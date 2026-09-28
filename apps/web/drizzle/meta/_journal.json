@@ -50,6 +50,13 @@
       "when": 1790590030049,
       "tag": "0006_magical_mauler",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790598299820,
+      "tag": "0007_young_korvac",
+      "breakpoints": true
     }
   ]
 }

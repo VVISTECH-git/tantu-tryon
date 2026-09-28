@@ -32,6 +32,7 @@ function garment(parts: GarmentPartRow[], answers: Garment["answers"] = {}): Gar
     createdAt: new Date(0),
     updatedAt: new Date(0),
     deletedAt: null,
+    autoIssued: false,
   };
 }
 

@@ -201,6 +201,12 @@ export const garments = pgTable(
      * skips it. A product with no images is removed outright instead.
      */
     deletedAt: timestamp({ withTimezone: true }),
+    /**
+     * Its product ID was given out automatically (photographer login, 28 Sep),
+     * so an abandoned empty one may be handed to another phone. A product ID
+     * typed or scanned by hand never is.
+     */
+    autoIssued: boolean().notNull().default(false),
   },
   (t) => [index("garments_account_created").on(t.accountId, t.createdAt)],
 );
