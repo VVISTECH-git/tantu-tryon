@@ -10,7 +10,8 @@ import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-
 import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
 import { TANTU_MARK_GRADIENT, TANTU_MARK_PATHS, TANTU_MARK_VIEWBOX } from "@tantu/shared/brand";
 import { ShotCamera, type CapturedPhoto } from "./src/ShotCamera";
-import { CropView } from "./src/CropView";
+import { EditView } from "./src/EditView";
+import type { PhotoEdit } from "@tantu/shared/photoEdit";
 import { DetailImage, ZoomImage } from "./src/ZoomImage";
 import { QrScan } from "./src/QrScan";
 import { SwipeRow } from "./src/SwipeRow";
@@ -148,7 +149,7 @@ function Studio() {
   }, []);
   /** This product's photos still on their way, by slot: the phone's own copy. */
   const pending: Record<string, string> = {};
-  for (const it of queue.items) if (it.garmentId === garment?.id) pending[it.slot] = it.uri;
+  for (const it of queue.items) if (it.garmentId === garment?.id) pending[it.slot] = it.shownUri ?? it.uri;
   const [cameraShot, setCameraShot] = useState<Shot | null>(null);
   const [cropPick, setCropPick] = useState<{ shot: Shot; photo: api.LocalPhoto } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -369,7 +370,7 @@ function Studio() {
     const shot = cameraShot;
     setCameraShot(null);
     if (!shot) return;
-    await upload(shot, photo);
+    await upload(shot, photo, photo.edit ?? null, photo.shownUri);
   }
 
   /**
@@ -377,8 +378,9 @@ function Studio() {
    * a HEIC from the library is turned into a JPEG, at full size and full
    * quality, because the server cannot read HEIC.
    */
-  async function upload(shot: Shot, photo: api.LocalPhoto) {
-    setLocalPhotos((prev) => ({ ...prev, [shot.slot]: photo.uri }));
+  async function upload(shot: Shot, photo: api.LocalPhoto, edit: PhotoEdit | null = null, shownUri?: string) {
+    // Shown from the phone at once: the edited small copy when there is one.
+    setLocalPhotos((prev) => ({ ...prev, [shot.slot]: shownUri ?? photo.uri }));
     let sent = photo;
     if (/hei[cf]/i.test(photo.mimeType ?? "")) {
       setBusySlot(shot.slot);
@@ -392,7 +394,7 @@ function Studio() {
     }
     // The product is open: the photo joins the queue and sends in the background.
     if (garment) {
-      uploadQueue.enqueue(sent, { garmentId: garment.id, productCode: garment.productCode ?? null, slot: shot.slot, label: shot.label, type: garmentType });
+      uploadQueue.enqueue(sent, { garmentId: garment.id, productCode: garment.productCode ?? null, slot: shot.slot, label: shot.label, type: garmentType, edit, shownUri: shownUri ?? null });
       return;
     }
     // No product yet (not reached from today's screens): send now, as before.
@@ -1353,16 +1355,17 @@ function Studio() {
         </View>
       </Modal>
 
-      {/* A photo from the library, cropped (or not) before it is saved */}
+      {/* A photo from the library: the same edit screen as the camera, before it is saved */}
       <Modal visible={cropPick !== null} animationType="slide" onRequestClose={() => setCropPick(null)} statusBarTranslucent>
         {cropPick && (
-          <CropView
+          <EditView
             photo={cropPick.photo}
-            onCancel={() => setCropPick(null)}
-            onDone={(p) => {
+            backLabel="Cancel"
+            onBack={() => setCropPick(null)}
+            onDone={(out) => {
               const pick = cropPick;
               setCropPick(null);
-              void upload(pick.shot, { uri: p.uri, width: p.width, height: p.height, mimeType: p.mimeType });
+              void upload(pick.shot, { ...out.photo, mimeType: pick.photo.mimeType }, out.edit, out.shownUri);
             }}
           />
         )}

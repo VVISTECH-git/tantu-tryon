@@ -122,7 +122,158 @@ function outerEdge(
   return { at: coreEdge, clear: true };
 }
 
+/**
+ * The saree against whatever is behind it (28 Sep). The busy-core method
+ * below assumed a plain, greyish wall: against the shop's pink wall it took
+ * the wall for more border and gave up, and took the ceiling line for the
+ * top of the saree. Here the background is learnt from the photo itself: the
+ * colours along its top and sides (ceiling, wall, whatever is there), which
+ * a hung saree rarely reaches. A pixel is background when it is close to one
+ * of those colours and as smooth as they are; everything else is fabric
+ * (print, borders, the rod it hangs from). The box is the widest run of
+ * columns that are largely fabric, then the tallest run of rows within them.
+ * Null when there is no clear answer; findFabric then tries the older way.
+ */
+export async function findFabricAgainstWall(bytes: Uint8Array): Promise<FabricBox | null> {
+  const { data, info } = await sharp(bytes)
+    .rotate()
+    .removeAlpha()
+    .resize({ width: EDGE, height: EDGE, fit: "inside" })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const w = info.width;
+  const h = info.height;
+  const px = (x: number, y: number): [number, number, number] => {
+    const i = (y * w + x) * 3;
+    return [data[i]!, data[i + 1]!, data[i + 2]!];
+  };
+  const grey = (x: number, y: number) => {
+    const [r, g, b] = px(x, y);
+    return 0.299 * r + 0.587 * g + 0.114 * b;
+  };
+
+  // How much the picture changes around each pixel, averaged over a 5x5 patch.
+  const grad = new Float32Array(w * h);
+  for (let y = 0; y < h - 1; y++) {
+    for (let x = 0; x < w - 1; x++) grad[y * w + x] = Math.abs(grey(x + 1, y) - grey(x, y)) + Math.abs(grey(x, y + 1) - grey(x, y));
+  }
+  const texture = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let sum = 0;
+      let n = 0;
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const yy = y + dy;
+          const xx = x + dx;
+          if (yy < 0 || yy >= h || xx < 0 || xx >= w) continue;
+          sum += grad[yy * w + xx]!;
+          n++;
+        }
+      }
+      texture[y * w + x] = sum / n;
+    }
+  }
+
+  // The background's colours: sampled along the top and both sides.
+  const band = Math.max(3, Math.round(Math.min(w, h) * 0.06));
+  const samples: { c: [number, number, number]; t: number }[] = [];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (y < band || x < band || x >= w - band) samples.push({ c: px(x, y), t: texture[y * w + x]! });
+    }
+  }
+  // A few colour groups (k-means, a handful of rounds); the small ones are strays.
+  const k = 4;
+  let centres = Array.from({ length: k }, (_, i) => samples[Math.floor(((i + 0.5) * samples.length) / k)]!.c.slice() as [number, number, number]);
+  let groups: number[] = [];
+  const dist = (a: [number, number, number], b: [number, number, number]) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  for (let round = 0; round < 8; round++) {
+    groups = samples.map((s) => centres.reduce((best, c, i) => (dist(s.c, c) < dist(s.c, centres[best]!) ? i : best), 0));
+    centres = centres.map((c, i) => {
+      const members = samples.filter((_, j) => groups[j] === i);
+      if (!members.length) return c;
+      return [0, 1, 2].map((ch) => members.reduce((sum, m) => sum + m.c[ch]!, 0) / members.length) as [number, number, number];
+    });
+  }
+  // Only smooth groups are wall: a saree reaching the photo's edge is textured, and is not background.
+  const palette = centres.filter((c, i) => {
+    const members = samples.filter((_, j) => groups[j] === i);
+    if (members.length < samples.length * 0.08) return false;
+    const smooth = members.map((m) => m.t).sort((a, b) => a - b);
+    return smooth[Math.floor(smooth.length / 2)]! < 14;
+  });
+  if (!palette.length) return null;
+  const smoothBg = samples.filter((s) => palette.some((c) => dist(s.c, c) < 40)).map((s) => s.t).sort((a, b) => a - b);
+  const maxTexture = Math.max(10, (smoothBg[Math.floor(smoothBg.length * 0.9)] ?? 10) * 1.6);
+
+  const fabric = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const c = px(x, y);
+      const wall = texture[y * w + x]! <= maxTexture && palette.some((p) => dist(c, p) < 40);
+      fabric[y * w + x] = wall ? 0 : 1;
+    }
+  }
+
+  const cols = Array.from({ length: w }, (_, x) => {
+    let n = 0;
+    for (let y = 0; y < h; y++) n += fabric[y * w + x]!;
+    return n / h;
+  });
+  const colMax = Math.max(...cols);
+  if (colMax < 0.15) return null;
+  const colRun = longestRun(smooth(cols, 1), colMax * 0.45, Math.round(w * 0.02));
+  if (!colRun) return null;
+  const [left, right] = colRun;
+  const rows = Array.from({ length: h }, (_, y) => {
+    let n = 0;
+    for (let x = left; x <= right; x++) n += fabric[y * w + x]!;
+    return n / (right - left + 1);
+  });
+  const rowRun = longestRun(smooth(rows, 1), 0.5, Math.round(h * 0.02));
+  if (!rowRun) return null;
+  const [top, bottom] = rowRun;
+
+  const bw = (right - left + 1) / w;
+  const bh = (bottom - top + 1) / h;
+  if (bw < 0.25 || bh < 0.25) return null;
+  // The saree already fills the photo: nothing worth cutting.
+  if (bw > 0.94 && bh > 0.94) return null;
+  // Only when there really is wall around it: beside the box (at its height)
+  // and above it, unless the box reaches that edge. A saree filling the
+  // photo with a plain stretch at the top (a plain pallu) looks like wall up
+  // there, but its sides are fabric, so no crop is offered (lilac pallu, 28 Sep).
+  const wallShare = (x0: number, x1: number, y0: number, y1: number) => {
+    let n = 0;
+    let bg = 0;
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        n++;
+        bg += 1 - fabric[y * w + x]!;
+      }
+    }
+    return n ? bg / n : 1;
+  };
+  const edgeX = Math.round(w * 0.04);
+  const edgeY = Math.round(h * 0.04);
+  if (left > edgeX && wallShare(0, left - 1, top, bottom) < 0.6) return null;
+  if (right < w - 1 - edgeX && wallShare(right + 1, w - 1, top, bottom) < 0.6) return null;
+  if (top > edgeY && wallShare(left, right, 0, top - 1) < 0.6) return null;
+  const padX = 0.02;
+  const padY = 0.015;
+  const x = Math.max(0, left / w - padX);
+  const y = Math.max(0, top / h - padY);
+  return { x, y, w: Math.min(1, (right + 1) / w + padX) - x, h: Math.min(1, (bottom + 1) / h + padY) - y };
+}
+
 export async function findFabric(bytes: Uint8Array): Promise<FabricBox | null> {
+  const againstWall = await findFabricAgainstWall(bytes).catch(() => null);
+  if (againstWall) return againstWall;
+  return findFabricBusyCore(bytes);
+}
+
+async function findFabricBusyCore(bytes: Uint8Array): Promise<FabricBox | null> {
   const { data, info } = await sharp(bytes)
     .rotate()
     .removeAlpha()

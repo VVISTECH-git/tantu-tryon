@@ -187,7 +187,7 @@ export interface LocalPhoto {
  * carry), then recorded. Falls back to the multipart route where the server
  * has no storage to hand out URLs for.
  */
-export async function uploadPart(photo: LocalPhoto, slot: string, garmentId: string | null, type: string, previewUri?: string | null): Promise<UploadResult> {
+export async function uploadPart(photo: LocalPhoto, slot: string, garmentId: string | null, type: string, previewUri?: string | null, brightness = 0): Promise<UploadResult> {
   const contentType = photo.mimeType ?? "image/jpeg";
   let target: { garmentId: string; key: string; url: string; previewKey?: string; previewUrl?: string };
   try {
@@ -215,7 +215,8 @@ export async function uploadPart(photo: LocalPhoto, slot: string, garmentId: str
   return call<UploadResult>("/api/garments/upload-done", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ garmentId: target.garmentId, slot, key: target.key, previewKey }),
+    // Brightness from the edit screen: the server applies it to the photo itself.
+    body: JSON.stringify({ garmentId: target.garmentId, slot, key: target.key, previewKey, ...(brightness ? { brightness } : {}) }),
   });
 }
 
