@@ -26,7 +26,9 @@ export async function POST(request: Request) {
 export async function GET() {
   try {
     const account = await requireAccount();
-    const rows = await listGarments(account.id);
+    // A record is made when Continue is tapped, before any photo; one left
+    // with no photos is not shown (28 Sep: empty rows filled the list).
+    const rows = (await listGarments(account.id)).filter((g) => g.parts.length > 0);
     const products = rows.map((g) => {
       const pub = publicGarment(g);
       const body = pub.parts.find((p) => p.slot === "body") ?? pub.parts[0];
