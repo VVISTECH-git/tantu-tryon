@@ -1,6 +1,5 @@
 import { CameraView, scanFromURLAsync, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
-import { extractTextFromImage, isSupported as isTextReaderSupported } from "expo-text-extractor";
 import { codeFromTagText } from "./tagCode";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
@@ -18,6 +17,20 @@ import { C, R } from "./theme";
  * a photo taken with the phone's own camera (which does focus close) can be
  * read instead.
  */
+/**
+ * The phone's text reader, loaded only when needed: an app without the native
+ * module (Expo Go on the test emulator, 28 Sep) crashed at start when it was
+ * imported up front. Resolves to lines of text, or none when it is missing.
+ */
+async function readTextIn(uri: string): Promise<string[]> {
+  try {
+    const reader = await import("expo-text-extractor");
+    return reader.isSupported ? await reader.extractTextFromImage(uri) : [];
+  } catch {
+    return [];
+  }
+}
+
 function codeFrom(raw: string | undefined): string {
   const text = (raw ?? "").trim();
   return (/^https?:\/\//i.test(text) ? text.replace(/[/?#]+$/, "").split(/[/?#=]/).pop() : text) ?? "";
@@ -37,7 +50,7 @@ export function QrScan({ onCode, onCancel }: { onCode: (code: string) => void; o
   // print: while no QR has been read, a silent still is taken every few
   // seconds and its printed code read on the phone.
   useEffect(() => {
-    if (!permission?.granted || !isTextReaderSupported) return;
+    if (!permission?.granted) return;
     const timer = setInterval(() => {
       if (done.current || snapping.current || !camera.current) return;
       snapping.current = true;
@@ -46,7 +59,7 @@ export function QrScan({ onCode, onCancel }: { onCode: (code: string) => void; o
         try {
           const shot = await camera.current?.takePictureAsync({ quality: 0.7, shutterSound: false });
           if (!shot || done.current) return;
-          const printed = codeFromTagText(await extractTextFromImage(shot.uri).catch(() => [] as string[]));
+          const printed = codeFromTagText(await readTextIn(shot.uri));
           if (printed) found(printed);
         } catch {
           // A still could not be taken this time; the next tick tries again.
@@ -80,7 +93,7 @@ export function QrScan({ onCode, onCancel }: { onCode: (code: string) => void; o
       const results = await scanFromURLAsync(uri, ["qr"]).catch(() => []);
       if (results.some((r) => found(r.data))) return;
       // The QR could not be read: read the code printed on the tag instead.
-      const lines = isTextReaderSupported ? await extractTextFromImage(uri).catch(() => [] as string[]) : [];
+      const lines = await readTextIn(uri);
       const printed = codeFromTagText(lines);
       if (printed && found(printed)) return;
       Alert.alert("No product code found", "Take the photo closer, so the tag's printed code is sharp and fills more of the picture.");

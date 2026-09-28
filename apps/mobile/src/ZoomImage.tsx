@@ -1,5 +1,55 @@
-import { useRef } from "react";
-import { Animated, Image, PanResponder, Platform, ScrollView, View, useWindowDimensions } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Animated, Image, PanResponder, PixelRatio, Platform, ScrollView, Text, View, useWindowDimensions } from "react-native";
+
+/**
+ * The original at its real pixel size, to look at the weave (28 Sep). The
+ * phone decodes a photo at the size it is laid out, so a fitted photo zoomed
+ * in only ever shows screen-sized detail. Laid out here at one image pixel
+ * per screen pixel, inside a scroll view that moves both ways, every pixel
+ * the camera took is on screen. It opens centred.
+ */
+export function DetailImage({ uri }: { uri: string }) {
+  const win = useWindowDimensions();
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    let live = true;
+    Image.getSize(
+      uri,
+      (w, h) => live && setSize({ w: w / PixelRatio.get(), h: h / PixelRatio.get() }),
+      () => live && setProblem("The full photo could not be loaded."),
+    );
+    return () => {
+      live = false;
+    };
+  }, [uri]);
+  if (problem) return <Text style={{ color: "#fff", textAlign: "center", marginTop: "60%" }}>{problem}</Text>;
+  if (!size) return <ActivityIndicator color="#fff" style={{ flex: 1 }} />;
+  return (
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentOffset={{ x: 0, y: Math.max(0, (size.h - win.height) / 2) }}
+        showsVerticalScrollIndicator={false}
+      >
+        <ScrollView
+          horizontal
+          contentOffset={{ x: Math.max(0, (size.w - win.width) / 2), y: 0 }}
+          showsHorizontalScrollIndicator={false}
+        >
+          <Image source={{ uri }} style={{ width: size.w, height: size.h }} onLoadEnd={() => setLoaded(true)} />
+        </ScrollView>
+      </ScrollView>
+      {!loaded && (
+        <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: "45%", alignItems: "center", gap: 10 }}>
+          <ActivityIndicator color="#fff" />
+          <Text style={{ color: "#fff" }}>Loading the full photo…</Text>
+        </View>
+      )}
+    </View>
+  );
+}
 
 /**
  * A photo shown whole, fitted to the screen, on every page. It opens fitted
