@@ -39,6 +39,28 @@ async function storeToken(value: string | null): Promise<void> {
   }
 }
 
+/**
+ * The last username that signed in on this phone (28 Sep), so after Sign
+ * out only the password has to be typed. Never the password itself.
+ */
+const USERNAME_KEY = "tantu.lastUsername";
+
+export async function lastUsername(): Promise<string> {
+  try {
+    return (await SecureStore.getItemAsync(USERNAME_KEY)) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export async function rememberUsername(name: string): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(USERNAME_KEY, name);
+  } catch {
+    // Only a convenience: the box starts empty next time.
+  }
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,

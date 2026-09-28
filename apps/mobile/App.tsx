@@ -155,6 +155,8 @@ function Studio() {
     }, 2200);
     void (async () => {
       const token = await api.loadToken();
+      const last = await api.lastUsername();
+      if (last) setUsername((typed) => typed || last);
       if (!token) {
         target = "signin";
         return finish();
@@ -180,6 +182,7 @@ function Studio() {
     setError(null);
     try {
       await api.login(username.trim(), password);
+      void api.rememberUsername(username.trim());
       const me = await api.account();
       setBalance(me.balancePaise);
       setSignedInAs(me.username ?? me.name);
@@ -448,7 +451,7 @@ function Studio() {
       setRole("admin");
       setPlatformAdmin(false);
       setPlatform(null);
-      setUsername("");
+      // The username stays filled in (28 Sep); only the password is asked again.
       setPassword("");
       setProductId("");
       setLateId("");
