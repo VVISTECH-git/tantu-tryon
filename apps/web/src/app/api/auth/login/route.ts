@@ -17,18 +17,24 @@ export async function POST(request: Request) {
     return Response.json({ error: "Malformed request." }, { status: 400 });
   }
   if (!username || !password) {
-    return Response.json({ error: "Enter a username and password." }, { status: 400 });
+    return Response.json({ error: !username ? "Enter your username." : "Enter your password." }, { status: 400 });
   }
 
   const ip = clientIp(request);
   if (await throttled(ip)) {
-    return Response.json({ error: "Too many attempts. Wait a few minutes." }, { status: 429 });
+    return Response.json({ error: "Too many wrong tries. Wait 15 minutes, then try again." }, { status: 429 });
   }
 
   const account = await accountByUsername(username);
-  if (!account || !passwordMatches(password, account.passwordHash)) {
+  // Said plainly which one is wrong (28 Sep, asked for by the shop). It does
+  // tell a stranger which usernames exist; the throttle above still stops guessing.
+  if (!account) {
     await recordFailure(ip);
-    return Response.json({ error: "That username or password is not right." }, { status: 401 });
+    return Response.json({ error: `Username "${username}" not found. Check the spelling.` }, { status: 401 });
+  }
+  if (!passwordMatches(password, account.passwordHash)) {
+    await recordFailure(ip);
+    return Response.json({ error: "Wrong password. Try again." }, { status: 401 });
   }
 
   const token = await startSession(account.id);

@@ -75,9 +75,24 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("x-tantu-client", "mobile");
   if (token) headers.set("authorization", `Bearer ${token}`);
-  const response = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  } catch {
+    // The request never reached the server (28 Sep: iOS said "A server with the
+    // specified hostname could not be found", which read as an app fault).
+    throw new ApiError("No internet connection. Check Wi-Fi or mobile data, then try again.", 0);
+  }
   const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) throw new ApiError(payload.error ?? `Request failed (${response.status}).`, response.status);
+  if (!response.ok) {
+    if (payload.error) throw new ApiError(payload.error, response.status);
+    throw new ApiError(
+      response.status >= 500
+        ? "The Tantu server is not answering right now. Try again in a minute."
+        : `Something went wrong (${response.status}). Try again.`,
+      response.status,
+    );
+  }
   return payload;
 }
 
@@ -161,7 +176,9 @@ export async function uploadPart(photo: LocalPhoto, slot: string, garmentId: str
     throw error;
   }
   // Straight to storage, with no Authorization header: the URL carries its own signature.
-  const put = await fetch(target.url, { method: "PUT", headers: { "content-type": contentType }, body: new File(photo.uri) as unknown as Blob });
+  const put = await fetch(target.url, { method: "PUT", headers: { "content-type": contentType }, body: new File(photo.uri) as unknown as Blob }).catch(() => {
+    throw new ApiError("No internet connection, so the photo was not sent. Check Wi-Fi or mobile data, then try again.", 0);
+  });
   if (!put.ok) throw new ApiError(`The photo could not be sent (${put.status}). Please try again.`, put.status);
   return call<UploadResult>("/api/garments/upload-done", {
     method: "POST",
