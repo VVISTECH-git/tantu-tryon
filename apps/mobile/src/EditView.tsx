@@ -1,6 +1,6 @@
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Image, PanResponder, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Image, PanResponder, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MAX_ANGLE, MAX_BRIGHTNESS, cleanEdit, editRect, type PhotoEdit } from "@tantu/shared/photoEdit";
 import * as api from "./api";
@@ -120,9 +120,12 @@ export function EditView({ photo, onDone, onBack, backLabel }: { photo: Photo; o
   }, [work, quarter, angle]);
 
   const top = insets.top + 56;
-  const bottom = insets.bottom + 230;
+  // The photo fills everything above the tool bar, measured (28 Sep: a guessed
+  // height left a band of empty black on the iPhone).
+  const [barH, setBarH] = useState(insets.bottom + 200);
+  const bottom = barH + 8;
   // Kept in from the sides: a corner dragged at the very edge would start Android's back gesture.
-  const SIDE = 36;
+  const SIDE = Platform.OS === "android" ? 36 : 18;
   const areaW = winW - SIDE * 2;
   const areaH = winH - top - bottom;
   const scale = view ? Math.min(areaW / view.w, areaH / view.h) : 1;
@@ -265,17 +268,17 @@ export function EditView({ photo, onDone, onBack, backLabel }: { photo: Photo; o
         </Text>
       </View>
 
-      <View style={[s.bottomBar, { paddingBottom: insets.bottom + 14 }]}>
+      <View style={[s.bottomBar, { paddingBottom: insets.bottom + 14 }]} onLayout={(e) => setBarH(e.nativeEvent.layout.height)}>
         {tool === "straighten" && <Slider label="Straighten" value={angle} min={-MAX_ANGLE} max={MAX_ANGLE} step={0.5} unit="°" onChange={setAngle} />}
         {tool === "light" && (
           <Slider label="Brightness" value={Math.round(brightness * 100)} min={-MAX_BRIGHTNESS * 100} max={MAX_BRIGHTNESS * 100} step={1} unit="%" onChange={(v) => setBrightness(v / 100)} />
         )}
         <View style={s.tools}>
-          <ToolButton label="Crop" on={tool === "crop"} onPress={() => setTool("crop")} />
-          <ToolButton label="Rotate" onPress={turn} />
-          <ToolButton label="Straighten" on={tool === "straighten"} onPress={() => setTool(tool === "straighten" ? "crop" : "straighten")} />
-          <ToolButton label="Brightness" on={tool === "light"} onPress={() => setTool(tool === "light" ? "crop" : "light")} />
-          <ToolButton label="Reset" onPress={reset} />
+          <ToolButton icon="crop" label="Crop" on={tool === "crop"} onPress={() => setTool("crop")} />
+          <ToolButton icon="rotate" label="Rotate" onPress={turn} />
+          <ToolButton icon="straighten" label="Straighten" on={tool === "straighten"} onPress={() => setTool(tool === "straighten" ? "crop" : "straighten")} />
+          <ToolButton icon="light" label="Brightness" on={tool === "light"} onPress={() => setTool(tool === "light" ? "crop" : "light")} />
+          <ToolButton icon="reset" label="Reset" onPress={reset} />
         </View>
         {error && <Text style={s.error}>{error}</Text>}
         <View style={s.row}>
@@ -296,11 +299,53 @@ export function EditView({ photo, onDone, onBack, backLabel }: { photo: Photo; o
   );
 }
 
-function ToolButton({ label, on, onPress }: { label: string; on?: boolean; onPress: () => void }) {
+type Icon = "crop" | "rotate" | "straighten" | "light" | "reset";
+
+/**
+ * A tool: the symbol photo editors use, with a small one-line label under it
+ * (28 Sep: on the iPhone the words alone wrapped to two lines). Drawn with
+ * plain shapes and standard symbols, so no icon font or new build is needed;
+ * the label keeps its size whatever the phone's text size.
+ */
+function ToolButton({ icon, label, on, onPress }: { icon: Icon; label: string; on?: boolean; onPress: () => void }) {
+  const colour = on ? C.accentStrong : "#fff";
   return (
-    <Pressable style={[s.tool, on && s.toolOn]} onPress={onPress} hitSlop={4}>
-      <Text style={[s.toolText, on && { color: C.accentStrong }]}>{label}</Text>
+    <Pressable style={[s.tool, on && s.toolOn]} onPress={onPress} hitSlop={4} accessibilityLabel={label}>
+      <View style={s.icon}>
+        <ToolIcon icon={icon} colour={colour} />
+      </View>
+      <Text style={[s.toolText, { color: colour }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} allowFontScaling={false}>
+        {label}
+      </Text>
     </Pressable>
+  );
+}
+
+function ToolIcon({ icon, colour }: { icon: Icon; colour: string }) {
+  if (icon === "crop") {
+    // Two frame corners, the crop mark every photo editor uses.
+    return (
+      <View style={{ width: 20, height: 20 }}>
+        <View style={{ position: "absolute", left: 4, top: 0, width: 12, height: 16, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: colour }} />
+        <View style={{ position: "absolute", left: 0, top: 4, width: 16, height: 2, backgroundColor: colour }} />
+        <View style={{ position: "absolute", left: 14, top: 4, width: 2, height: 16, backgroundColor: colour }} />
+      </View>
+    );
+  }
+  if (icon === "straighten") {
+    // A tilted line over a level one.
+    return (
+      <View style={{ width: 22, height: 20, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ position: "absolute", width: 20, height: 2, backgroundColor: colour, opacity: 0.45, top: 13 }} />
+        <View style={{ position: "absolute", width: 20, height: 2, backgroundColor: colour, top: 8, transform: [{ rotate: "-20deg" }] }} />
+      </View>
+    );
+  }
+  const symbol = icon === "rotate" ? "↻" : icon === "reset" ? "↺" : "☀︎";
+  return (
+    <Text style={{ color: colour, fontSize: icon === "light" ? 19 : 20, lineHeight: 22, fontWeight: "700" }} allowFontScaling={false}>
+      {symbol}
+    </Text>
   );
 }
 
@@ -368,9 +413,10 @@ const s = StyleSheet.create({
   hint: { color: "rgba(255,255,255,0.75)", fontSize: 12, marginTop: 3, textAlign: "center", paddingHorizontal: 16 },
   bottomBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 18, paddingTop: 12, gap: 10, backgroundColor: "rgba(0,0,0,0.7)" },
   tools: { flexDirection: "row", justifyContent: "space-between", gap: 6 },
-  tool: { flex: 1, minHeight: 38, borderRadius: R.pill, borderWidth: 1, borderColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+  tool: { flex: 1, minHeight: 54, borderRadius: R.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center", paddingHorizontal: 2, paddingVertical: 5, gap: 3 },
+  icon: { height: 22, alignItems: "center", justifyContent: "center" },
   toolOn: { borderColor: C.accentStrong, backgroundColor: "rgba(240,141,66,0.14)" },
-  toolText: { color: "#fff", fontSize: 12, fontWeight: "600" },
+  toolText: { fontSize: 10.5, fontWeight: "600" },
   row: { flexDirection: "row", gap: 10 },
   action: { minHeight: 52, borderRadius: R.pill, backgroundColor: C.actionTop, alignItems: "center", justifyContent: "center" },
   actionText: { color: "#fff8f1", fontSize: 15, fontWeight: "600" },
