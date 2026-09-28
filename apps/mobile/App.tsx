@@ -204,6 +204,8 @@ function Studio() {
         setRole(me.role);
         setPlatformAdmin(me.platformAdmin);
         uploadQueue.kick();
+        // The photographer's number is fetched behind the splash, so the first screen opens with it (28 Sep).
+        if (me.role === "photographer") setNextAutoId(await api.nextAutoProductId(uploadQueue.pendingGarmentIds()).catch(() => null));
         target = "type";
       } catch {
         target = "signin";
@@ -227,6 +229,7 @@ function Studio() {
       setPlatformAdmin(me.platformAdmin);
       setPassword("");
       uploadQueue.kick();
+      if (me.role === "photographer") setNextAutoId(await api.nextAutoProductId(uploadQueue.pendingGarmentIds()).catch(() => null));
       setScreen("type");
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "Could not sign in.");
@@ -507,6 +510,7 @@ function Studio() {
       setRole("admin");
       setPlatformAdmin(false);
       setPlatform(null);
+      setNextAutoId(null);
       // The username stays filled in (28 Sep); only the password is asked again.
       setPassword("");
       setProductId("");
