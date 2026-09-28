@@ -40,8 +40,8 @@ export async function GET() {
         photos: g.parts.length,
         slots: g.parts.map((p) => p.slot),
         missing: missingSlots(g),
-        // The small preview, not the camera original (6-15 MB, left the list blank on the phone, 28 Sep).
-        thumb: (body && "previewUrl" in body ? body.previewUrl : undefined) ?? body?.url ?? null,
+        // The tiny list copy, else the preview, never the camera original (6-15 MB left the list blank, 28 Sep).
+        thumb: (body && "thumbUrl" in body ? body.thumbUrl : undefined) ?? (body && "previewUrl" in body ? body.previewUrl : undefined) ?? body?.url ?? null,
         updatedAt: g.updatedAt.toISOString(),
       };
     });

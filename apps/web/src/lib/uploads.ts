@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import { shotFor } from "@/content/shots";
 import type { Garment } from "@/db";
-import { addUploadedPart, recordPart, type PartSlot } from "@/lib/garments";
+import { addUploadedPart, recordPart, saveThumb, type PartSlot } from "@/lib/garments";
 import { checkQuality } from "@/lib/quality";
 
 /**
@@ -57,7 +57,10 @@ export async function recordPhotoWithPreview(
 ) {
   const size = await uprightSize(originalStart).catch(async () => uprightSize(await wholeOriginal()));
   const shot = shotFor(garment.garmentType, slot);
-  const quality = await checkQuality({ bytes: Buffer.from(previewBytes), width: size.width, height: size.height, expected: shot?.orientation ?? null });
-  const updated = await recordPart(garment, slot, key, previewKey, size, quality, takenBy);
+  const [quality, thumbKey] = await Promise.all([
+    checkQuality({ bytes: Buffer.from(previewBytes), width: size.width, height: size.height, expected: shot?.orientation ?? null }),
+    saveThumb(key, previewBytes),
+  ]);
+  const updated = await recordPart(garment, slot, key, previewKey, size, quality, takenBy, thumbKey);
   return { garment: updated, quality };
 }

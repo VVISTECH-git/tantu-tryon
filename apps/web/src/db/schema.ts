@@ -146,6 +146,12 @@ export interface GarmentPartRow {
    */
   previewKey?: string;
   previewUrl?: string;
+  /**
+   * A tiny copy (240 px, ~20 KB) for lists (28 Sep): Saved products drew its
+   * thumbnails from the 1 MB preview and a detailed saree showed a second late.
+   */
+  thumbKey?: string;
+  thumbUrl?: string;
   /** The login that took it, and when: the tracking that replaces sending photos on WhatsApp. */
   takenBy?: string;
   takenAt?: string;
