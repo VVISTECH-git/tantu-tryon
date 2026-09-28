@@ -11,7 +11,7 @@ import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
 import { TANTU_MARK_GRADIENT, TANTU_MARK_PATHS, TANTU_MARK_VIEWBOX } from "@tantu/shared/brand";
 import { ShotCamera, type CapturedPhoto } from "./src/ShotCamera";
 import { CropView } from "./src/CropView";
-import { ZoomImage } from "./src/ZoomImage";
+import { DetailImage, ZoomImage } from "./src/ZoomImage";
 import { QrScan } from "./src/QrScan";
 import {
   DEFAULT_GARMENT_TYPE,
@@ -119,7 +119,10 @@ function Studio() {
   const [warnings, setWarnings] = useState<{ title: string; body: string }[]>([]);
   const [primary, setPrimary] = useState<RunView | null>(null);
   const [howShot, setHowShot] = useState<Shot | null>(null);
-  const [viewing, setViewing] = useState<{ uri: string; label: string } | null>(null);
+  /** uri: what opens (a preview when there is one); full: the original, for Full detail, Save and Forward. */
+  const [viewing, setViewing] = useState<{ uri: string; label: string; full?: string } | null>(null);
+  const [detail, setDetail] = useState(false);
+  useEffect(() => setDetail(false), [viewing?.uri]);
   const [typeOpen, setTypeOpen] = useState(false);
   const [opened, setOpened] = useState<Set<string>>(() => new Set());
   const batch = useRef(api.newKey());
@@ -870,7 +873,7 @@ function Studio() {
               onUpload={(shot) => void pickFromLibrary(shot)}
               onClear={(shot) => void clear(shot)}
               onHow={setHowShot}
-                onView={(uri, label) => setViewing({ uri, label })}
+                onView={(uri, label, full) => setViewing({ uri, label, full })}
             />
             <Text style={s.support}>Camera opens the phone camera. Upload picks a photo already on the phone.</Text>
             {photographer ? (
@@ -917,7 +920,7 @@ function Studio() {
                   const part = parts.find((p) => p.slot === shot.slot)!;
                   const state = part.quality?.status ?? null;
                   return (
-                    <Pressable key={shot.slot} style={s.stripItem} onPress={() => setViewing({ uri: shown(part), label: shot.label })}>
+                    <Pressable key={shot.slot} style={s.stripItem} onPress={() => setViewing({ uri: shown(part), label: shot.label, full: part.url })}>
                       <View style={[s.stripThumb, state === "warn" && s.warnBorder, state === "block" && s.badBorder]}>
                         <Image source={{ uri: shown(part) }} style={s.fill} />
                         {state && <View style={[s.dot, s.dotAbs, { backgroundColor: state === "ok" ? C.good : state === "warn" ? C.warn : C.bad }]} />}
@@ -961,7 +964,7 @@ function Studio() {
               onUpload={(shot) => void pickFromLibrary(shot)}
               onClear={(shot) => void clear(shot)}
               onHow={setHowShot}
-                onView={(uri, label) => setViewing({ uri, label })}
+                onView={(uri, label, full) => setViewing({ uri, label, full })}
             />
             {balance !== null && balance < price && <Text style={s.support}>Your current plan balance is over. Purchase a plan to continue.</Text>}
             <Text style={s.sectionLabel}>Pose</Text>
@@ -976,7 +979,7 @@ function Studio() {
                     </Text>
                     {madeByPose[p.id] ? (
                       <Pressable
-                        onPress={() => setViewing({ uri: madeByPose[p.id]!, label: `${p.id} image` })}
+                        onPress={() => setViewing({ uri: madeByPose[p.id]!, label: `${p.id} image`, full: madeByPose[p.id]! })}
                         hitSlop={8}
                         style={[s.madeChip, s.madeChipOn]}
                         accessibilityLabel={`Generated. View the ${p.id} image`}
@@ -1109,7 +1112,7 @@ function Studio() {
                 </Text>
                 <Text style={s.copy}>Download the result or start a new garment.</Text>
                 <View style={s.frame}>
-                  <Pressable style={s.fill} onPress={() => setViewing({ uri: primary.imageUrl!, label: "Your image" })}>
+                  <Pressable style={s.fill} onPress={() => setViewing({ uri: primary.imageUrl!, label: "Your image", full: primary.imageUrl! })}>
                     <Image source={{ uri: primary.imageUrl }} style={s.fill} resizeMode="cover" />
                   </Pressable>
                 </View>
@@ -1123,7 +1126,7 @@ function Studio() {
                   disabled={saving}
                   onPress={() => void shareImage(primary.imageUrl!, `${garment?.productCode ?? "tantu"}-${primary.promptId}`)}
                 />
-                <Secondary label="Open full size" onPress={() => setViewing({ uri: primary.imageUrl!, label: "Your image" })} />
+                <Secondary label="Open full size" onPress={() => setViewing({ uri: primary.imageUrl!, label: "Your image", full: primary.imageUrl! })} />
               </>
             ) : (
               <>
@@ -1189,12 +1192,17 @@ function Studio() {
       <Modal visible={viewing !== null} animationType="fade" onRequestClose={() => setViewing(null)} statusBarTranslucent>
         {viewing && (
           <View style={s.viewer}>
-            <ZoomImage uri={viewing.uri} />
+            {detail && viewing.full ? <DetailImage uri={viewing.full} /> : <ZoomImage uri={viewing.uri} />}
+            {viewing.full && (
+              <Pressable style={s.viewerDetail} onPress={() => setDetail((d) => !d)} accessibilityLabel={detail ? "Fit to screen" : "Full detail"}>
+                <Text style={s.viewerDetailText}>{detail ? "Fit to screen" : "Full detail"}</Text>
+              </Pressable>
+            )}
             <View style={s.viewerBar}>
               <Text style={s.viewerLabel}>{viewing.label}</Text>
               {/* Forward: the share sheet. Save: straight into Photos. */}
               <Pressable
-                onPress={() => void shareImage(viewing.uri, `${garment?.productCode ?? "tantu"}-${viewing.label}`)}
+                onPress={() => void shareImage(viewing.full ?? viewing.uri, `${garment?.productCode ?? "tantu"}-${viewing.label}`)}
                 disabled={saving}
                 hitSlop={10}
                 style={{ marginLeft: "auto", marginRight: 20 }}
@@ -1203,7 +1211,7 @@ function Studio() {
                 <Text style={s.viewerSave}>Forward</Text>
               </Pressable>
               <Pressable
-                onPress={() => void saveImage(viewing.uri, `${garment?.productCode ?? "tantu"}-${viewing.label}`)}
+                onPress={() => void saveImage(viewing.full ?? viewing.uri, `${garment?.productCode ?? "tantu"}-${viewing.label}`)}
                 disabled={saving}
                 hitSlop={10}
                 style={{ marginRight: 22 }}
@@ -1379,7 +1387,7 @@ function ShotList({
   onUpload: (shot: Shot) => void;
   onClear: (shot: Shot) => void;
   onHow: (shot: Shot) => void;
-  onView: (uri: string, label: string) => void;
+  onView: (uri: string, label: string, full?: string) => void;
   shown: (part: { slot: string; url: string; previewUrl?: string }) => string;
 }) {
   let shots = shotsFor(type);
@@ -1397,7 +1405,7 @@ function ShotList({
         const full = p?.quality?.reasons.map((r) => r.message).join(" ") ?? "";
         return (
           <View key={shot.slot} style={[s.shot, state === "warn" && s.warnBorder, state === "block" && s.badBorder]}>
-            <Pressable style={s.shotThumb} onPress={() => (p ? onView(shown(p), shot.label) : onCamera(shot))}>
+            <Pressable style={s.shotThumb} onPress={() => (p ? onView(shown(p), shot.label, p.url) : onCamera(shot))}>
               {p ? (
                 <Image source={{ uri: shown(p) }} style={s.fill} />
               ) : (
@@ -1568,6 +1576,8 @@ const s = StyleSheet.create({
   viewer: { flex: 1, backgroundColor: "#000", justifyContent: "center" },
   viewerBar: { position: "absolute", top: 0, left: 0, right: 0, paddingTop: 48, paddingBottom: 14, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "rgba(0,0,0,0.55)" },
   viewerLabel: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  viewerDetail: { position: "absolute", alignSelf: "center", bottom: 48, paddingVertical: 12, paddingHorizontal: 22, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.6)", borderWidth: 1, borderColor: "rgba(255,255,255,0.5)" },
+  viewerDetailText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   viewerSave: { color: C.accentStrong, fontSize: 16, fontWeight: "700" },
   viewerClose: { color: "#fff", fontSize: 22, width: 28, textAlign: "center" },
   signin: { alignItems: "center", gap: 24, paddingTop: 44 },
