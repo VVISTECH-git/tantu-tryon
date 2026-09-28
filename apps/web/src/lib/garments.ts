@@ -119,7 +119,7 @@ export async function addUploadedPart(
  * 1600 px on its long side, JPEG 80. Only for showing; never sent to the image
  * model. A photo whose preview cannot be made is still recorded.
  */
-async function savePreview(key: string, bytes: Uint8Array): Promise<string | null> {
+export async function savePreview(key: string, bytes: Uint8Array): Promise<string | null> {
   if (!storageConfigured()) return null;
   try {
     const small = await sharp(bytes).rotate().resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer();
