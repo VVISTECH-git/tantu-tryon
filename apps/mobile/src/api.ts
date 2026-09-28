@@ -232,6 +232,11 @@ export async function setProductId(id: string, productId: string): Promise<Garme
   return out.garment;
 }
 
+/** Delete a product (owner or platform admin). Images already made from it are kept. */
+export async function deleteProduct(id: string): Promise<void> {
+  await call<{ ok: true }>(`/api/garments/${id}`, { method: "DELETE" });
+}
+
 export async function removePart(id: string, slot: string): Promise<GarmentView> {
   const out = await call<{ garment: GarmentView }>(`/api/garments/${id}`, {
     method: "PATCH",

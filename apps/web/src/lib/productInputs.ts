@@ -1,4 +1,4 @@
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { TEMPLATES, composePrompt, promptVersion } from "@/content/promptTemplates";
 import { db, garments, generations, type Garment, type GenerationLook } from "@/db";
 import { attachmentsFor, partPlan, wordsFor } from "@/lib/garments";
@@ -39,7 +39,7 @@ export interface ProductRow {
 
 export async function productRows(): Promise<ProductRow[]> {
   const [rows, counts] = await Promise.all([
-    db.select().from(garments).orderBy(desc(garments.updatedAt)),
+    db.select().from(garments).where(isNull(garments.deletedAt)).orderBy(desc(garments.updatedAt)),
     db.select({ garmentId: generations.garmentId, n: count() }).from(generations).groupBy(generations.garmentId),
   ]);
   const made = new Map(counts.map((c) => [c.garmentId, c.n]));
@@ -62,12 +62,12 @@ export async function productRows(): Promise<ProductRow[]> {
 
 /** One product by its database id, for the detail view (works for products with no ID too). */
 export async function productInputsById(id: string): Promise<ProductInputs | null> {
-  const [g] = await db.select().from(garments).where(eq(garments.id, id)).limit(1);
+  const [g] = await db.select().from(garments).where(and(eq(garments.id, id), isNull(garments.deletedAt))).limit(1);
   return g ? inputsOf(g) : null;
 }
 
 export async function productInputs(productCode: string): Promise<ProductInputs[]> {
-  const rows = await db.select().from(garments).where(eq(garments.productCode, productCode));
+  const rows = await db.select().from(garments).where(and(eq(garments.productCode, productCode), isNull(garments.deletedAt)));
   return rows.map(inputsOf);
 }
 

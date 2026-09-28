@@ -1,6 +1,8 @@
 import type { GarmentAnswers, GarmentPartRow } from "@/db";
-import { PRODUCT_ID_PATTERN, blouseAnswer, getGarment, productIdTaken, publicGarment, updateGarment, wordsFor } from "@/lib/garments";
-import { requireAccount, unauthorised } from "@/lib/session";
+import { PRODUCT_ID_PATTERN, blouseAnswer, deleteGarment, getGarment, productIdTaken, publicGarment, updateGarment, wordsFor } from "@/lib/garments";
+import { Forbidden, requireAccount, unauthorised } from "@/lib/session";
+import { db, garments } from "@/db";
+import { and, eq, isNull } from "drizzle-orm";
 
 export const runtime = "nodejs";
 
@@ -84,5 +86,24 @@ export async function PATCH(request: Request, { params }: Params) {
     return Response.json({ garment: publicGarment(updated), words: wordsFor(updated) }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return unauthorised(error) ?? Response.json({ error: "Could not update the garment." }, { status: 500 });
+  }
+}
+
+/**
+ * Delete a product (28 Sep): the shop's owner, for the shop's own products,
+ * or the platform admin, for any. Images already made from it are kept.
+ */
+export async function DELETE(_request: Request, { params }: Params) {
+  try {
+    const account = await requireAccount();
+    if (account.role !== "owner" && !account.platformAdmin) throw new Forbidden();
+    const { id } = await params;
+    const [row] = await db.select().from(garments).where(and(eq(garments.id, id), isNull(garments.deletedAt))).limit(1);
+    const garment = row && (row.accountId === account.id || account.platformAdmin) ? row : null;
+    if (!garment) return Response.json({ error: "No such product." }, { status: 404 });
+    const outcome = await deleteGarment(garment);
+    return Response.json({ ok: true, outcome }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    return unauthorised(error) ?? Response.json({ error: "Could not delete the product." }, { status: 500 });
   }
 }

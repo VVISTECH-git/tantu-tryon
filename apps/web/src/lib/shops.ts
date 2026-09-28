@@ -32,6 +32,7 @@ export async function listShops(): Promise<ShopRow[]> {
   const products = await db
     .select({ shop: garments.accountId, n: sql<number>`count(*)::int` })
     .from(garments)
+    .where(isNull(garments.deletedAt))
     .groupBy(garments.accountId);
   const images = await db
     .select({ shop: generations.accountId, n: sql<number>`count(*)::int` })

@@ -1,0 +1,1 @@
+ALTER TABLE "garments" ADD COLUMN "deletedAt" timestamp with time zone;

@@ -195,6 +195,12 @@ export const garments = pgTable(
     sheetKey: text(),
     createdAt: now(),
     updatedAt: now(),
+    /**
+     * Deleted by an admin (28 Sep) while images made from it remain: the row
+     * stays so those images keep their record, and every list and lookup
+     * skips it. A product with no images is removed outright instead.
+     */
+    deletedAt: timestamp({ withTimezone: true }),
   },
   (t) => [index("garments_account_created").on(t.accountId, t.createdAt)],
 );
