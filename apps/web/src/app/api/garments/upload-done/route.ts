@@ -1,7 +1,7 @@
 import { PART_ORDER, getGarment, missingSlots, publicGarment, type PartSlot } from "@/lib/garments";
 import { requireAccount, unauthorised } from "@/lib/session";
-import { getObject, headObject } from "@/lib/storage";
-import { MAX_PHOTO_BYTES, photoTypeAllowed, recordPhoto } from "@/lib/uploads";
+import { getObject, getObjectStart, headObject, previewKeyFor } from "@/lib/storage";
+import { MAX_PHOTO_BYTES, photoTypeAllowed, recordPhoto, recordPhotoWithPreview } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -17,7 +17,7 @@ export const maxDuration = 60;
 export async function POST(request: Request) {
   try {
     const account = await requireAccount();
-    const body = (await request.json().catch(() => ({}))) as { garmentId?: string; slot?: string; key?: string };
+    const body = (await request.json().catch(() => ({}))) as { garmentId?: string; slot?: string; key?: string; previewKey?: string };
     const slot = String(body.slot ?? "") as PartSlot;
     if (!body.garmentId || !body.key) return Response.json({ error: "garmentId and key are required." }, { status: 400 });
     if (!PART_ORDER.includes(slot)) return Response.json({ error: `Unknown part: ${slot}.` }, { status: 400 });
@@ -36,7 +36,12 @@ export async function POST(request: Request) {
 
     let recorded;
     try {
-      recorded = await recordPhoto(garment, slot, await getObject(body.key), mime, body.key, account.username);
+      // With the phone's own preview: size from the original's first bytes, the
+      // check from the preview. Otherwise the whole original, as before.
+      const preview = body.previewKey === previewKeyFor(body.key) && (await headObject(body.previewKey)) ? body.previewKey : null;
+      recorded = preview
+        ? await recordPhotoWithPreview(garment, slot, body.key, await getObjectStart(body.key), preview, await getObject(preview), account.username, () => getObject(body.key!))
+        : await recordPhoto(garment, slot, await getObject(body.key), mime, body.key, account.username);
     } catch {
       return Response.json({ error: "We could not read this image. Please try another one (JPEG or PNG)." }, { status: 415 });
     }

@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, garments, settings, type Garment } from "@/db";
 import { garmentType } from "@/content/shots";
 
@@ -6,8 +6,11 @@ import { garmentType } from "@/content/shots";
  * Product IDs given out automatically for the photographer login (28 Sep):
  * 9001, 9002, … per shop, with no number lost and none shared.
  *
- * - A number is held by the phone it was given to until a photo is saved
- *   under it: Continue, Back, Continue again gives the same number.
+ * - A number is held by the phone it was given to until a photo starts
+ *   sending under it: Continue, Back, Continue again gives the same number.
+ *   From then on it is used (autoIssued goes false): photos send in the
+ *   background, so this cannot wait for them to land, and the phone also
+ *   names the products it still has photos queued for (`used`).
  * - Another phone never gets a held number, so two phones cannot end up in
  *   one record (the first version reused any empty number and let two phones
  *   tapping together share one, caught in testing).
@@ -33,7 +36,7 @@ export function deviceFrom(request: Request): string | null {
   return /^[A-Za-z0-9-]{8,64}$/.test(id) ? id : null;
 }
 
-async function plan(tx: Tx | typeof db, accountId: string, device: string | null): Promise<{ plan: Plan; last: number }> {
+async function plan(tx: Tx | typeof db, accountId: string, device: string | null, used: Set<string>): Promise<{ plan: Plan; last: number }> {
   const [counter] = await tx.select().from(settings).where(eq(settings.key, counterKey(accountId))).limit(1);
   const last = counter ? Number(counter.value) : FIRST_AUTO_ID - 1;
 
@@ -41,7 +44,7 @@ async function plan(tx: Tx | typeof db, accountId: string, device: string | null
     const [held] = await tx.select().from(settings).where(eq(settings.key, heldKey(accountId, device))).limit(1);
     if (held) {
       const [g] = await tx.select().from(garments).where(and(eq(garments.id, held.value), isNull(garments.deletedAt))).limit(1);
-      if (g && g.parts.length === 0) return { plan: { kind: "held", garment: g }, last };
+      if (g && g.autoIssued && g.parts.length === 0 && !used.has(g.id)) return { plan: { kind: "held", garment: g }, last };
     }
   }
 
@@ -54,7 +57,7 @@ async function plan(tx: Tx | typeof db, accountId: string, device: string | null
   const heldIds = new Set(holds.map((h) => h.value));
   const staleBefore = Date.now() - STALE_MS;
   const stale = rows
-    .filter((g) => g.autoIssued && g.parts.length === 0 && (!heldIds.has(g.id) || +g.updatedAt < staleBefore))
+    .filter((g) => g.autoIssued && !used.has(g.id) && g.parts.length === 0 && (!heldIds.has(g.id) || +g.updatedAt < staleBefore))
     .map((g) => ({ g, n: Number(g.productCode) }))
     .filter(({ n }) => n >= FIRST_AUTO_ID && n <= last)
     .sort((a, b) => a.n - b.n)[0];
@@ -67,16 +70,18 @@ async function plan(tx: Tx | typeof db, accountId: string, device: string | null
 }
 
 /** The ID this phone's next Continue will get, shown before it is tapped. */
-export async function peekAutoProductId(accountId: string, device: string | null): Promise<string> {
-  const { plan: p } = await plan(db, accountId, device);
+export async function peekAutoProductId(accountId: string, device: string | null, used: string[] = []): Promise<string> {
+  const { plan: p } = await plan(db, accountId, device, new Set(used));
   return p.kind === "new" ? p.code : p.garment.productCode!;
 }
 
 /** Give this phone its number (the one it holds, a reclaimed one, or the next) and open its record. */
-export async function openAutoProduct(accountId: string, type: string, device: string | null): Promise<Garment> {
+export async function openAutoProduct(accountId: string, type: string, device: string | null, used: string[] = []): Promise<Garment> {
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${counterKey(accountId)}))`);
-    const { plan: p } = await plan(tx, accountId, device);
+    // Products this phone still has photos queued for are used, whatever the server has received yet.
+    if (used.length) await tx.update(garments).set({ autoIssued: false }).where(and(eq(garments.accountId, accountId), inArray(garments.id, used)));
+    const { plan: p } = await plan(tx, accountId, device, new Set(used));
     let garment: Garment;
     if (p.kind === "new") {
       await tx
@@ -104,4 +109,15 @@ export async function openAutoProduct(accountId: string, type: string, device: s
     }
     return garment;
   });
+}
+
+/** A photo has started sending under this product: its number is used from now on. */
+export async function markAutoIdUsed(garment: Garment): Promise<void> {
+  if (garment.autoIssued) await db.update(garments).set({ autoIssued: false }).where(eq(garments.id, garment.id));
+}
+
+/** `used` from the phone: ids of products it still has photos queued for. */
+export function usedFrom(value: unknown): string[] {
+  const list = Array.isArray(value) ? value : typeof value === "string" ? value.split(",") : [];
+  return list.map(String).filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 50);
 }

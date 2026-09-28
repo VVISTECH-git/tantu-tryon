@@ -1,5 +1,5 @@
 import type { GarmentAnswers, GarmentPartRow } from "@/db";
-import { PRODUCT_ID_PATTERN, blouseAnswer, deleteGarment, getGarment, productIdTaken, publicGarment, updateGarment, wordsFor } from "@/lib/garments";
+import { PRODUCT_ID_PATTERN, blouseAnswer, deleteGarment, freeUnusedAutoId, getGarment, productIdTaken, publicGarment, updateGarment, wordsFor } from "@/lib/garments";
 import { Forbidden, requireAccount, unauthorised } from "@/lib/session";
 import { db, garments } from "@/db";
 import { and, eq, isNull } from "drizzle-orm";
@@ -47,6 +47,7 @@ export async function PATCH(request: Request, { params }: Params) {
       if (!PRODUCT_ID_PATTERN.test(code)) {
         return Response.json({ error: "Enter the product ID: letters and numbers, up to 40 characters." }, { status: 400 });
       }
+      await freeUnusedAutoId(account.id, code, garment.id);
       if (await productIdTaken(account.id, code, garment.id)) {
         return Response.json({ error: `${code} already has its own record. Open it from Saved products.` }, { status: 409 });
       }

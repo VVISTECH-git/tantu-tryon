@@ -1,7 +1,8 @@
 import { DEFAULT_GARMENT_TYPE, garmentType } from "@/content/shots";
 import { PART_ORDER, createUploadGarment, getGarment, type PartSlot } from "@/lib/garments";
 import { requireAccount, unauthorised } from "@/lib/session";
-import { extensionFor, keys, presignPut, storageConfigured } from "@/lib/storage";
+import { markAutoIdUsed } from "@/lib/autoProductId";
+import { extensionFor, keys, presignPut, previewKeyFor, storageConfigured } from "@/lib/storage";
 import { photoTypeAllowed } from "@/lib/uploads";
 
 export const runtime = "nodejs";
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
   try {
     const account = await requireAccount();
     if (!storageConfigured()) return Response.json({ error: "Direct upload is not set up here." }, { status: 501 });
-    const body = (await request.json().catch(() => ({}))) as { slot?: string; type?: string; garmentId?: string; contentType?: string };
+    const body = (await request.json().catch(() => ({}))) as { slot?: string; type?: string; garmentId?: string; contentType?: string; withPreview?: boolean };
     const slot = String(body.slot ?? "") as PartSlot;
     const type = garmentType(body.type ?? DEFAULT_GARMENT_TYPE);
     const contentType = body.contentType ?? "image/jpeg";
@@ -31,10 +32,15 @@ export async function POST(request: Request) {
     let garment = body.garmentId ? await getGarment(body.garmentId, account.id) : null;
     if (body.garmentId && !garment) return Response.json({ error: "No such garment." }, { status: 404 });
     garment ??= await createUploadGarment(account.id, type.value);
+    // A photo is on its way: an automatic product ID is used from now on.
+    await markAutoIdUsed(garment);
 
     const key = keys.part(garment.id, slot, extensionFor(contentType));
     const url = await presignPut(key, contentType);
-    return Response.json({ garmentId: garment.id, key, url, contentType }, { headers: { "Cache-Control": "no-store" } });
+    // The phone can send its own screen copy beside the original (28 Sep), so
+    // the server need not pull the whole original back to make one.
+    const preview = body.withPreview ? { previewKey: previewKeyFor(key), previewUrl: await presignPut(previewKeyFor(key), "image/jpeg") } : {};
+    return Response.json({ garmentId: garment.id, key, url, contentType, ...preview }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return unauthorised(error) ?? Response.json({ error: error instanceof Error ? error.message : "Could not start the upload." }, { status: 500 });
   }

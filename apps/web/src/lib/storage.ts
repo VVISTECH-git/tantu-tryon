@@ -124,6 +124,21 @@ export async function getObject(key: string): Promise<Uint8Array> {
   return new Uint8Array(await res.arrayBuffer());
 }
 
+/**
+ * Only the first bytes of an object: enough for a photo's size and
+ * orientation from its header, without pulling a 7-15 MB original (28 Sep).
+ */
+export async function getObjectStart(key: string, bytes = 262_144): Promise<Uint8Array> {
+  const res = await aws().fetch(objectUrl(key), { headers: { range: `bytes=0-${bytes - 1}` } });
+  if (!res.ok) throw new Error(`R2 get ${res.status} for ${key}`);
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+/** Where the screen-sized copy of a photo lives, beside it. */
+export function previewKeyFor(key: string): string {
+  return `${key.replace(/\.[a-z0-9]+$/i, "")}.preview.jpg`;
+}
+
 export async function remove(key: string): Promise<void> {
   await aws().fetch(objectUrl(key), { method: "DELETE" });
 }
