@@ -87,6 +87,8 @@ function Studio() {
   const [productId, setProductId] = useState("");
   const [lateId, setLateId] = useState("");
   const [saved, setSaved] = useState<api.SavedProduct[] | null>(null);
+  // The photographer login's product IDs are given out: 9001, 9002, … (28 Sep).
+  const [nextAutoId, setNextAutoId] = useState<string | null>(null);
   const [garment, setGarment] = useState<GarmentView | null>(null);
   // A newer update is fetched and applied on this open, not the next one, so
   // the phone never needs the open-close-reopen routine. Only while nothing
@@ -155,6 +157,8 @@ function Studio() {
     }, 2200);
     void (async () => {
       const token = await api.loadToken();
+      const last = await api.lastUsername();
+      if (last) setUsername((typed) => typed || last);
       if (!token) {
         target = "signin";
         return finish();
@@ -180,6 +184,7 @@ function Studio() {
     setError(null);
     try {
       await api.login(username.trim(), password);
+      void api.rememberUsername(username.trim());
       const me = await api.account();
       setBalance(me.balancePaise);
       setSignedInAs(me.username ?? me.name);
@@ -448,7 +453,7 @@ function Studio() {
       setRole("admin");
       setPlatformAdmin(false);
       setPlatform(null);
-      setUsername("");
+      // The username stays filled in (28 Sep); only the password is asked again.
       setPassword("");
       setProductId("");
       setLateId("");
@@ -460,6 +465,39 @@ function Studio() {
   }
 
   /** The record for this product ID, made on first use, reopened after. */
+  useEffect(() => {
+    if (screen !== "type" || !photographer) return;
+    let live = true;
+    setNextAutoId(null);
+    api
+      .nextAutoProductId()
+      .then((id) => live && setNextAutoId(id))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [screen, photographer]);
+
+  async function openAutoProduct() {
+    setBusy(true);
+    setError(null);
+    try {
+      const g = await api.openAutoProduct(garmentType);
+      setGarment(g);
+      setGarmentType(g.garmentType);
+      setProductId(g.productCode ?? "");
+      setPrimary(null);
+      setWarnings([]);
+      batch.current = api.newKey();
+      setShotsBack("type");
+      setScreen("shots");
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not open the product.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function openProduct(scanned?: string) {
     const id = (scanned ?? productId).trim();
     if (!id) return;
@@ -797,6 +835,15 @@ function Studio() {
           <View style={s.stack}>
             <Text style={s.title}>Which product?</Text>
             <Text style={s.copy}>Every photo you take next is saved against this product ID.</Text>
+            {photographer ? (
+            <View style={s.field}>
+              <Text style={s.fieldLabel}>Product ID</Text>
+              <View style={[s.input, { justifyContent: "center" }]}>
+                <Text allowFontScaling={false} style={{ color: C.text, fontSize: 18, fontWeight: "700" }}>{nextAutoId ?? "…"}</Text>
+              </View>
+              <Text style={s.support}>Given automatically.</Text>
+            </View>
+            ) : (
             <View style={s.field}>
               <Text style={s.fieldLabel}>Product ID</Text>
               <View style={[s.row, { gap: 8 }]}>
@@ -819,16 +866,23 @@ function Studio() {
               <Chip label="Scan" accent disabled={busy} onPress={() => setScanning(true)} />
               </View>
             </View>
+            )}
             <Text style={s.sectionLabel}>Garment type</Text>
             <Pressable style={s.select} onPress={() => setTypeOpen(true)}>
               <Text style={s.selectText}>{typeOf(garmentType).label}</Text>
               <Text style={s.selectChevron}>⌄</Text>
             </Pressable>
             <Text style={s.support}>Saree is live. The other types are coming soon.</Text>
-            <Action label={busy ? "Opening…" : "Continue to photos"} disabled={busy || !productId.trim()} onPress={() => void openProduct()} />
-            <Pressable onPress={() => void openWithoutId()} disabled={busy} hitSlop={8} style={{ alignSelf: "center" }}>
-              <Text style={s.link}>Continue without product ID</Text>
-            </Pressable>
+            {photographer ? (
+              <Action label={busy ? "Opening…" : "Continue to photos"} disabled={busy} onPress={() => void openAutoProduct()} />
+            ) : (
+              <>
+                <Action label={busy ? "Opening…" : "Continue to photos"} disabled={busy || !productId.trim()} onPress={() => void openProduct()} />
+                <Pressable onPress={() => void openWithoutId()} disabled={busy} hitSlop={8} style={{ alignSelf: "center" }}>
+                  <Text style={s.link}>Continue without product ID</Text>
+                </Pressable>
+              </>
+            )}
             <Secondary label="Saved products" onPress={() => void showSaved()} />
           </View>
         )}

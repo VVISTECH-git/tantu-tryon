@@ -39,6 +39,28 @@ async function storeToken(value: string | null): Promise<void> {
   }
 }
 
+/**
+ * The last username that signed in on this phone (28 Sep), so after Sign
+ * out only the password has to be typed. Never the password itself.
+ */
+const USERNAME_KEY = "tantu.lastUsername";
+
+export async function lastUsername(): Promise<string> {
+  try {
+    return (await SecureStore.getItemAsync(USERNAME_KEY)) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export async function rememberUsername(name: string): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(USERNAME_KEY, name);
+  } catch {
+    // Only a convenience: the box starts empty next time.
+  }
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -186,6 +208,22 @@ export async function openWithoutProductId(type: string): Promise<GarmentView> {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ noProductId: true, type }),
+  });
+  return out.garment;
+}
+
+/** The product ID the photographer's next Continue will get (9001, 9002, …). */
+export async function nextAutoProductId(): Promise<string> {
+  const out = await call<{ nextId: string }>("/api/garments/open");
+  return out.nextId;
+}
+
+/** Give out the next automatic product ID and open its record (photographer login). */
+export async function openAutoProduct(type: string): Promise<GarmentView> {
+  const out = await call<{ garment: GarmentView }>("/api/garments/open", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ auto: true, type }),
   });
   return out.garment;
 }

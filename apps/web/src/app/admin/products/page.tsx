@@ -18,19 +18,45 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
   const { by, open } = await searchParams;
 
   if (open) {
-    const g = await productInputsById(open);
+    const [g, list] = await Promise.all([productInputsById(open), productRows()]);
+    // Previous / Next walk the list in its own order (newest first), keeping its filter.
+    const order = by ? list.filter((r) => r.takenBy.includes(by)) : list;
+    const at = order.findIndex((r) => r.id === open);
+    const prev = at > 0 ? order[at - 1] : null;
+    const next = at >= 0 && at < order.length - 1 ? order[at + 1] : null;
+    const keep = by ? `&by=${encodeURIComponent(by)}` : "";
+    const nav = (
+      <div className="flex flex-wrap items-center justify-between gap-3 text-[13.5px]">
+        <Link href={`/admin/products${by ? `?by=${encodeURIComponent(by)}` : ""}`} className="text-accent underline">
+          ‹ All products
+        </Link>
+        <span className="flex items-center gap-4">
+          {prev ? (
+            <Link href={`/admin/products?open=${prev.id}${keep}`} className="rounded-full border border-line px-3 py-1 hover:border-ink-faint">
+              ‹ Previous · {prev.productCode ?? "No product ID"}
+            </Link>
+          ) : (
+            <span className="rounded-full border border-line-soft px-3 py-1 text-ink-faint">‹ Previous</span>
+          )}
+          {at >= 0 && <span className="text-ink-faint tabular-nums">{at + 1} of {order.length}</span>}
+          {next ? (
+            <Link href={`/admin/products?open=${next.id}${keep}`} className="rounded-full border border-line px-3 py-1 hover:border-ink-faint">
+              Next · {next.productCode ?? "No product ID"} ›
+            </Link>
+          ) : (
+            <span className="rounded-full border border-line-soft px-3 py-1 text-ink-faint">Next ›</span>
+          )}
+        </span>
+      </div>
+    );
     return (
       <div className="mx-auto max-w-5xl px-6 py-8">
-        <p className="label">
-          <Link href="/admin/products" className="hover:text-ink">
-            Products
-          </Link>
-        </p>
+        {nav}
         {!g ? (
           <p className="mt-4 text-[14px] text-ink-soft">No such product.</p>
         ) : (
           <>
-            <h1 className="mt-1 text-[24px] font-semibold tracking-tight">{g.productCode ?? "No product ID"}</h1>
+            <h1 className="mt-5 text-[24px] font-semibold tracking-tight">{g.productCode ?? "No product ID"}</h1>
             <p className="mt-1 text-[13px] text-ink-soft">What this product feeds the image model, whether or not anything has been generated yet.</p>
 
             <p className="mt-6 text-[12px] uppercase tracking-wide text-ink-faint">Photos taken ({g.parts.length})</p>
@@ -91,6 +117,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
             <DeleteProduct id={g.id} name={g.productCode ?? "this product"} />
           </>
         )}
+        <div className="mt-8">{nav}</div>
       </div>
     );
   }
@@ -126,7 +153,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
 
       <div className="mt-5 grid gap-3">
         {rows.map((r) => (
-          <Link key={r.id} href={`/admin/products?open=${r.id}`} className="flex items-center gap-4 rounded-xl border border-line bg-surface p-3 hover:border-ink-faint">
+          <Link key={r.id} href={`/admin/products?open=${r.id}${by ? `&by=${encodeURIComponent(by)}` : ""}`} className="flex items-center gap-4 rounded-xl border border-line bg-surface p-3 hover:border-ink-faint">
             <div className="flex gap-1.5">
               {r.photos.slice(0, 4).map((p) => (
                 // eslint-disable-next-line @next/next/no-img-element
