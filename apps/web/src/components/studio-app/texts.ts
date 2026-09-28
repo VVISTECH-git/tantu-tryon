@@ -206,6 +206,9 @@ export const T = {
     trial: "Trial",
     gallery: "Gallery",
     spend: "Platform: model, prices, shops, spend",
+    products: "Products: everything captured on the phones",
+    generations: "Generations: input, prompt and result of every run",
+    storage: "Storage: space the photos and images take",
     shop: "Shop: people and usage",
   },
   pricing: {
