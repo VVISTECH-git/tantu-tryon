@@ -96,6 +96,37 @@ async function deviceId(): Promise<string> {
   return device;
 }
 
+/**
+ * Whether the last request reached the server (30 Sep): the app shows one
+ * "No internet" bar across every screen while it cannot, and clears it by
+ * itself on the next request that gets through.
+ */
+let reachable = true;
+const reachListeners = new Set<(online: boolean) => void>();
+function setReachable(online: boolean) {
+  if (online === reachable) return;
+  reachable = online;
+  for (const l of reachListeners) l(online);
+}
+export function onReachability(listener: (online: boolean) => void): () => void {
+  reachListeners.add(listener);
+  listener(reachable);
+  return () => reachListeners.delete(listener);
+}
+
+/**
+ * Wakes the server and its database (30 Sep): after a few idle minutes both
+ * sleep, and the first request took 2-4 s. The app calls this on opening and
+ * every few minutes while it is in front, so a tap never meets a sleeping server.
+ */
+export async function warmUp(): Promise<void> {
+  try {
+    await call("/api/account");
+  } catch {
+    // Signed out or offline: nothing to warm.
+  }
+}
+
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("x-tantu-client", "mobile");
@@ -104,7 +135,9 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE}${path}`, { ...init, headers });
+    setReachable(true);
   } catch {
+    setReachable(false);
     // The request never reached the server (28 Sep: iOS said "A server with the
     // specified hostname could not be found", which read as an app fault).
     throw new ApiError("No internet connection. Check Wi-Fi or mobile data, then try again.", 0);
@@ -319,6 +352,8 @@ export interface SavedProduct {
   missing: string[];
   thumb: string | null;
   updatedAt: string;
+  /** Images made from it (30 Sep); older servers send none. */
+  images?: number;
 }
 
 export async function savedProducts(): Promise<SavedProduct[]> {

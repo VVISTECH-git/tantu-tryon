@@ -8,7 +8,7 @@ import type { Shot } from "@tantu/shared/shots";
 import { PhotoReview } from "./PhotoReview";
 import * as api from "./api";
 import type { PhotoEdit } from "@tantu/shared/photoEdit";
-import { C, R } from "./theme";
+import { D as C, R } from "./theme";
 
 /**
  * Tantu's own camera, not the phone's.

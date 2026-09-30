@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EditView, type Edited, type Photo } from "./EditView";
-import { C, R } from "./theme";
+import { D as C, R } from "./theme";
 
 /**
  * The photo just taken (or picked), before it is saved (28 Sep): Use photo is

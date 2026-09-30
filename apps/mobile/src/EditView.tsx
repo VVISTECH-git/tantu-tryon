@@ -4,7 +4,7 @@ import { ActivityIndicator, Image, PanResponder, Platform, Pressable, StyleSheet
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MAX_ANGLE, MAX_BRIGHTNESS, cleanEdit, editRect, type PhotoEdit } from "@tantu/shared/photoEdit";
 import * as api from "./api";
-import { C, R } from "./theme";
+import { D as C, R } from "./theme";
 
 /**
  * The edit screen after every shot and upload (28 Sep).

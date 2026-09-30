@@ -4,7 +4,7 @@ import { codeFromTagText } from "./tagCode";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { C, R } from "./theme";
+import { D as C, R } from "./theme";
 
 /**
  * Reads a product tag: a QR code, or the barcode price tags usually carry.
