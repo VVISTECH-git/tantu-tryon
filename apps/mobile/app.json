@@ -5,7 +5,7 @@
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.vvistech.tantu",
@@ -22,7 +22,8 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.vvistech.tantu",
-      "permissions": [
+      "permissions": [],
+      "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ]
     },
@@ -30,9 +31,9 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "tantu",
-    "backgroundColor": "#0f0f10",
+    "backgroundColor": "#F7F5F1",
     "splash": {
-      "backgroundColor": "#0f0f10",
+      "backgroundColor": "#F7F5F1",
       "resizeMode": "contain",
       "image": "./assets/splash-icon.png"
     },
@@ -48,7 +49,9 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Tantu uses the camera to photograph the saree on the rod, with a guide showing where each shot goes."
+          "cameraPermission": "Tantu uses the camera to photograph the saree on the rod, with a guide showing where each shot goes.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [

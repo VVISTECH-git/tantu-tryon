@@ -1,10 +1,11 @@
 import { StatusBar } from "expo-status-bar";
 import * as Updates from "expo-updates";
+import Constants from "expo-constants";
 import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library/legacy";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, BackHandler, Image, Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Alert, AppState, BackHandler, Image, Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { File, Paths } from "expo-file-system";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
@@ -89,6 +90,7 @@ function Studio() {
   const [productId, setProductId] = useState("");
   const [lateId, setLateId] = useState("");
   const [saved, setSaved] = useState<api.SavedProduct[] | null>(null);
+  const [savedQuery, setSavedQuery] = useState("");
   // The photographer login's product IDs are given out: 9001, 9002, … (28 Sep).
   const [nextAutoId, setNextAutoId] = useState<string | null>(null);
   const [garment, setGarment] = useState<GarmentView | null>(null);
@@ -96,6 +98,39 @@ function Studio() {
   // the phone never needs the open-close-reopen routine. Only while nothing
   // is in hand (splash, sign-in, product ID screen): never mid-product.
   const idle = useRef(true);
+  // Online or not, from the last request; one bar across every screen when not.
+  const [online, setOnline] = useState(true);
+  useEffect(() => api.onReachability(setOnline), []);
+  useEffect(() => {
+    if (online) return;
+    // While offline, look again every 15 s so the bar clears soon after the internet is back.
+    const timer = setInterval(() => void api.warmUp(), 15_000);
+    return () => clearInterval(timer);
+  }, [online]);
+  // The server and its database sleep after a few idle minutes; keep them awake
+  // while the app is in front (30 Sep: the first tap after a pause took 2-4 s).
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      void api.warmUp();
+      if (!timer) timer = setInterval(() => void api.warmUp(), 4 * 60 * 1000);
+    };
+    const stop = () => {
+      if (timer) clearInterval(timer);
+      timer = null;
+    };
+    start();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        start();
+        uploadQueue.kick();
+      } else stop();
+    });
+    return () => {
+      stop();
+      sub.remove();
+    };
+  }, []);
   idle.current = (screen === "splash" || screen === "signin" || screen === "type") && garment === null;
   useEffect(() => {
     if (__DEV__ || !Updates.isEnabled) return;
@@ -189,7 +224,7 @@ function Studio() {
     const timer = setTimeout(() => {
       timerDone = true;
       finish();
-    }, 2200);
+    }, 600);
     void (async () => {
       const token = await api.loadToken();
       const last = await api.lastUsername();
@@ -670,7 +705,7 @@ function Studio() {
    */
   const [saving, setSaving] = useState(false);
   useEffect(() => {
-    if (!garment || (screen !== "flats" && screen !== "result")) return;
+    if (!garment || (screen !== "flats" && screen !== "result" && screen !== "shots")) return;
     let live = true;
     api
       .listRuns(garment.id)
@@ -791,34 +826,35 @@ function Studio() {
 
   return (
     <SafeAreaView style={s.page} edges={["top", "bottom"]}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       {screen !== "splash" && screen !== "signin" && (
         <View style={s.header}>
-          <Text style={s.brand}>
-            Tantu <Text style={s.brandSub}>Try-On</Text>
-          </Text>
-          <View style={s.row}>
-            {photographer ? (
-              <View style={s.chip}>
-                <Text style={s.chipText}>{signedInAs ?? "photographer"}</Text>
-              </View>
-            ) : (
-              <>
-                <Pressable style={s.chip} onPress={openAccount} hitSlop={6}>
-                  <Text style={s.chipText}>{balance === null ? "…" : `${api.rupees(balance)} left`}</Text>
-                </Pressable>
-                <Pressable onPress={openAccount} hitSlop={8}>
-                  <Text style={s.link}>Account</Text>
-                </Pressable>
-              </>
-            )}
-            <Pressable onPress={requestSignOut} hitSlop={8} disabled={screen === "analyzing" || screen === "generating"} style={{ opacity: screen === "analyzing" || screen === "generating" ? 0.35 : 1 }}>
-              <Text style={s.link}>Sign out</Text>
-            </Pressable>
+          <View style={[s.row, { gap: 8 }]}>
+            <TantuMark size={24} />
+            <Text style={s.brand}>Tantu</Text>
           </View>
+          {/* One chip: who is signed in (and the balance, for logins that generate); it opens Account. */}
+          <Pressable
+            style={[s.chip, s.row, { gap: 6 }]}
+            onPress={openAccount}
+            hitSlop={6}
+            disabled={screen === "analyzing" || screen === "generating"}
+            accessibilityLabel="Account"
+          >
+            <Text style={s.chipText} numberOfLines={1}>
+              {signedInAs ?? "Account"}
+              {!photographer && balance !== null ? ` · ${api.rupees(balance)}` : ""}
+            </Text>
+            <Text style={[s.chipText, { color: C.textMuted }]}>›</Text>
+          </Pressable>
         </View>
       )}
 
+      {!online && screen !== "splash" && (
+        <View style={s.offline}>
+          <Text style={s.offlineText}>No internet. Photos you take are kept and send when it is back.</Text>
+        </View>
+      )}
       <ScrollView ref={mainScroll} contentContainerStyle={s.main} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         {error && screen !== "signin" && <Text style={s.error}>{error}</Text>}
 
@@ -840,20 +876,9 @@ function Studio() {
         {screen === "signin" && (
           <View style={s.signin}>
             <View style={s.signinBrand}>
-              <View style={{ width: 72, height: 72, alignItems: "center", justifyContent: "center" }}>
-                <View style={[s.splashGlow, s.signinGlowOuter]} pointerEvents="none" />
-                <View style={[s.splashGlow, s.signinGlowMid]} pointerEvents="none" />
-                <View style={[s.splashGlow, s.signinGlowInner]} pointerEvents="none" />
-                <TantuMark size={72} />
-              </View>
+              <TantuMark size={56} />
               <Text style={s.signinName}>Tantu</Text>
               <Text style={s.signinTagline}>AI Studio for Fashion Brands</Text>
-            </View>
-
-            <View style={s.fan} pointerEvents="none">
-              <Image source={SPLASH_PHOTOS[0]} fadeDuration={0} style={[s.fanCard, { left: 6, top: 12, transform: [{ rotate: "-11deg" }] }]} />
-              <Image source={SPLASH_PHOTOS[4]} fadeDuration={0} style={[s.fanCard, { right: 6, top: 12, transform: [{ rotate: "10deg" }] }]} />
-              <Image source={SPLASH_PHOTOS[2]} fadeDuration={0} style={[s.fanCard, s.fanCentre]} />
             </View>
 
             <View style={s.signinCard}>
@@ -915,7 +940,6 @@ function Studio() {
           <View style={s.stack}>
             <Text style={s.title}>Which product?</Text>
             {queue.items.length > 0 && <QueueNote queue={queue} />}
-            <Text style={s.copy}>Every photo you take next is saved against this product ID.</Text>
             {photographer ? (
             <View style={s.field}>
               <Text style={s.fieldLabel}>Product ID</Text>
@@ -953,7 +977,7 @@ function Studio() {
               <Text style={s.selectText}>{typeOf(garmentType).label}</Text>
               <Text style={s.selectChevron}>⌄</Text>
             </Pressable>
-            <Text style={s.support}>Saree is live. The other types are coming soon.</Text>
+            <Text style={s.support}>More garment types coming soon.</Text>
             {photographer ? (
               <Action label={busy ? "Opening…" : "Continue to photos"} disabled={busy} onPress={() => void openAutoProduct()} />
             ) : (
@@ -971,13 +995,25 @@ function Studio() {
         {screen === "saved" && (
           <View style={s.stack}>
             <Text style={s.title}>Saved products</Text>
-            <Text style={s.copy}>Every product ID with the photos saved against it. Tap one to add or retake photos.</Text>
+            {saved !== null && saved.length > 0 && (
+              <TextInput
+                style={s.input}
+                value={savedQuery}
+                onChangeText={setSavedQuery}
+                placeholder={`Search ${saved.length} product${saved.length === 1 ? "" : "s"} by ID`}
+                placeholderTextColor={C.textMuted}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                clearButtonMode="while-editing"
+                allowFontScaling={false}
+              />
+            )}
             {saved === null ? (
               <Spinner text="Loading…" />
             ) : saved.length === 0 ? (
               <Text style={s.support}>Nothing saved yet.</Text>
             ) : (
-              saved.map((item) => (
+              saved.filter((item) => !savedQuery.trim() || (item.productId ?? "").toUpperCase().includes(savedQuery.trim().toUpperCase())).map((item) => (
                 <SwipeRow key={item.id} enabled={role === "owner" || platformAdmin} onDelete={() => confirmDelete({ id: item.id, productCode: item.productId }, true)}>
                 <Pressable style={s.savedRow} onPress={() => void reopen(item)} disabled={busy}>
                   <View style={s.savedThumb}>{item.thumb ? <Image source={{ uri: item.thumb }} style={s.fill} /> : null}</View>
@@ -989,6 +1025,7 @@ function Studio() {
                     </Text>
                     <Text style={[s.shotWhere, { color: item.missing.length ? C.warn : C.good }]}>
                       {item.missing.length ? `Missing: ${item.missing.map((slot) => shotFor(item.garmentType, slot)?.label ?? slot).join(", ")}` : "Required photos in"}
+                      {item.images ? <Text style={{ color: C.textSoft }}>{`  ·  ${item.images} image${item.images === 1 ? "" : "s"} made`}</Text> : null}
                     </Text>
                   </View>
                   <Text style={s.selectChevron}>›</Text>
@@ -1010,7 +1047,7 @@ function Studio() {
             ) : garment ? (
               <View style={s.lateId}>
                 <Text style={s.lateIdTitle}>No product ID yet</Text>
-                <Text style={s.support}>Add one now or later. The photos are kept either way.</Text>
+                <Text style={s.support}>Add it now or later; the photos are kept.</Text>
                 <View style={[s.row, { gap: 8 }]}>
                   <TextInput
                     style={[s.input, { flex: 1 }]}
@@ -1026,7 +1063,6 @@ function Studio() {
                 </View>
               </View>
             ) : null}
-            <Text style={s.copy}>Hang it once. Only the phone moves.</Text>
             <Text style={s.status}>
               {required.length - missing.length} of {required.length} required
               {blocked.length > 0 ? ` · ${blocked.length === 1 ? "1 needs a retake" : `${blocked.length} need a retake`}` : ""}
@@ -1048,7 +1084,22 @@ function Studio() {
               onHow={setHowShot}
                 onView={(uri, label, full) => setViewing({ uri, label, full })}
             />
-            <Text style={s.support}>Camera opens the phone camera. Upload picks a photo already on the phone.</Text>
+            {/* The images made from this product, to look at (30 Sep: photographers see results, but do not generate). */}
+            {Object.keys(madeByPose).length > 0 && (
+              <View style={{ gap: 8 }}>
+                <Text style={s.sectionLabel}>Images made</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.strip}>
+                  {POSES.filter((p) => madeByPose[p.id]).map((p) => (
+                    <Pressable key={p.id} style={s.stripItem} onPress={() => setViewing({ uri: madeByPose[p.id]!, label: `${garment?.productCode ?? ""} · ${p.id}` })}>
+                      <View style={s.stripThumb}>
+                        <Image source={{ uri: madeByPose[p.id]! }} style={s.fill} />
+                      </View>
+                      <Text style={s.stripLabel}>{p.id} · {p.title.split(",")[0]}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
             {photographer ? (
               <>
                 <Text style={s.support}>
@@ -1132,7 +1183,7 @@ function Studio() {
         {screen === "flats" && garment && (
           <View style={s.stack}>
             <Text style={s.title}>Additional photos</Text>
-            <Text style={s.copy}>Add these if you have them, for accuracy and better styling. Don’t worry if you don’t.</Text>
+            <Text style={s.copy}>Optional: add these if you have them.</Text>
             <ShotList
               type={garment.garmentType}
               garment={garment}
@@ -1148,7 +1199,7 @@ function Studio() {
               onHow={setHowShot}
                 onView={(uri, label, full) => setViewing({ uri, label, full })}
             />
-            {balance !== null && balance < price && <Text style={s.support}>Your current plan balance is over. Purchase a plan to continue.</Text>}
+            {balance !== null && balance < price && <Text style={s.support}>Balance used up. Ask your shop owner to top up.</Text>}
             <Text style={s.sectionLabel}>Pose</Text>
             <View style={{ gap: 8 }}>
               {POSES.map((p) => {
@@ -1194,6 +1245,13 @@ function Studio() {
                 <Text style={s.kvValue}>{signedInAs ?? "…"}</Text>
               </View>
               <View style={s.kv}>
+                <Text style={s.kvLabel}>Role</Text>
+                <Text style={s.kvValue}>{platformAdmin ? "Platform admin" : role === "photographer" ? "Photographer" : role === "studio" ? "Studio" : "Owner"}</Text>
+              </View>
+            </View>
+            {!photographer && (
+            <View style={s.card}>
+              <View style={s.kv}>
                 <Text style={s.kvLabel}>Balance</Text>
                 <Text style={[s.kvValue, s.kvBig]}>{balance === null ? "…" : api.rupees(balance)}</Text>
               </View>
@@ -1209,8 +1267,27 @@ function Studio() {
                 </View>
               </View>
             </View>
-            {platformAdmin && <Action label="Platform settings" onPress={() => void openPlatform()} />}
+            )}
+            {platformAdmin && <Secondary label="Platform settings" onPress={() => void openPlatform()} />}
+            <View style={s.card}>
+              <View style={s.kv}>
+                <Text style={s.kvLabel}>App version</Text>
+                <Text style={s.kvValue}>
+                  {Constants.expoConfig?.version ?? "–"}
+                  {Updates.updateId ? ` · ${Updates.updateId.slice(0, 8)}` : ""}
+                </Text>
+              </View>
+              {queue.items.length > 0 && (
+                <View style={s.kv}>
+                  <Text style={s.kvLabel}>Photos still sending</Text>
+                  <Text style={s.kvValue}>{queue.items.length}</Text>
+                </View>
+              )}
+            </View>
             <Secondary label="Back" onPress={() => setScreen(accountBack)} />
+            <Pressable onPress={requestSignOut} hitSlop={8} style={{ alignSelf: "center", paddingVertical: 8 }}>
+              <Text style={s.deleteLink}>Sign out</Text>
+            </Pressable>
           </View>
         )}
 
@@ -1472,57 +1549,17 @@ function Studio() {
  * a smaller set below 780px of height; here the web's full-size set is scaled
  * down just enough to fit the screen below the mark, never above web size.
  */
-/*
-  In the app, not fetched: loaded from the server, the splash opened empty and
-  the photos popped in after it (28 Sep, in front of people). Same five files
-  as apps/web/public/splash.
-*/
-const SPLASH_PHOTOS = [
-  require("./assets/splash/b_1.jpg"),
-  require("./assets/splash/b_2.jpg"),
-  require("./assets/splash/b_3.jpg"),
-  require("./assets/splash/b_4.jpg"),
-  require("./assets/splash/b_5.jpg"),
-] as number[];
-
-function Splash({ onSkip, deviceW }: { onSkip: () => void; deviceW: number }) {
-  const { height: winH } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-  const W = Math.min(deviceW - 40, 440);
-  const above = 310; // padding, mark, name, tagline and the gap above the cards
-  const k = Math.max(0.72, Math.min(1, (winH - insets.top - insets.bottom - above) / 560));
-  const H = 560 * k;
-  const small = 130 * k;
-  const smallH = (small * 4) / 3;
-  const big = 186 * k;
-  const bigH = (big * 4) / 3;
-  const photo = (n: number) => SPLASH_PHOTOS[n - 1]!;
-  const cards: { src: number; style: object; z?: number }[] = [
-    { src: photo(1), style: { left: 0, top: 12 * k, width: small, height: smallH, transform: [{ rotate: "-10deg" }] } },
-    { src: photo(2), style: { right: 0, top: 0, width: small, height: smallH, transform: [{ rotate: "9deg" }] } },
-    { src: photo(3), style: { left: W / 2 - big / 2, top: 150 * k, width: big, height: bigH, transform: [{ rotate: "-2deg" }] }, z: 2 },
-    { src: photo(4), style: { left: W * 0.03, top: H - smallH, width: small, height: smallH, transform: [{ rotate: "7deg" }] } },
-    { src: photo(5), style: { right: W * 0.03, top: H - smallH - 6 * k, width: small, height: smallH, transform: [{ rotate: "-8deg" }] } },
-  ];
+/**
+ * The opening screen: the mark and the name, only while the app checks the
+ * sign-in (30 Sep: the fan of saree photos went; a business app opens on its
+ * name, not a showcase).
+ */
+function Splash({ onSkip }: { onSkip: () => void; deviceW: number }) {
   return (
     <Pressable style={s.splash} onPress={onSkip}>
-      <View style={{ alignItems: "center", gap: 10 }}>
-        <View style={{ width: 84, height: 84, alignItems: "center", justifyContent: "center" }}>
-          <View style={[s.splashGlow, s.splashGlowOuter]} pointerEvents="none" />
-          <View style={[s.splashGlow, s.splashGlowMid]} pointerEvents="none" />
-          <View style={[s.splashGlow, s.splashGlowInner]} pointerEvents="none" />
-          <TantuMark size={84} />
-        </View>
-        <Text style={s.splashName}>Tantu</Text>
-        <Text style={s.splashTagline}>AI Studio for Fashion Brands</Text>
-      </View>
-      <View style={{ width: W, height: H, marginTop: 30 }}>
-        {cards.map((c, i) => (
-          <View key={i} style={[s.splashShot, c.style, c.z ? { zIndex: c.z, elevation: 10 } : null]}>
-            <Image source={c.src} style={s.fill} resizeMode="cover" fadeDuration={0} />
-          </View>
-        ))}
-      </View>
+      <TantuMark size={76} />
+      <Text style={s.splashName}>Tantu</Text>
+      <Text style={s.splashTagline}>AI Studio for Fashion Brands</Text>
     </Pressable>
   );
 }
@@ -1630,7 +1667,7 @@ function ShotList({
               <View style={s.row}>
                 <Text style={s.shotName}>{shot.label}</Text>
                 <View style={[s.tag, shot.required ? s.tagRequired : s.tagOptional]}>
-                  <Text style={[s.tagText, shot.required ? { color: "#ffd9c2" } : { color: C.textMuted }]}>{shot.required ? "REQUIRED" : "OPTIONAL"}</Text>
+                  <Text style={[s.tagText, shot.required ? { color: C.accent } : { color: C.textMuted }]}>{shot.required ? "REQUIRED" : "OPTIONAL"}</Text>
                 </View>
               </View>
               {waiting ? (
@@ -1724,7 +1761,7 @@ function Secondary({ label, onPress, disabled }: { label: string; onPress: () =>
 function Chip({ label, onPress, accent, disabled }: { label: string; onPress: () => void; accent?: boolean; disabled?: boolean }) {
   return (
     <Pressable style={[s.chipBtn, accent && s.chipAccent, disabled && { opacity: 0.5 }]} disabled={disabled} onPress={onPress}>
-      <Text style={[s.chipBtnText, accent && { color: "#f8ebdf" }]}>{label}</Text>
+      <Text style={[s.chipBtnText, accent && { color: C.accent }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -1741,134 +1778,125 @@ function Spinner({ text, sub }: { text: string; sub?: string }) {
 
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: C.page },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
-  brand: { color: C.text, fontSize: 18, fontWeight: "600" },
-  brandSub: { color: C.textMuted, fontSize: 12, fontWeight: "400" },
-  chip: { paddingHorizontal: 12, minHeight: 30, borderRadius: R.pill, backgroundColor: "rgba(107, 52, 179, 0.16)", borderWidth: 1, borderColor: "rgba(107, 52, 179, 0.24)", justifyContent: "center" },
-  chipText: { color: C.violetText, fontSize: 12, fontWeight: "500" },
+  offline: { paddingHorizontal: 18, paddingVertical: 8, backgroundColor: C.warnTint, borderBottomWidth: 1, borderBottomColor: C.warnBorder },
+  offlineText: { color: C.warn, fontSize: 13, fontWeight: "600" },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.surface },
+  brand: { color: C.text, fontSize: 19, fontWeight: "700", letterSpacing: -0.3 },
+  brandSub: { color: C.textMuted, fontSize: 12, fontWeight: "500" },
+  chip: { paddingHorizontal: 12, minHeight: 30, borderRadius: R.pill, backgroundColor: C.fill, borderWidth: 1, borderColor: C.border, justifyContent: "center" },
+  chipText: { color: C.textSoft, fontSize: 12.5, fontWeight: "600" },
   main: { padding: 20, paddingBottom: 120, gap: 16 },
   stack: { gap: 12 },
-  title: { color: C.text, fontSize: 26, fontWeight: "600", textAlign: "center", lineHeight: 30 },
-  copy: { color: C.textSoft, fontSize: 14, textAlign: "center", lineHeight: 20 },
-  support: { color: C.textMuted, fontSize: 13, textAlign: "center", lineHeight: 18 },
-  status: { color: C.textSoft, fontSize: 13, textAlign: "center" },
-  error: { color: "#ff8d8d", fontSize: 13, textAlign: "center" },
-  sectionLabel: { color: C.textMuted, fontSize: 12, letterSpacing: 1, textTransform: "uppercase", fontWeight: "600" },
-  input: { minHeight: 52, borderRadius: R.md, borderWidth: 1, borderColor: C.borderStrong, backgroundColor: "#0c0c0d", color: C.text, paddingHorizontal: 16, fontSize: 16 },
-  select: { minHeight: 52, borderRadius: R.md, borderWidth: 1, borderColor: C.borderStrong, backgroundColor: "#0c0c0d", paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  selectText: { color: C.text, fontSize: 15 },
-  selectChevron: { color: C.textSoft, fontSize: 18, marginTop: -6 },
-  action: { minHeight: 52, borderRadius: R.pill, backgroundColor: C.actionTop, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
-  actionText: { color: "#fff8f1", fontSize: 15, fontWeight: "500", textAlign: "center" },
-  secondary: { minHeight: 46, borderRadius: R.pill, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.04)", alignItems: "center", justifyContent: "center" },
-  secondaryText: { color: C.text, fontSize: 14, fontWeight: "500" },
-  shot: { flexDirection: "row", gap: 12, padding: 10, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.03)", borderWidth: 1, borderColor: C.border },
-  shotThumb: { width: 64, height: 84, borderRadius: 12, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center" },
-  shotBusy: { position: "absolute", inset: 0, backgroundColor: "rgba(15,15,16,0.6)", alignItems: "center", justifyContent: "center" },
+  title: { color: C.text, fontSize: 26, fontWeight: "700", lineHeight: 31, letterSpacing: -0.4 },
+  copy: { color: C.textSoft, fontSize: 14.5, lineHeight: 20 },
+  support: { color: C.textMuted, fontSize: 13, lineHeight: 18 },
+  status: { color: C.textSoft, fontSize: 13, fontWeight: "600" },
+  error: { color: C.bad, fontSize: 13.5, lineHeight: 19, paddingVertical: 10, paddingHorizontal: 12, borderRadius: R.sm, borderWidth: 1, borderColor: C.badBorder, backgroundColor: C.badTint, overflow: "hidden" },
+  sectionLabel: { color: C.textMuted, fontSize: 12, letterSpacing: 0.8, textTransform: "uppercase", fontWeight: "700" },
+  input: { minHeight: 52, borderRadius: R.md, borderWidth: 1, borderColor: C.borderStrong, backgroundColor: C.surface, color: C.text, paddingHorizontal: 16, fontSize: 16 },
+  select: { minHeight: 52, borderRadius: R.md, borderWidth: 1, borderColor: C.borderStrong, backgroundColor: C.surface, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  selectText: { color: C.text, fontSize: 15.5 },
+  selectChevron: { color: C.textMuted, fontSize: 18, marginTop: -6 },
+  action: { minHeight: 52, borderRadius: R.md, backgroundColor: C.actionTop, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
+  actionText: { color: C.onAction, fontSize: 16, fontWeight: "600", textAlign: "center" },
+  secondary: { minHeight: 48, borderRadius: R.md, borderWidth: 1, borderColor: C.borderStrong, backgroundColor: C.surface, alignItems: "center", justifyContent: "center" },
+  secondaryText: { color: C.text, fontSize: 15, fontWeight: "600" },
+  shot: { flexDirection: "row", gap: 12, padding: 12, borderRadius: R.md, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
+  shotThumb: { width: 64, height: 84, borderRadius: R.sm, overflow: "hidden", backgroundColor: C.fill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center" },
+  shotBusy: { position: "absolute", inset: 0, backgroundColor: "rgba(255,255,255,0.65)", alignItems: "center", justifyContent: "center" },
   fill: { width: "100%", height: "100%" },
   plus: { color: C.text, fontSize: 26 },
-  plusAbs: { position: "absolute", textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 4 },
+  plusAbs: { position: "absolute", textShadowColor: "rgba(255,255,255,0.9)", textShadowRadius: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
   navRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: -4 },
-  navBack: { color: C.accentPale, fontSize: 15, fontWeight: "600" },
-  navId: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: R.pill, borderWidth: 1, borderColor: "rgba(240,141,66,0.35)", backgroundColor: "rgba(240,141,66,0.1)" },
-  navIdText: { color: C.accentPale, fontSize: 12, fontWeight: "700" },
-  lateId: { gap: 8, padding: 14, borderRadius: R.md, borderWidth: 1, borderColor: C.warnBorder, backgroundColor: "rgba(224,162,58,0.08)" },
-  lateIdTitle: { color: C.warn, fontSize: 14, fontWeight: "700", textAlign: "center" },
-  modelRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: C.border, backgroundColor: "rgba(255,255,255,0.03)" },
-  modelRowOn: { borderColor: "rgba(240,141,66,0.6)", backgroundColor: "rgba(240,141,66,0.08)" },
+  navBack: { color: C.accent, fontSize: 15, fontWeight: "600" },
+  navId: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: R.pill, borderWidth: 1, borderColor: C.accentLine, backgroundColor: C.accentTint },
+  navIdText: { color: C.accent, fontSize: 12, fontWeight: "700" },
+  lateId: { gap: 8, padding: 14, borderRadius: R.md, borderWidth: 1, borderColor: C.warnBorder, backgroundColor: C.warnTint },
+  lateIdTitle: { color: C.warn, fontSize: 14, fontWeight: "700" },
+  modelRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: R.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
+  modelRowOn: { borderColor: C.accentLine, backgroundColor: C.accentTint },
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: C.textMuted, alignItems: "center", justifyContent: "center" },
   radioOn: { borderColor: C.accentStrong },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: C.accentStrong },
-  madeChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, borderColor: C.border },
-  madeChipOn: { borderColor: "rgba(143,224,182,0.5)", backgroundColor: "rgba(143,224,182,0.1)" },
+  madeChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
+  madeChipOn: { borderColor: "rgba(31, 138, 87, 0.4)", backgroundColor: C.goodTint },
   madeText: { color: C.textMuted, fontSize: 13, fontWeight: "600" },
   modelPrice: { color: C.text, fontSize: 14, fontWeight: "700" },
-  savedUnder: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 7, borderRadius: R.pill, borderWidth: 1, borderColor: "rgba(240,141,66,0.35)", backgroundColor: "rgba(240,141,66,0.1)" },
-  savedUnderText: { color: C.textSoft, fontSize: 12 },
-  savedUnderId: { color: C.accentPale, fontSize: 14, fontWeight: "700" },
-  savedRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 10, borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: "rgba(255,255,255,0.03)" },
-  savedThumb: { width: 52, height: 68, borderRadius: 10, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.05)" },
+  savedUnder: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 7, borderRadius: R.pill, borderWidth: 1, borderColor: C.accentLine, backgroundColor: C.accentTint },
+  savedUnderText: { color: C.textSoft, fontSize: 12.5 },
+  savedUnderId: { color: C.accent, fontSize: 15, fontWeight: "800" },
+  savedRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 10, borderRadius: R.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
+  savedThumb: { width: 52, height: 68, borderRadius: R.sm, overflow: "hidden", backgroundColor: C.fill },
   viewer: { flex: 1, backgroundColor: "#000", justifyContent: "center" },
   viewerBar: { position: "absolute", top: 0, left: 0, right: 0, paddingTop: 48, paddingBottom: 14, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "rgba(0,0,0,0.55)" },
   viewerLabel: { color: "#fff", fontSize: 16, fontWeight: "600" },
   viewerDetail: { position: "absolute", alignSelf: "center", bottom: 48, paddingVertical: 12, paddingHorizontal: 22, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.6)", borderWidth: 1, borderColor: "rgba(255,255,255,0.5)" },
   viewerDetailText: { color: "#fff", fontSize: 15, fontWeight: "700" },
-  viewerSave: { color: C.accentStrong, fontSize: 16, fontWeight: "700" },
+  viewerSave: { color: "#f08d42", fontSize: 16, fontWeight: "700" },
   viewerClose: { color: "#fff", fontSize: 22, width: 28, textAlign: "center" },
-  signin: { alignItems: "center", gap: 24, paddingTop: 44 },
-  signinGlowOuter: { width: 140, height: 140, marginLeft: -70, marginTop: -70, borderRadius: 70, backgroundColor: "rgba(240,141,66,0.05)" },
-  signinGlowMid: { width: 100, height: 100, marginLeft: -50, marginTop: -50, borderRadius: 50, backgroundColor: "rgba(240,141,66,0.07)" },
-  signinGlowInner: { width: 62, height: 62, marginLeft: -31, marginTop: -31, borderRadius: 31, backgroundColor: "rgba(240,141,66,0.09)" },
-  signinBrand: { alignItems: "center", gap: 8 },
-  signinName: { color: C.text, fontSize: 34, fontWeight: "700", letterSpacing: -0.5, marginTop: 4 },
-  signinTagline: { color: C.textSoft, fontSize: 15, fontWeight: "600" },
-  fan: { width: 220, height: 128 },
-  fanCard: { position: "absolute", width: 78, height: 104, borderRadius: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
-  fanCentre: { left: 64, top: 0, width: 92, height: 123, transform: [{ rotate: "-2deg" }] },
-  signinCard: { alignSelf: "stretch", gap: 14, padding: 18, paddingTop: 20, borderRadius: R.lg, borderWidth: 1, borderColor: C.border, backgroundColor: "rgba(255,255,255,0.035)" },
-  signinTitle: { color: C.text, fontSize: 17, fontWeight: "600", textAlign: "center", marginBottom: 2 },
+  signin: { gap: 28, paddingTop: 36 },
+  signinBrand: { alignItems: "flex-start", gap: 6 },
+  signinName: { color: C.text, fontSize: 34, fontWeight: "800", letterSpacing: -0.8 },
+  signinTagline: { color: C.textSoft, fontSize: 15, fontWeight: "500" },
+  signinCard: { alignSelf: "stretch", gap: 14, padding: 18, paddingTop: 20, borderRadius: R.lg, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
+  signinTitle: { color: C.text, fontSize: 18, fontWeight: "700", marginBottom: 2 },
   field: { gap: 6 },
-  fieldLabel: { color: C.textMuted, fontSize: 12, fontWeight: "600", letterSpacing: 0.8, textTransform: "uppercase" },
-  inputFocus: { borderColor: "rgba(240,141,66,0.65)" },
+  fieldLabel: { color: C.textMuted, fontSize: 12, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase" },
+  inputFocus: { borderColor: C.accentStrong, borderWidth: 1.5 },
   fieldToggle: { position: "absolute", right: 8, top: 0, bottom: 0, justifyContent: "center", paddingHorizontal: 10 },
-  fieldToggleText: { color: C.accentPale, fontSize: 13, fontWeight: "600" },
-  signinError: { color: "#ffb3ad", fontSize: 13.5, textAlign: "center", paddingVertical: 10, paddingHorizontal: 12, borderRadius: R.sm, borderWidth: 1, borderColor: "rgba(227,73,73,0.4)", backgroundColor: "rgba(179,56,56,0.12)", overflow: "hidden" },
+  fieldToggleText: { color: C.accent, fontSize: 13, fontWeight: "600" },
+  signinError: { color: C.bad, fontSize: 13.5, paddingVertical: 10, paddingHorizontal: 12, borderRadius: R.sm, borderWidth: 1, borderColor: C.badBorder, backgroundColor: C.badTint, overflow: "hidden" },
   card: { padding: 16, gap: 14, borderRadius: R.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
   kv: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  kvLabel: { color: C.textMuted, fontSize: 13 },
+  kvLabel: { color: C.textMuted, fontSize: 13.5 },
   kvValue: { color: C.text, fontSize: 15, fontWeight: "600" },
-  kvBig: { color: C.text, fontSize: 22, fontWeight: "600" },
-  count: { flex: 1, gap: 4, padding: 12, borderRadius: R.sm, borderWidth: 1, borderColor: C.border, backgroundColor: "rgba(255,255,255,0.03)" },
-  shotName: { color: C.text, fontSize: 14, fontWeight: "600" },
-  shotWhere: { color: C.textMuted, fontSize: 12, flexShrink: 1 },
+  kvBig: { color: C.text, fontSize: 22, fontWeight: "700" },
+  count: { flex: 1, gap: 4, padding: 12, borderRadius: R.sm, borderWidth: 1, borderColor: C.border, backgroundColor: C.fill },
+  shotName: { color: C.text, fontSize: 15, fontWeight: "700" },
+  shotWhere: { color: C.textMuted, fontSize: 12.5, flexShrink: 1 },
   tag: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: R.pill },
-  tagRequired: { backgroundColor: "rgba(219,113,36,0.22)" },
-  tagOptional: { backgroundColor: "rgba(255,255,255,0.06)" },
-  tagText: { fontSize: 10, letterSpacing: 0.8, fontWeight: "700" },
+  tagRequired: { backgroundColor: C.accentTint },
+  tagOptional: { backgroundColor: C.fill },
+  tagText: { fontSize: 10, letterSpacing: 0.8, fontWeight: "800" },
   dot: { width: 9, height: 9, borderRadius: R.pill },
-  dotAbs: { position: "absolute", right: 6, top: 6, width: 10, height: 10, borderWidth: 2, borderColor: "rgba(15,15,16,0.9)" },
-  check: { fontSize: 12, fontWeight: "600" },
-  checkCopy: { color: C.textSoft, fontSize: 12, lineHeight: 17 },
+  dotAbs: { position: "absolute", right: 6, top: 6, width: 10, height: 10, borderWidth: 2, borderColor: "#fff" },
+  check: { fontSize: 12.5, fontWeight: "700" },
+  checkCopy: { color: C.textSoft, fontSize: 12.5, lineHeight: 17 },
   warnBorder: { borderColor: C.warnBorder },
   badBorder: { borderColor: C.badBorder },
-  chipBtn: { minHeight: 32, paddingHorizontal: 12, borderRadius: R.pill, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.04)", justifyContent: "center" },
-  chipAccent: { backgroundColor: "rgba(219,113,36,0.16)", borderColor: "rgba(219,113,36,0.24)" },
-  chipBtnText: { color: C.text, fontSize: 12, fontWeight: "500" },
-  deleteLink: { color: C.bad, fontSize: 14, textDecorationLine: "underline" },
-  link: { color: C.accentPale, fontSize: 12, fontWeight: "600", textDecorationLine: "underline", marginLeft: 4 },
-  ori: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 7, paddingVertical: 1, borderRadius: R.pill, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
-  oriText: { color: C.text, fontSize: 11, fontWeight: "600" },
-  more: { gap: 8, padding: 12, borderRadius: 18, borderWidth: 1, borderStyle: "dashed", borderColor: "rgba(255,255,255,0.12)", backgroundColor: "rgba(255,255,255,0.02)" },
-  moreLabel: { color: C.textMuted, fontSize: 12 },
+  chipBtn: { minHeight: 34, paddingHorizontal: 13, borderRadius: R.pill, borderWidth: 1, borderColor: C.borderStrong, backgroundColor: C.surface, justifyContent: "center" },
+  chipAccent: { backgroundColor: C.accentTint, borderColor: C.accentLine },
+  chipBtnText: { color: C.text, fontSize: 12.5, fontWeight: "600" },
+  deleteLink: { color: C.bad, fontSize: 14, fontWeight: "600" },
+  link: { color: C.accent, fontSize: 12.5, fontWeight: "700", marginLeft: 4 },
+  ori: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 7, paddingVertical: 1, borderRadius: R.pill, backgroundColor: C.fill, borderWidth: 1, borderColor: C.border },
+  oriText: { color: C.textSoft, fontSize: 11, fontWeight: "700" },
+  more: { gap: 8, padding: 12, borderRadius: R.md, borderWidth: 1, borderStyle: "dashed", borderColor: C.borderStrong, backgroundColor: "transparent" },
+  moreLabel: { color: C.textMuted, fontSize: 12.5 },
   strip: { gap: 10, paddingVertical: 4 },
   stripItem: { alignItems: "center", gap: 6 },
-  stripThumb: { width: 86, height: 112, borderRadius: 14, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center" },
+  stripThumb: { width: 86, height: 112, borderRadius: R.md, overflow: "hidden", backgroundColor: C.fill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center" },
   stripAdd: { borderStyle: "dashed" },
-  stripLabel: { color: C.textSoft, fontSize: 11 },
-  warning: { padding: 14, borderRadius: 18, backgroundColor: "rgba(179,56,56,0.12)", borderWidth: 1, borderColor: "rgba(227,73,73,0.3)", gap: 6 },
-  warningTitle: { color: "#ffb4b4", fontSize: 15, fontWeight: "600" },
+  stripLabel: { color: C.textSoft, fontSize: 11.5 },
+  warning: { padding: 14, borderRadius: R.md, backgroundColor: C.badTint, borderWidth: 1, borderColor: C.badBorder, gap: 6 },
+  warningTitle: { color: C.bad, fontSize: 15, fontWeight: "700" },
   warningBody: { color: C.textSoft, fontSize: 13, lineHeight: 18 },
-  frame: { width: "100%", aspectRatio: 3 / 4, borderRadius: R.lg, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.04)", borderWidth: 1, borderColor: C.border },
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.72)", alignItems: "center", justifyContent: "center", padding: 12 },
-  sheet: { width: "100%", maxWidth: 400, borderRadius: R.lg, backgroundColor: "rgba(20,20,22,0.98)", borderWidth: 1, borderColor: C.border, padding: 16, gap: 12 },
-  sheetTitle: { color: C.text, fontSize: 17, fontWeight: "500", textAlign: "center" },
-  groupLabel: { color: C.textMuted, fontSize: 12, letterSpacing: 1, textTransform: "uppercase", marginTop: 8, marginBottom: 4 },
+  frame: { width: "100%", aspectRatio: 3 / 4, borderRadius: R.lg, overflow: "hidden", backgroundColor: C.fill, borderWidth: 1, borderColor: C.border },
+  backdrop: { flex: 1, backgroundColor: "rgba(28,26,23,0.4)", alignItems: "center", justifyContent: "center", padding: 12 },
+  sheet: { width: "100%", maxWidth: 400, borderRadius: R.lg, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, padding: 16, gap: 12 },
+  sheetTitle: { color: C.text, fontSize: 17, fontWeight: "700" },
+  groupLabel: { color: C.textMuted, fontSize: 12, letterSpacing: 0.8, textTransform: "uppercase", marginTop: 8, marginBottom: 4, fontWeight: "700" },
   option: { paddingVertical: 12, paddingHorizontal: 12, borderRadius: R.sm },
-  optionSelected: { backgroundColor: "rgba(219,113,36,0.14)" },
-  optionText: { color: C.text, fontSize: 15 },
+  optionSelected: { backgroundColor: C.accentTint },
+  optionText: { color: C.text, fontSize: 15.5 },
   optionSoon: { color: C.textMuted },
   howFrame: { width: "100%", aspectRatio: 4 / 5, borderRadius: R.md, backgroundColor: "#fff" },
   howPhotoUpright: { width: "46%", aspectRatio: 3 / 4, borderRadius: R.md },
   howPhotoSideways: { width: "70%", aspectRatio: 4 / 3, borderRadius: R.md },
-  howWhere: { color: C.text, fontSize: 15, fontWeight: "600", textAlign: "center" },
+  howWhere: { color: C.text, fontSize: 15, fontWeight: "700" },
   howCopy: { color: C.textSoft, fontSize: 14, lineHeight: 20 },
-  splash: { flex: 1, alignItems: "center", paddingTop: 64, paddingHorizontal: 20, paddingBottom: 24 },
-  splashGlow: { position: "absolute", left: "50%", top: "50%" },
-  splashGlowOuter: { width: 190, height: 190, marginLeft: -95, marginTop: -95, borderRadius: 95, backgroundColor: "rgba(240,141,66,0.06)" },
-  splashGlowMid: { width: 130, height: 130, marginLeft: -65, marginTop: -65, borderRadius: 65, backgroundColor: "rgba(240,141,66,0.08)" },
-  splashGlowInner: { width: 80, height: 80, marginLeft: -40, marginTop: -40, borderRadius: 40, backgroundColor: "rgba(240,141,66,0.10)" },
-  splashName: { color: C.text, fontSize: 40, fontWeight: "700", letterSpacing: -0.5 },
-  splashTagline: { color: C.textSoft, fontSize: 18, fontWeight: "600" },
-  splashShot: { position: "absolute", borderRadius: 18, overflow: "hidden", backgroundColor: "#1d1d1f", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
+  splash: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 20, gap: 14, backgroundColor: C.page },
+  splashName: { color: C.text, fontSize: 38, fontWeight: "800", letterSpacing: -1 },
+  splashTagline: { color: C.textMuted, fontSize: 15, fontWeight: "500" },
 });
