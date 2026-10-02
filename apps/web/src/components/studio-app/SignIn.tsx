@@ -47,12 +47,6 @@ export function SignIn({ next }: { next: string }) {
             <p className="st-signin-tagline">AI Studio for Fashion Brands</p>
           </div>
 
-          <div className="st-signin-fan" aria-hidden>
-            <img src="/splash/b_1.jpg" alt="" />
-            <img src="/splash/b_3.jpg" alt="" />
-            <img src="/splash/b_5.jpg" alt="" />
-          </div>
-
           <form onSubmit={submit} className="st-signin-card">
             <h2 className="st-signin-title">Sign in to your studio</h2>
             <label className="st-field">

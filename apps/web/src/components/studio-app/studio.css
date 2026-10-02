@@ -446,3 +446,121 @@
 .st-photo-viewer img { width: 100%; height: 100dvh; object-fit: contain; }
 .st-photo-viewer-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: calc(14px + env(safe-area-inset-top, 0px)) 20px 14px; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 16px; }
 .st-photo-viewer-close { border: 0; background: transparent; color: #fff; font-size: 22px; line-height: 1; cursor: pointer; padding: 6px; }
+
+/*
+  -- The light, business look (1 Oct) --
+  The same palette as the phone app (apps/mobile/src/theme.ts): warm white
+  ground, near-black ink, the Tantu orange only for the one thing to press.
+  Laid over the dark rules above, selector by selector, so every layout stays
+  as it was. The full-screen photo viewer stays dark: photos read truest on black.
+*/
+.st {
+  --st-page-bg: #F7F5F1;
+  --st-shell-bg: #F7F5F1;
+  --st-surface: #FFFFFF;
+  --st-surface-soft: #FBFAF7;
+  --st-surface-strong: #F0EDE8;
+  --st-fill: #F1EDE7;
+  --st-text: #1C1A17;
+  --st-text-soft: #57514A;
+  --st-text-muted: #8B847B;
+  --st-border: #E7E2DA;
+  --st-border-strong: #D5CEC4;
+  --st-accent: #B8561A;
+  --st-accent-strong: #C95F1C;
+  --st-accent-pale: #B8561A;
+  --st-accent-tint: rgba(201, 95, 28, 0.09);
+  --st-accent-line: rgba(201, 95, 28, 0.32);
+  --st-violet-text: #57514A;
+  --st-good: #1F8A57;
+  --st-bad: #B83A2E;
+  --st-shadow-soft: 0 1px 2px rgba(28, 26, 23, 0.04);
+  --st-shadow: 0 8px 24px rgba(28, 26, 23, 0.10);
+  color-scheme: light;
+  background: var(--st-page-bg);
+}
+.st-shell { background: var(--st-shell-bg); border-left-color: var(--st-border); border-right-color: var(--st-border); box-shadow: none; }
+.st-header { background: rgba(255, 255, 255, 0.94); border-bottom-color: var(--st-border); }
+.st-footer { background: rgba(255, 255, 255, 0.96); border-top-color: var(--st-border); }
+
+.st-icon-button { background: var(--st-surface); border-color: var(--st-border-strong); color: var(--st-text-soft); }
+.st-icon-button--back { color: var(--st-accent); background: var(--st-accent-tint); border-color: var(--st-accent-line); }
+.st-icon-button--new { color: var(--st-text); background: var(--st-surface); border-color: var(--st-border-strong); }
+.st-icon-button--profile { background: var(--st-fill); border-color: var(--st-border-strong); color: var(--st-text); }
+.st-status-chip { color: var(--st-accent); background: var(--st-accent-tint); border-color: var(--st-accent-line); }
+
+.st-action { border: 0; border-radius: 14px; background: var(--st-accent-strong); color: #fff; font-weight: 600; box-shadow: none; }
+.st-action:hover:not(:disabled) { background: #A94F16; }
+.st-secondary { border-radius: 14px; border-color: var(--st-border-strong); background: var(--st-surface); color: var(--st-text); font-weight: 600; }
+.st-link { color: var(--st-accent); }
+
+.st-card, .st-question, .st-thumb-card, .st-shot, .st-words, .st-row, .st-tip-box, .st-progress-row, .st-signin-card {
+  background: var(--st-surface); border-color: var(--st-border); box-shadow: var(--st-shadow-soft);
+}
+.st-callout { background: var(--st-accent-tint); border-color: var(--st-accent-line); box-shadow: none; color: var(--st-text); }
+.st-warning { background: rgba(184, 58, 46, 0.07); border-color: rgba(184, 58, 46, 0.35); }
+.st-warning h3 { color: var(--st-bad); }
+.st-toggle { background: var(--st-fill); border-color: var(--st-border); }
+.st-toggle button.is-selected { background: var(--st-surface); color: var(--st-text); box-shadow: 0 1px 2px rgba(28, 26, 23, 0.12); }
+.st-input, .st-select, .st-field-input { background: var(--st-surface); border-color: var(--st-border-strong); color: var(--st-text); }
+.st-input:focus, .st-field-input:focus { border-color: var(--st-accent-strong); box-shadow: 0 0 0 3px var(--st-accent-tint); }
+
+.st-tile, .st-choice, .st-model { background: var(--st-surface); border-color: var(--st-border); box-shadow: var(--st-shadow-soft); }
+.st-tile.is-selected, .st-choice.is-selected, .st-model.is-selected { background: var(--st-accent-tint); border-color: var(--st-accent-line); }
+.st-tile-thumb, .st-thumb, .st-shot-thumb, .st-strip-thumb, .st-how-photo { background: var(--st-fill); border-color: var(--st-border); }
+.st-model-face { color: #fff; background: radial-gradient(circle at 50% 30%, rgba(201, 95, 28, 0.45), transparent 60%), linear-gradient(180deg, #8B847B, #57514A); border-color: var(--st-border); }
+.st-badge { background: var(--st-accent-strong); color: #fff; }
+.st-badge--soft { background: var(--st-accent-tint); color: var(--st-accent); border-color: var(--st-accent-line); }
+.st-badge--violet { background: var(--st-fill); color: var(--st-text-soft); border-color: var(--st-border); }
+.st-divider::before, .st-divider::after { background: var(--st-border); }
+
+.st-chip { background: var(--st-surface); border-color: var(--st-border-strong); color: var(--st-text); }
+.st-chip--accent { color: var(--st-accent); background: var(--st-accent-tint); border-color: var(--st-accent-line); }
+.st-footer-chip--balance { color: var(--st-text); background: var(--st-fill); border-color: var(--st-border); }
+.st-footer-chip--recharge, .st-footer-chip--buy { color: var(--st-accent); background: var(--st-accent-tint); border-color: var(--st-accent-line); }
+.st-footer-chip--gallery { color: var(--st-text); background: var(--st-surface); border-color: var(--st-border-strong); }
+.st-buy { background: var(--st-accent-tint); border-color: var(--st-accent-line); color: var(--st-accent); }
+
+.st-frame { background: var(--st-fill); border-color: var(--st-border); box-shadow: var(--st-shadow-soft); }
+.st-frame-button, .st-arrow { color: var(--st-text); background: rgba(255, 255, 255, 0.92); border-color: var(--st-border-strong); box-shadow: var(--st-shadow-soft); }
+.st-frame-button--second { background: rgba(255, 255, 255, 0.8); }
+.st-dot { background: var(--st-border-strong); }
+.st-dot.is-active { background: var(--st-accent-strong); }
+.st-rate button { background: var(--st-surface); border-color: var(--st-border); color: var(--st-text-soft); }
+.st-rate button.is-selected { background: var(--st-accent-tint); border-color: var(--st-accent-line); color: var(--st-text); }
+.st-spinner { border-color: var(--st-border); border-top-color: var(--st-accent-strong); }
+
+.st-modal-backdrop { background: rgba(28, 26, 23, 0.4); }
+.st-modal { background: var(--st-surface); border-color: var(--st-border); }
+.st-modal-icon { background: var(--st-accent-tint); border-color: var(--st-accent-line); }
+
+.st-shot--blocked { border-color: rgba(184, 58, 46, 0.45); }
+.st-shot--warned { border-color: rgba(154, 100, 0, 0.4); }
+.st-shot-busy { background: rgba(255, 255, 255, 0.65); }
+.st-shot-busy::after { border-color: var(--st-border); border-top-color: var(--st-accent-strong); }
+.st-shot-plus { color: var(--st-text); text-shadow: 0 1px 3px rgba(255, 255, 255, 0.9); }
+.st-shot-more { border-color: var(--st-border-strong); background: transparent; }
+.st-shot-more-chip span { color: var(--st-accent); }
+.st-tag--required { color: var(--st-accent); background: var(--st-accent-tint); }
+.st-tag--optional { color: var(--st-text-muted); background: var(--st-fill); }
+.st-ori { color: var(--st-text-soft); background: var(--st-fill); border-color: var(--st-border); }
+.st-check--ok { color: #1F8A57; }
+.st-check--warn { color: #9A6400; }
+.st-check--block { color: #B83A2E; }
+.st-strip-thumb.is-warn { border-color: rgba(154, 100, 0, 0.5); }
+.st-strip-thumb.is-block { border-color: rgba(184, 58, 46, 0.6); }
+.st-strip-dot { box-shadow: 0 0 0 2px #fff; }
+.st-error { color: var(--st-bad); }
+.st-signin-error { color: var(--st-bad); background: rgba(184, 58, 46, 0.07); border-color: rgba(184, 58, 46, 0.35); }
+.st-field-toggle { color: var(--st-accent); }
+.st-field-toggle:hover { background: var(--st-fill); }
+
+/* Splash and sign in: the mark and the name, no photographs, no glow. */
+.st-splash { align-content: center; padding: 20px; }
+.st-splash-brand::before, .st-signin-brand::before { display: none; }
+.st-splash-mark { width: 76px; height: 76px; }
+.st-splash-name { font-size: 38px; font-weight: 800; letter-spacing: -0.03em; }
+.st-splash-tagline { font-size: 15px; font-weight: 500; color: var(--st-text-muted); }
+.st-signin-mark { width: 56px; height: 56px; }
+.st-signin-name { font-weight: 800; letter-spacing: -0.03em; }
+.st-signin-tagline { font-weight: 500; }
