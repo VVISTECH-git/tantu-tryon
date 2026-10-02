@@ -398,13 +398,6 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
               <h1 className="st-splash-name">{T.splash.name}</h1>
               <p className="st-splash-tagline">{T.splash.tagline}</p>
             </div>
-            <div className="st-splash-shots" aria-hidden>
-              {SPLASH_SHOTS.map((src, i) => (
-                <div key={i} className="st-splash-shot">
-                  <img src={src} alt="" />
-                </div>
-              ))}
-            </div>
           </div>
         )}
         {!splash && (
@@ -1033,19 +1026,3 @@ function swatch(id: string): string {
       return "linear-gradient(180deg, #c9d8b5 0%, #6f7d5c 100%)";
   }
 }
-
-
-/**
- * The five shots on the splash. Until the first approved renders exist they
- * are the pose reference and SLK's own photographs of 300010; swap in real
- * catalogue images here as they are approved.
- */
-const SPLASH_SHOTS = [
-  "/splash/b_1.jpg",
-  "/splash/b_2.jpg",
-  "/splash/b_3.jpg",
-  "/splash/b_4.jpg",
-  "/splash/b_5.jpg",
-];
-
-
