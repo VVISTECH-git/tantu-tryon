@@ -9,6 +9,8 @@ const COLUMNS = [
       { href: "/contact", label: "Contact Us" },
       { href: "/pricing", label: "Pricing" },
       { href: "/gallery", label: "Gallery" },
+      { href: "/support", label: "Support" },
+      { href: "/privacy", label: "Privacy Policy" },
     ],
   },
   {
