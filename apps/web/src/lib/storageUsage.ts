@@ -1,5 +1,5 @@
 import { db, garments, generations } from "@/db";
-import { listObjects, storageConfigured, storageMissing } from "@/lib/storage";
+import { listObjects, remove, storageConfigured, storageMissing } from "@/lib/storage";
 
 /**
  * How much of the storage bucket Tantu uses, for the platform admin's
@@ -40,7 +40,7 @@ export async function loadStorageUsage(): Promise<StorageUsage> {
 
   const [objects, garmentRows, generationRows] = await Promise.all([
     listObjects(),
-    db.select({ id: garments.id, productCode: garments.productCode, title: garments.title, parts: garments.parts, sheetKey: garments.sheetKey }).from(garments),
+    db.select({ id: garments.id, productCode: garments.productCode, title: garments.title, parts: garments.parts, sheetKey: garments.sheetKey, deletedAt: garments.deletedAt }).from(garments),
     db.select({ imageKey: generations.imageKey, sheetKey: generations.sheetKey }).from(generations),
   ]);
 
@@ -87,7 +87,12 @@ export async function loadStorageUsage(): Promise<StorageUsage> {
   }
 
   const byGarment = new Map(garmentRows.map((g) => [g.id, g]));
+  // Live products only (1 Oct): files whose record is gone are counted under "not used any more".
   const byProduct = [...products.entries()]
+    .filter(([garmentId]) => {
+      const g = byGarment.get(garmentId);
+      return g && !g.deletedAt;
+    })
     .sort((a, b) => b[1].bytes - a[1].bytes)
     .slice(0, 25)
     .map(([garmentId, s]) => ({
@@ -111,4 +116,38 @@ export async function loadStorageUsage(): Promise<StorageUsage> {
     orphanCount,
     orphanBytes,
   };
+}
+
+/**
+ * Delete what no product or image points at any more (1 Oct): photos of
+ * products deleted outright, replaced photos, rebuilt sheets. Photos of a
+ * product deleted while it had images are still pointed at, and stay.
+ */
+export async function deleteUnused(): Promise<{ deleted: number; bytes: number }> {
+  if (!storageConfigured()) return { deleted: 0, bytes: 0 };
+  const [objects, garmentRows, generationRows] = await Promise.all([
+    listObjects(),
+    db.select({ parts: garments.parts, sheetKey: garments.sheetKey }).from(garments),
+    db.select({ imageKey: generations.imageKey, sheetKey: generations.sheetKey }).from(generations),
+  ]);
+  const referenced = new Set<string>();
+  for (const g of garmentRows) {
+    if (g.sheetKey) referenced.add(g.sheetKey);
+    for (const part of (g.parts ?? []) as { key?: string; previewKey?: string; thumbKey?: string }[]) {
+      for (const k of [part.key, part.previewKey, part.thumbKey]) if (k) referenced.add(k);
+    }
+  }
+  for (const r of generationRows) {
+    if (r.imageKey) referenced.add(r.imageKey);
+    if (r.sheetKey) referenced.add(r.sheetKey);
+  }
+  // Only Tantu's own folders, and nothing written in the last hour (an upload may be on its way).
+  const hourAgo = Date.now() - 3600_000;
+  const unused = objects.filter((o) => kindOf(o.key) !== "other" && !referenced.has(o.key) && +new Date(o.lastModified) < hourAgo);
+  let bytes = 0;
+  for (const o of unused) {
+    await remove(o.key);
+    bytes += o.size;
+  }
+  return { deleted: unused.length, bytes };
 }

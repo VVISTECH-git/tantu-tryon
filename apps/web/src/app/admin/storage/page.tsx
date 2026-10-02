@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requirePage } from "@/lib/page-auth";
 import { loadStorageUsage } from "@/lib/storageUsage";
+import { deleteUnusedAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -65,9 +66,16 @@ export default async function StoragePage() {
           <section className="mt-6 rounded-xl border border-line bg-surface p-5">
             <h2 className="text-[15px] font-semibold">Not used any more</h2>
             <p className="mt-1 text-[13px] text-ink-soft tabular-nums">
-              {u.orphanCount.toLocaleString("en-IN")} files, {size(u.orphanBytes)}: in the bucket, but no product or image points at them (replaced
-              photos, rebuilt sheets). Safe to delete; nothing deletes them yet.
+              {u.orphanCount.toLocaleString("en-IN")} files, {size(u.orphanBytes)}: photos of deleted products, replaced photos and rebuilt sheets.
+              No product or image uses them.
             </p>
+            {u.orphanCount > 0 && (
+              <form action={deleteUnusedAction} className="mt-3">
+                <button type="submit" className="rounded-lg border border-line bg-ground px-4 py-2 text-[13.5px] font-semibold hover:border-ink-faint">
+                  Delete them and free {size(u.orphanBytes)}
+                </button>
+              </form>
+            )}
           </section>
 
           <section className="mt-6 rounded-xl border border-line bg-surface p-5">
@@ -90,7 +98,7 @@ export default async function StoragePage() {
                             {p.productCode}
                           </Link>
                         ) : (
-                          <span className="text-ink-soft">{p.title ?? "Deleted product"}</span>
+                          <span className="text-ink-soft">{p.title ?? "No product ID"}</span>
                         )}
                       </td>
                       <td className="text-right tabular-nums">{p.count}</td>
