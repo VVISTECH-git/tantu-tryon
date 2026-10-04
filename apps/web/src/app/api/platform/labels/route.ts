@@ -43,7 +43,7 @@ export async function GET() {
       return part?.key ? assetUrl(part.key) : null;
     };
     return Response.json(
-      rows.map(({ id, source, taskNo, status, note, reviewedBy, reviewedAt, photoEditedAt, garmentId, slot, regions, width, height }) => ({
+      rows.map(({ id, source, taskNo, status, note, reviewedBy, reviewedAt, photoEditedAt, garmentId, slot, regions, width, height, style, updatedAt }) => ({
         id,
         source,
         taskNo,
@@ -52,6 +52,11 @@ export async function GET() {
         reviewedBy,
         reviewedAt,
         photoEditedAt,
+        // For the laptop's style guessing: the style a person set, and which photo it belongs to.
+        style,
+        garmentId,
+        slot,
+        updatedAt,
         // Changed on the website (cropped, retaken or fixed by hand): the laptop takes these in.
         ...(photoEditedAt ? { photoUrl: photoOf(garmentId, slot), regions, width, height } : {}),
       })),
