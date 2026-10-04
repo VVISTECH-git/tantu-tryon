@@ -19,9 +19,8 @@ export function AdminNav({ platform, owner, labels }: { platform: boolean; owner
           { href: "/admin/storage", label: "Storage" },
         ]
       : []),
-    // The house shop's supervisor (a studio login) checks marked photos from here (4 Oct).
+    // The house shop's supervisor (a studio login) checks the parts marked on each product's photos here (4 Oct).
     ...(labels && !platform ? [{ href: "/admin/products", label: "Products" }] : []),
-    ...(labels ? [{ href: "/admin/labels", label: "Labels" }] : []),
     ...(owner ? [{ href: "/admin/shop", label: "Shop" }] : []),
   ];
   return (
