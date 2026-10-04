@@ -570,9 +570,10 @@
 .st-header-link:hover { border-color: var(--st-accent); color: var(--st-accent); }
 .st-header-link { gap: 6px; }
 .st-header-link svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; }
-/* A phone's header is narrow: Products becomes its icon and the Trial chip steps aside, so the name stays clear. */
+/* The Studio column is narrow at any screen size: with Products shown the Trial chip steps aside,
+   and on a phone Products becomes its icon, so the name in the middle stays clear. */
+.st-header-link ~ .st-status-chip { display: none; }
 @media (max-width: 560px) {
   .st-header-link { width: 40px; min-height: 40px; padding: 0; justify-content: center; }
   .st-header-link-text { display: none; }
-  .st-header-link ~ .st-status-chip { display: none; }
 }
