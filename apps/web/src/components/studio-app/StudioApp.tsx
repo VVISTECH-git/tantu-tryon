@@ -862,6 +862,24 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                     <span className="st-muted">↗</span>
                   </a>
                 )}
+                {!account.platformAdmin && account.kind === "shared" && account.role === "owner" && (
+                  <a className="st-row" href="/admin/labels" style={{ textDecoration: "none", color: "inherit" }}>
+                    <b>{T.profile.labels}</b>
+                    <span className="st-muted">↗</span>
+                  </a>
+                )}
+                {(account.platformAdmin || (account.kind === "shared" && account.role === "studio")) && (
+                  <a className="st-row" href="/admin/labels" style={{ textDecoration: "none", color: "inherit" }}>
+                    <b>{T.profile.labels}</b>
+                    <span className="st-muted">↗</span>
+                  </a>
+                )}
+                {!account.platformAdmin && account.kind === "shared" && (account.role === "studio" || account.role === "owner") && (
+                  <a className="st-row" href="/admin/products" style={{ textDecoration: "none", color: "inherit" }}>
+                    <b>{T.profile.products}</b>
+                    <span className="st-muted">↗</span>
+                  </a>
+                )}
                 {account.platformAdmin &&
                   ([
                     ["/admin/spend", T.profile.spend],

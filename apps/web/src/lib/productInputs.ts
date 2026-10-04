@@ -37,9 +37,14 @@ export interface ProductRow {
   generations: number;
 }
 
-export async function productRows(): Promise<ProductRow[]> {
+/** Every live product; only one shop's when `shopId` is given (a shop login, not the platform admin). */
+export async function productRows(shopId?: string): Promise<ProductRow[]> {
   const [rows, counts] = await Promise.all([
-    db.select().from(garments).where(isNull(garments.deletedAt)).orderBy(desc(garments.updatedAt)),
+    db
+      .select()
+      .from(garments)
+      .where(and(isNull(garments.deletedAt), shopId ? eq(garments.accountId, shopId) : undefined))
+      .orderBy(desc(garments.updatedAt)),
     db.select({ garmentId: generations.garmentId, n: count() }).from(generations).groupBy(generations.garmentId),
   ]);
   const made = new Map(counts.map((c) => [c.garmentId, c.n]));
@@ -61,8 +66,12 @@ export async function productRows(): Promise<ProductRow[]> {
 }
 
 /** One product by its database id, for the detail view (works for products with no ID too). */
-export async function productInputsById(id: string): Promise<ProductInputs | null> {
-  const [g] = await db.select().from(garments).where(and(eq(garments.id, id), isNull(garments.deletedAt))).limit(1);
+export async function productInputsById(id: string, shopId?: string): Promise<ProductInputs | null> {
+  const [g] = await db
+    .select()
+    .from(garments)
+    .where(and(eq(garments.id, id), isNull(garments.deletedAt), shopId ? eq(garments.accountId, shopId) : undefined))
+    .limit(1);
   return g ? inputsOf(g) : null;
 }
 

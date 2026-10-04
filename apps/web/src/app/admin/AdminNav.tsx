@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
  * One bar across every admin page (28 Sep): each admin page reachable from
  * every other, instead of only from the Platform page's links.
  */
-export function AdminNav({ platform, owner }: { platform: boolean; owner: boolean }) {
+export function AdminNav({ platform, owner, labels }: { platform: boolean; owner: boolean; labels: boolean }) {
   const path = usePathname();
   const links = [
     { href: "/app", label: "Studio" },
@@ -19,6 +19,9 @@ export function AdminNav({ platform, owner }: { platform: boolean; owner: boolea
           { href: "/admin/storage", label: "Storage" },
         ]
       : []),
+    // The house shop's supervisor (a studio login) checks marked photos from here (4 Oct).
+    ...(labels && !platform ? [{ href: "/admin/products", label: "Products" }] : []),
+    ...(labels ? [{ href: "/admin/labels", label: "Labels" }] : []),
     ...(owner ? [{ href: "/admin/shop", label: "Shop" }] : []),
   ];
   return (

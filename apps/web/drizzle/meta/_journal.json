@@ -57,6 +57,13 @@
       "when": 1790598299820,
       "tag": "0007_young_korvac",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791093516198,
+      "tag": "0008_salty_tattoo",
+      "breakpoints": true
     }
   ]
 }

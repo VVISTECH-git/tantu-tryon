@@ -209,6 +209,7 @@ export const T = {
     products: "Products: everything captured on the phones",
     generations: "Generations: input, prompt and result of every run",
     storage: "Storage: space the photos and images take",
+    labels: "Labels: check the saree parts marked on training photos",
     shop: "Shop: people and usage",
   },
   pricing: {
