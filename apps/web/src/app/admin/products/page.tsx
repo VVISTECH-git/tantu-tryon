@@ -5,6 +5,7 @@ import { canReviewLabels, labelsForProducts } from "@/lib/partLabels";
 import { requirePage } from "@/lib/page-auth";
 import { productInputsById, productRows } from "@/lib/productInputs";
 import { LabelCard } from "../labels/LabelCard";
+import { CropPhoto } from "./CropPhoto";
 import { DeleteProduct } from "./DeleteProduct";
 
 export const dynamic = "force-dynamic";
@@ -118,6 +119,12 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                     <a href={p.url} target="_blank" rel="noreferrer" className="underline">
                       original
                     </a>
+                    {p.width && p.height && (
+                      <>
+                        {" · "}
+                        <CropPhoto garmentId={g.id} slot={p.slot} src={p.previewUrl ?? p.url} width={p.width} height={p.height} marked={!!l} />
+                      </>
+                    )}
                     {!l && <span className="text-ink-faint"> · parts not marked yet</span>}
                   </figcaption>
                 </figure>
