@@ -6,6 +6,7 @@ import { requirePage } from "@/lib/page-auth";
 import { productInputsById, productRows } from "@/lib/productInputs";
 import { LabelCard } from "../labels/LabelCard";
 import { CropPhoto } from "./CropPhoto";
+import { MarkPhoto } from "./MarkPhoto";
 import { DeleteProduct } from "./DeleteProduct";
 
 export const dynamic = "force-dynamic";
@@ -88,6 +89,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                 <figure key={p.slot}>
                   {l ? (
                     <LabelCard
+                      key={l.updatedAt.getTime()}
                       title={p.slot}
                       id={l.id}
                       no={l.taskNo}
@@ -125,7 +127,13 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                         <CropPhoto garmentId={g.id} slot={p.slot} src={p.previewUrl ?? p.url} width={p.width} height={p.height} marked={!!l} />
                       </>
                     )}
-                    {!l && <span className="text-ink-faint"> · parts not marked yet</span>}
+                    {!l && p.width && p.height && (
+                      <>
+                        {" · "}
+                        <span className="text-ink-faint">parts not marked yet: </span>
+                        <MarkPhoto garmentId={g.id} slot={p.slot} src={p.previewUrl ?? p.url} width={p.width} height={p.height} />
+                      </>
+                    )}
                   </figcaption>
                 </figure>
                 );

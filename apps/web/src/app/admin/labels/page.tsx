@@ -66,7 +66,7 @@ export default async function LabelsPage({ searchParams }: { searchParams: Promi
       <div className="mt-6 grid gap-6 md:grid-cols-2">
         {rows.map((r) => (
           <LabelCard
-            key={r.id}
+            key={`${r.id}-${r.updatedAt.getTime()}`}
             id={r.id}
             no={r.taskNo}
             source={r.source}
