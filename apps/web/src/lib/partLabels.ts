@@ -120,8 +120,8 @@ export async function saveLabel(u: LabelUpload): Promise<{ id: string; status: s
   };
 }
 
-/** The slots photographed on the rod, which the laptop can mark by the rod rules. */
-export const AUTO_SLOTS = ["body", "pallu", "border", "blouse"] as const;
+/** The photo slots the laptop marks by itself: the rod shots, and a whole saree in any style (4 Oct). */
+export const AUTO_SLOTS = ["body", "pallu", "border", "blouse", "whole"] as const;
 
 export interface PhotoToMark {
   garmentId: string;
