@@ -42,11 +42,11 @@ export async function cropProductPhoto(garment: Garment, slot: PartSlot, rect: C
   const { garment: updated } = await recordPhoto(garment, slot, bytes, mime, key, part.takenBy ?? by);
 
   // The exact crop that was cut, in percent, for moving the marks.
-  await moveMarks(garment.id, slot, { x: (left / W) * 100, y: (top / H) * 100, w: (width / W) * 100, h: (height / H) * 100 }, bytes, width, height);
+  await moveMarks(garment.id, slot, { x: (left / W) * 100, y: (top / H) * 100, w: (width / W) * 100, h: (height / H) * 100 }, bytes, width, height, key);
   return updated;
 }
 
-async function moveMarks(garmentId: string, slot: string, c: CropRect, bytes: Buffer, width: number, height: number): Promise<void> {
+async function moveMarks(garmentId: string, slot: string, c: CropRect, bytes: Buffer, width: number, height: number, key: string): Promise<void> {
   const [label] = await db
     .select()
     .from(partLabels)
@@ -68,7 +68,7 @@ async function moveMarks(garmentId: string, slot: string, c: CropRect, bytes: Bu
   await putObject(label.previewKey, preview, "image/jpeg");
   await db
     .update(partLabels)
-    .set({ regions, width, height, status: "pending", reviewedBy: null, reviewedAt: null, photoEditedAt: new Date(), updatedAt: new Date() })
+    .set({ regions, width, height, productPhotoKey: key, status: "pending", reviewedBy: null, reviewedAt: null, photoEditedAt: new Date(), updatedAt: new Date() })
     .where(eq(partLabels.id, label.id));
 }
 

@@ -318,6 +318,8 @@ export const partLabels = pgTable(
     /** The product and photo slot this is, when it is one of the phone's product photos. */
     garmentId: uuid().references(() => garments.id, { onDelete: "set null" }),
     slot: text(),
+    /** The product photo the marks were made on; a retake changes the part's key and the photo is marked again. */
+    productPhotoKey: text(),
     photoKey: text().notNull(),
     previewKey: text().notNull(),
     width: integer().notNull(),
