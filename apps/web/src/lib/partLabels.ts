@@ -136,7 +136,7 @@ export interface PhotoToMark {
  * The house shop's product photos with no marks yet, or whose photo changed
  * since it was marked (a retake), oldest first: what the laptop marks next.
  */
-export async function photosToMark(limit = 20): Promise<PhotoToMark[]> {
+export async function photosToMark(limit = 200): Promise<PhotoToMark[]> {
   const rows = await db
     .select({ id: garments.id, productCode: garments.productCode, parts: garments.parts })
     .from(garments)
