@@ -295,6 +295,50 @@ export const settings = pgTable("settings", {
   updatedAt: now(),
 });
 
+/**
+ * Saree photos marked with their parts (body, pallu, borders, blouse) for
+ * training Tantu's own part finder (4 Oct). Marked on the laptop (Label
+ * Studio), uploaded here so operations staff can approve or flag each one
+ * from anywhere. `regions` are in percent of the photo.
+ */
+export interface PartRegion {
+  label: string;
+  /** polygon points, or the rectangle's four corners */
+  points: [number, number][];
+}
+
+export const partLabels = pgTable(
+  "part_labels",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    /** The photo's name on the laptop: the upload's key, so a re-upload updates it. */
+    source: text().notNull(),
+    /** Its number in Label Studio, so "#07" means the same photo on both. */
+    taskNo: integer(),
+    /** The product and photo slot this is, when it is one of the phone's product photos. */
+    garmentId: uuid().references(() => garments.id, { onDelete: "set null" }),
+    slot: text(),
+    photoKey: text().notNull(),
+    previewKey: text().notNull(),
+    width: integer().notNull(),
+    height: integer().notNull(),
+    regions: jsonb().$type<PartRegion[]>().notNull().default([]),
+    /** How the saree was photographed: On rod, Pleats + pallu flat, … */
+    style: text(),
+    /** Pallu different from body / same as body / can't tell */
+    palluKind: text(),
+    /** pending · approved · wrong */
+    status: text().notNull().default("pending"),
+    note: text(),
+    reviewedBy: text(),
+    reviewedAt: timestamp({ withTimezone: true }),
+    createdAt: now(),
+    updatedAt: now(),
+  },
+  (t) => [uniqueIndex("part_labels_source").on(t.source)],
+);
+
+export type PartLabel = typeof partLabels.$inferSelect;
 export type Account = typeof accounts.$inferSelect;
 export type Garment = typeof garments.$inferSelect;
 export type Generation = typeof generations.$inferSelect;

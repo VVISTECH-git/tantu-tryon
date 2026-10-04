@@ -1,9 +1,23 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import type { PartLabel } from "@/db";
+import { canReviewLabels, labelsForProducts } from "@/lib/partLabels";
 import { requirePage } from "@/lib/page-auth";
 import { productInputsById, productRows } from "@/lib/productInputs";
+import { LabelCard } from "../labels/LabelCard";
 import { DeleteProduct } from "./DeleteProduct";
 
 export const dynamic = "force-dynamic";
+
+/** One product's marks in a word, for the list: what the supervisor still has to do. */
+function marksSummary(labels: PartLabel[]): { text: string; tone: string } | null {
+  if (labels.length === 0) return null;
+  const wrong = labels.filter((l) => l.status === "wrong").length;
+  const pending = labels.filter((l) => l.status === "pending").length;
+  if (wrong) return { text: `Marks: ${wrong} wrong`, tone: "text-danger" };
+  if (pending) return { text: `Marks: ${pending} to check`, tone: "text-turmeric" };
+  return { text: "Marks approved", tone: "text-good" };
+}
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" });
 
@@ -14,11 +28,17 @@ const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { timeZone: 
  * prompt each pose would send. Nothing here generates or costs anything.
  */
 export default async function ProductsPage({ searchParams }: { searchParams: Promise<{ by?: string; open?: string }> }) {
-  await requirePage("/admin/products", { platform: true });
+  // The platform admin sees every shop's products; the house shop's owner and
+  // studio (the supervisor, 4 Oct) see their own, to check the parts marked on each photo.
+  const account = await requirePage("/admin/products");
+  const platform = account.platformAdmin;
+  if (!platform && !canReviewLabels(account)) redirect("/app");
+  const shop = platform ? undefined : account.id;
   const { by, open } = await searchParams;
 
   if (open) {
-    const [g, list] = await Promise.all([productInputsById(open), productRows()]);
+    const [g, list, labels] = await Promise.all([productInputsById(open, shop), productRows(shop), labelsForProducts([open])]);
+    const marked = new Map(labels.map((l) => [l.slot, l]));
     // Previous / Next walk the list in its own order (newest first), keeping its filter.
     const order = by ? list.filter((r) => r.takenBy.includes(by)) : list;
     const at = order.findIndex((r) => r.id === open);
@@ -60,13 +80,34 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
             <p className="mt-1 text-[13px] text-ink-soft">What this product feeds the image model, whether or not anything has been generated yet.</p>
 
             <p className="mt-6 text-[12px] uppercase tracking-wide text-ink-faint">Photos taken ({g.parts.length})</p>
-            <div className="mt-2 grid gap-4 sm:grid-cols-3">
-              {g.parts.map((p) => (
+            <div className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {g.parts.map((p) => {
+                const l = marked.get(p.slot);
+                return (
                 <figure key={p.slot}>
+                  {l ? (
+                    <LabelCard
+                      title={p.slot}
+                      id={l.id}
+                      no={l.taskNo}
+                      source={l.source}
+                      width={l.width}
+                      height={l.height}
+                      regions={l.regions}
+                      style={l.style}
+                      palluKind={l.palluKind}
+                      status={l.status}
+                      note={l.note}
+                      reviewedBy={l.reviewedBy}
+                      reviewedAt={l.reviewedAt?.toISOString() ?? null}
+                      version={l.updatedAt.getTime()}
+                    />
+                  ) : (
                   <a href={p.url} target="_blank" rel="noreferrer">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={p.previewUrl ?? p.url} alt={p.slot} className="max-h-72 w-full rounded-lg border border-line-soft bg-surface object-contain" />
                   </a>
+                  )}
                   <figcaption className="mt-1 text-[12.5px] text-ink-soft">
                     <b className="text-ink">{p.slot}</b>
                     {p.width && p.height ? ` · ${p.width} × ${p.height}` : ""}
@@ -77,9 +118,11 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                     <a href={p.url} target="_blank" rel="noreferrer" className="underline">
                       original
                     </a>
+                    {!l && <span className="text-ink-faint"> · parts not marked yet</span>}
                   </figcaption>
                 </figure>
-              ))}
+                );
+              })}
             </div>
 
             <p className="mt-6 text-[12px] uppercase tracking-wide text-ink-faint">Input sheet (what the image model gets)</p>
@@ -114,7 +157,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                 </Link>
               </p>
             )}
-            <DeleteProduct id={g.id} name={g.productCode ?? "this product"} />
+            {platform && <DeleteProduct id={g.id} name={g.productCode ?? "this product"} />}
           </>
         )}
         <div className="mt-8">{nav}</div>
@@ -122,17 +165,20 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
     );
   }
 
-  const all = await productRows();
+  const all = await productRows(shop);
+  const marks = await labelsForProducts(all.map((r) => r.id));
   const people = [...new Set(all.flatMap((r) => r.takenBy))].sort();
   const rows = by ? all.filter((r) => r.takenBy.includes(by)) : all;
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
-      <p className="label">
-        <Link href="/admin/spend" className="hover:text-ink">
-          Platform
-        </Link>
-      </p>
+      {platform && (
+        <p className="label">
+          <Link href="/admin/spend" className="hover:text-ink">
+            Platform
+          </Link>
+        </p>
+      )}
       <h1 className="mt-1 text-[24px] font-semibold tracking-tight">Products</h1>
       <p className="mt-1 text-[13px] text-ink-soft">Every product captured on the phones, newest first. Open one to see its photos, input sheet and prompts.</p>
 
@@ -171,6 +217,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
             <div className="text-right text-[12.5px] text-ink-soft">
               <p>{r.sheetReady ? "Sheet ready" : "No sheet yet"}</p>
               <p>{r.generations} image{r.generations === 1 ? "" : "s"}</p>
+              {(() => {
+                const m = marksSummary(marks.filter((l) => l.garmentId === r.id));
+                return m && <p className={`font-semibold ${m.tone}`}>{m.text}</p>;
+              })()}
             </div>
           </Link>
         ))}
