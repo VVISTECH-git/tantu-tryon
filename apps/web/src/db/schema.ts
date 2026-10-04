@@ -332,6 +332,8 @@ export const partLabels = pgTable(
     note: text(),
     reviewedBy: text(),
     reviewedAt: timestamp({ withTimezone: true }),
+    /** When the photo was cropped on the website; the laptop takes the new photo and marks from here. */
+    photoEditedAt: timestamp({ withTimezone: true }),
     createdAt: now(),
     updatedAt: now(),
   },

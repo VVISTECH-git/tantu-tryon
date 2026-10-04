@@ -1,0 +1,1 @@
+ALTER TABLE "part_labels" ADD COLUMN "photoEditedAt" timestamp with time zone;

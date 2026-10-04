@@ -42,6 +42,16 @@ export interface LabelUpload {
   /** When the photo is one of a product's: its product ID and slot (body, pallu, …). */
   productCode?: string | null;
   slot?: string | null;
+  /** The website crop the laptop has already taken in, if any. */
+  syncedEdit?: string | null;
+}
+
+/** The photo was cropped on the website after the laptop last took it in. */
+export class CroppedOnWebsite extends Error {
+  constructor(source: string) {
+    super(`${source} was cropped on the website: take the new photo first (upload_labels.py does).`);
+    this.name = "CroppedOnWebsite";
+  }
 }
 
 /** The live product with this ID that has a photo in this slot. */
@@ -65,9 +75,9 @@ export async function saveLabel(u: LabelUpload): Promise<{ id: string; status: s
   const previewKey = `${dir}/preview.jpg`;
   const ext = (u.originalType ?? "image/jpeg").split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
   const photoKey = `${dir}/original.${ext}`;
-  await putObject(previewKey, Buffer.from(u.preview, "base64"), "image/jpeg");
-
   const [before] = await db.select().from(partLabels).where(eq(partLabels.source, u.source)).limit(1);
+  if (before?.photoEditedAt && !(u.syncedEdit && new Date(u.syncedEdit) >= before.photoEditedAt)) throw new CroppedOnWebsite(u.source);
+  await putObject(previewKey, Buffer.from(u.preview, "base64"), "image/jpeg");
   const garmentId = u.productCode && u.slot ? await productPhoto(u.productCode, u.slot) : null;
   const values = {
     taskNo: u.taskNo ?? null,
