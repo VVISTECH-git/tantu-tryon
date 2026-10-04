@@ -1,0 +1,1 @@
+ALTER TABLE "part_labels" ADD COLUMN "productPhotoKey" text;
