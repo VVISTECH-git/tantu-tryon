@@ -21,6 +21,25 @@ function marksSummary(labels: PartLabel[]): { text: string; tone: string } | nul
   return { text: "Marks approved", tone: "text-good" };
 }
 
+const PER_PAGE = 10;
+
+/** The list's own address with these filters, leaving out the empty ones. */
+function listHref(f: { by?: string; q?: string; page?: number; open?: string }): string {
+  const sp = new URLSearchParams();
+  if (f.open) sp.set("open", f.open);
+  if (f.by) sp.set("by", f.by);
+  if (f.q) sp.set("q", f.q);
+  if (f.page && f.page > 1) sp.set("page", String(f.page));
+  const s = sp.toString();
+  return `/admin/products${s ? `?${s}` : ""}`;
+}
+
+/** Products taken by this person and whose ID contains the search, in list order. */
+function filtered<T extends { takenBy: string[]; productCode: string | null }>(rows: T[], by?: string, q?: string): T[] {
+  const needle = q?.trim().toLowerCase();
+  return rows.filter((r) => (!by || r.takenBy.includes(by)) && (!needle || (r.productCode ?? "").toLowerCase().includes(needle)));
+}
+
 const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" });
 
 /**
@@ -29,32 +48,34 @@ const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { timeZone: 
  * done). One product opens its inputs: the photos, the input sheet and the
  * prompt each pose would send. Nothing here generates or costs anything.
  */
-export default async function ProductsPage({ searchParams }: { searchParams: Promise<{ by?: string; open?: string }> }) {
+export default async function ProductsPage({ searchParams }: { searchParams: Promise<{ by?: string; open?: string; q?: string; page?: string }> }) {
   // The platform admin sees every shop's products; the house shop's owner and
   // studio (the supervisor, 4 Oct) see their own, to check the parts marked on each photo.
   const account = await requirePage("/admin/products");
   const platform = account.platformAdmin;
   if (!platform && !canReviewLabels(account)) redirect("/app");
   const shop = platform ? undefined : account.id;
-  const { by, open } = await searchParams;
+  const { by, open, q: rawQ, page: rawPage } = await searchParams;
+  const q = rawQ?.trim() || undefined;
 
   if (open) {
     const [g, list, labels] = await Promise.all([productInputsById(open, shop), productRows(shop), labelsForProducts([open])]);
     const marked = new Map(labels.map((l) => [l.slot, l]));
     // Previous / Next walk the list in its own order (newest first), keeping its filter.
-    const order = by ? list.filter((r) => r.takenBy.includes(by)) : list;
+    const order = filtered(list, by, q);
     const at = order.findIndex((r) => r.id === open);
     const prev = at > 0 ? order[at - 1] : null;
     const next = at >= 0 && at < order.length - 1 ? order[at + 1] : null;
-    const keep = by ? `&by=${encodeURIComponent(by)}` : "";
+    // Back to the list on the page this product is on.
+    const back = listHref({ by, q, page: at >= 0 ? Math.floor(at / PER_PAGE) + 1 : 1 });
     const nav = (
       <div className="flex flex-wrap items-center justify-between gap-3 text-[13.5px]">
-        <Link href={`/admin/products${by ? `?by=${encodeURIComponent(by)}` : ""}`} className="text-accent underline">
+        <Link href={back} className="text-accent underline">
           ‹ All products
         </Link>
         <span className="flex items-center gap-4">
           {prev ? (
-            <Link href={`/admin/products?open=${prev.id}${keep}`} className="rounded-full border border-line px-3 py-1 hover:border-ink-faint">
+            <Link href={listHref({ open: prev.id, by, q })} className="rounded-full border border-line px-3 py-1 hover:border-ink-faint">
               ‹ Previous · {prev.productCode ?? "No product ID"}
             </Link>
           ) : (
@@ -62,7 +83,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
           )}
           {at >= 0 && <span className="text-ink-faint tabular-nums">{at + 1} of {order.length}</span>}
           {next ? (
-            <Link href={`/admin/products?open=${next.id}${keep}`} className="rounded-full border border-line px-3 py-1 hover:border-ink-faint">
+            <Link href={listHref({ open: next.id, by, q })} className="rounded-full border border-line px-3 py-1 hover:border-ink-faint">
               Next · {next.productCode ?? "No product ID"} ›
             </Link>
           ) : (
@@ -183,7 +204,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
   const all = await productRows(shop);
   const marks = await labelsForProducts(all.map((r) => r.id));
   const people = [...new Set(all.flatMap((r) => r.takenBy))].sort();
-  const rows = by ? all.filter((r) => r.takenBy.includes(by)) : all;
+  const matching = filtered(all, by, q);
+  const pages = Math.max(1, Math.ceil(matching.length / PER_PAGE));
+  const page = Math.min(pages, Math.max(1, Number(rawPage) || 1));
+  const rows = matching.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
@@ -197,14 +221,33 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
       <h1 className="mt-1 text-[24px] font-semibold tracking-tight">Products</h1>
       <p className="mt-1 text-[13px] text-ink-soft">Every product captured on the phones, newest first. Open one to see its photos, input sheet and prompts.</p>
 
-      <p className="mt-4 flex flex-wrap gap-2 text-[13px]">
-        <Link href="/admin/products" className={`rounded-full border px-3 py-1 ${!by ? "border-accent text-accent" : "border-line"}`}>
+      <form action="/admin/products" className="mt-4 flex flex-wrap gap-2">
+        {by && <input type="hidden" name="by" value={by} />}
+        <input
+          name="q"
+          defaultValue={q ?? ""}
+          placeholder="Find a product ID, e.g. 9002"
+          inputMode="search"
+          className="w-64 max-w-full rounded-lg border border-line bg-surface px-3 py-2 text-[14px]"
+        />
+        <button type="submit" className="rounded-lg border border-line px-4 py-2 text-[14px] hover:border-ink-faint">
+          Find
+        </button>
+        {q && (
+          <Link href={listHref({ by })} className="self-center text-[13px] text-ink-soft underline">
+            Clear
+          </Link>
+        )}
+      </form>
+
+      <p className="mt-3 flex flex-wrap gap-2 text-[13px]">
+        <Link href={listHref({ q })} className={`rounded-full border px-3 py-1 ${!by ? "border-accent text-accent" : "border-line"}`}>
           Everyone ({all.length})
         </Link>
         {people.map((p) => (
           <Link
             key={p}
-            href={`/admin/products?by=${encodeURIComponent(p)}`}
+            href={listHref({ by: p, q })}
             className={`rounded-full border px-3 py-1 ${by === p ? "border-accent text-accent" : "border-line"}`}
           >
             {p} ({all.filter((r) => r.takenBy.includes(p)).length})
@@ -214,7 +257,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
 
       <div className="mt-5 grid gap-3">
         {rows.map((r) => (
-          <Link key={r.id} href={`/admin/products?open=${r.id}${by ? `&by=${encodeURIComponent(by)}` : ""}`} className="flex items-center gap-4 rounded-xl border border-line bg-surface p-3 hover:border-ink-faint">
+          <Link key={r.id} href={listHref({ open: r.id, by, q })} className="flex items-center gap-4 rounded-xl border border-line bg-surface p-3 hover:border-ink-faint">
             <div className="flex gap-1.5">
               {r.photos.slice(0, 4).map((p) => (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -239,8 +282,44 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
             </div>
           </Link>
         ))}
-        {rows.length === 0 && <p className="text-[14px] text-ink-soft">No products captured yet.</p>}
+        {rows.length === 0 && (
+          <p className="text-[14px] text-ink-soft">{q ? `No product ID with “${q}”.` : "No products captured yet."}</p>
+        )}
       </div>
+
+      {pages > 1 && (
+        <nav className="mt-6 flex flex-wrap items-center justify-between gap-3 text-[13.5px]" aria-label="Pages">
+          {page > 1 ? (
+            <Link href={listHref({ by, q, page: page - 1 })} className="rounded-full border border-line px-3 py-1 hover:border-ink-faint">
+              ‹ Previous 10
+            </Link>
+          ) : (
+            <span className="rounded-full border border-line-soft px-3 py-1 text-ink-faint">‹ Previous 10</span>
+          )}
+          <span className="flex flex-wrap items-center gap-1">
+            {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
+              <Link
+                key={n}
+                href={listHref({ by, q, page: n })}
+                aria-current={n === page ? "page" : undefined}
+                className={`min-w-8 rounded-full px-2.5 py-1 text-center tabular-nums ${n === page ? "bg-accent font-semibold text-white" : "text-ink-soft hover:text-ink"}`}
+              >
+                {n}
+              </Link>
+            ))}
+          </span>
+          {page < pages ? (
+            <Link href={listHref({ by, q, page: page + 1 })} className="rounded-full border border-line px-3 py-1 hover:border-ink-faint">
+              Next 10 ›
+            </Link>
+          ) : (
+            <span className="rounded-full border border-line-soft px-3 py-1 text-ink-faint">Next 10 ›</span>
+          )}
+        </nav>
+      )}
+      <p className="mt-3 text-[12.5px] tabular-nums text-ink-faint">
+        {matching.length === 0 ? "" : `${(page - 1) * PER_PAGE + 1}–${(page - 1) * PER_PAGE + rows.length} of ${matching.length}`}
+      </p>
     </div>
   );
 }
