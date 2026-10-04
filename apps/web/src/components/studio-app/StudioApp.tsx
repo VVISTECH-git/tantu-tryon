@@ -426,6 +426,18 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
             </div>
           </div>
           <div className="st-header-actions">
+            {/* Straight to the products and their marks (4 Oct): the platform admin and the house shop's owner and studio logins. */}
+            {(account.platformAdmin || (account.kind === "shared" && (account.role === "owner" || account.role === "studio"))) && (
+              <a className="st-header-link" href="/admin/products" aria-label={T.header.products} title={T.header.products}>
+                <svg viewBox="0 0 24 24" aria-hidden>
+                  <rect x="4" y="4" width="7" height="7" rx="1.5" />
+                  <rect x="13" y="4" width="7" height="7" rx="1.5" />
+                  <rect x="4" y="13" width="7" height="7" rx="1.5" />
+                  <rect x="13" y="13" width="7" height="7" rx="1.5" />
+                </svg>
+                <span className="st-header-link-text">{T.header.products}</span>
+              </a>
+            )}
             <span className="st-status-chip">{T.status.trial}</span>
             <button type="button" className="st-icon-button st-icon-button--profile" onClick={() => go("profile")} aria-label={T.profile.title}>
               <svg viewBox="0 0 24 24" aria-hidden>

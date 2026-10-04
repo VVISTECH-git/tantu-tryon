@@ -5,7 +5,7 @@
  * judged against, with Tantu's name where theirs was.
  */
 export const T = {
-  header: { back: "Back", newGarment: "Start new garment", appLabel: "Try-On" },
+  header: { back: "Back", newGarment: "Start new garment", appLabel: "Try-On", products: "Products" },
   splash: { name: "Tantu", tagline: "AI Studio for Fashion Brands" },
   status: { trial: "Trial" },
   entry: {
