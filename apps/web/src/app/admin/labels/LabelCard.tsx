@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { PartRegion } from "@/db/schema";
+import { MarkEditor } from "./MarkEditor";
 
 const COLOURS: Record<string, string> = {
   Body: "#2e86de",
@@ -46,6 +47,7 @@ export function LabelCard(props: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [by, setBy] = useState({ who: props.reviewedBy, at: props.reviewedAt });
+  const [fixing, setFixing] = useState(false);
   const ratio = props.width / props.height;
   const parts = [...new Set(props.regions.map((r) => r.label))];
 
@@ -203,6 +205,33 @@ export function LabelCard(props: {
             ✗ {status === "wrong" ? "Wrong · edit note" : "Wrong"}
           </button>
         </div>
+      )}
+
+      <button type="button" onClick={() => setFixing(true)} className="rounded-lg border border-line px-3 py-2 text-[13.5px] hover:border-ink-faint">
+        ✎ Fix marks
+      </button>
+      {fixing && (
+        <MarkEditor
+          title={props.title ?? props.source}
+          src={`/api/labels/${props.id}/image?v=${props.version}`}
+          width={props.width}
+          height={props.height}
+          regions={props.regions}
+          onClose={() => setFixing(false)}
+          onSave={async (regions) => {
+            const res = await fetch(`/api/labels/${props.id}/marks`, {
+              method: "PUT",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ regions }),
+            }).catch(() => null);
+            if (!res) return "No internet. Try again.";
+            if (!res.ok) return ((await res.json().catch(() => ({}))) as { error?: string }).error ?? "Could not save.";
+            setFixing(false);
+            setStatus("approved");
+            router.refresh();
+            return null;
+          }}
+        />
       )}
 
       {error && <p className="text-[13px] text-danger">{error}</p>}

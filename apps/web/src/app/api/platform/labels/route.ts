@@ -52,6 +52,7 @@ export async function GET() {
         reviewedBy,
         reviewedAt,
         photoEditedAt,
+        // Changed on the website (cropped, retaken or fixed by hand): the laptop takes these in.
         ...(photoEditedAt ? { photoUrl: photoOf(garmentId, slot), regions, width, height } : {}),
       })),
     );

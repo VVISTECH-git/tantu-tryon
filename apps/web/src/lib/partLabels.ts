@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { accounts, db, garments, partLabels, type Account, type PartLabel, type PartRegion } from "@/db";
 import { isHouseShop } from "@/lib/session";
-import { assetUrl, headObject, presignPut, putObject } from "@/lib/storage";
+import { assetUrl, getObject, headObject, presignPut, putObject } from "@/lib/storage";
 
 /**
  * Training photos for Tantu's own part finder (4 Oct): marked on the laptop,
@@ -209,6 +209,77 @@ export async function saveAutoMarks(u: AutoMarks): Promise<{ id: string } | null
   }
   const [row] = await db.insert(partLabels).values({ source, ...values }).returning();
   return { id: row!.id };
+}
+
+/** Marks as a person drew them, cleaned: known part names, 3–200 points each, inside the photo. */
+export function cleanRegions(input: unknown): PartRegion[] | null {
+  if (!Array.isArray(input) || input.length > 30) return null;
+  const out: PartRegion[] = [];
+  for (const r of input as { label?: unknown; points?: unknown }[]) {
+    if (typeof r?.label !== "string" || !(r.label in PART_COLOURS) || !Array.isArray(r.points)) return null;
+    const points = (r.points as unknown[])
+      .filter((p): p is [number, number] => Array.isArray(p) && p.length === 2 && p.every((v) => Number.isFinite(v)))
+      .map(([x, y]) => [Math.round(Math.min(100, Math.max(0, x)) * 1000) / 1000, Math.round(Math.min(100, Math.max(0, y)) * 1000) / 1000] as [number, number]);
+    if (points.length < 3 || points.length > 200) return null;
+    out.push({ label: r.label, points });
+  }
+  return out;
+}
+
+/**
+ * Marks fixed (or drawn from nothing) by a person on the Products page, saved
+ * as approved by them. A photo the laptop also holds takes these from the
+ * website next time (as after a crop), so the laptop never writes over them.
+ */
+export async function saveFixedMarks(
+  target: { labelId: string } | { garmentId: string; slot: string },
+  regions: PartRegion[],
+  who: string,
+): Promise<PartLabel | null> {
+  const now = new Date();
+  const fixed = { regions, status: "approved", note: null, reviewedBy: who, reviewedAt: now, updatedAt: now };
+  if ("labelId" in target) {
+    const [row] = await db
+      .update(partLabels)
+      .set({ ...fixed, photoEditedAt: now })
+      .where(eq(partLabels.id, target.labelId))
+      .returning();
+    return row ?? null;
+  }
+  const [g] = await db.select({ parts: garments.parts }).from(garments).where(eq(garments.id, target.garmentId)).limit(1);
+  const part = g?.parts.find((p) => p.slot === target.slot && p.key);
+  if (!part?.key || !part.width || !part.height) return null;
+  const [before] = await db
+    .select()
+    .from(partLabels)
+    .where(and(eq(partLabels.garmentId, target.garmentId), eq(partLabels.slot, target.slot)))
+    .limit(1);
+  if (before) return saveFixedMarks({ labelId: before.id }, regions, who);
+  // A photo nobody marked yet: its screen copy becomes the marks' photo.
+  const source = `tantu-${target.garmentId}-${target.slot}`;
+  const previewKey = `labelling/${safe(source)}/preview.jpg`;
+  const sharp = (await import("sharp")).default;
+  const preview = await sharp(await getObject(part.previewKey ?? part.key))
+    .autoOrient()
+    .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 88 })
+    .toBuffer();
+  await putObject(previewKey, preview, "image/jpeg");
+  const [row] = await db
+    .insert(partLabels)
+    .values({
+      source,
+      garmentId: target.garmentId,
+      slot: target.slot,
+      productPhotoKey: part.key,
+      photoKey: part.key,
+      previewKey,
+      width: part.width,
+      height: part.height,
+      ...fixed,
+    })
+    .returning();
+  return row ?? null;
 }
 
 export async function listLabels(): Promise<PartLabel[]> {
