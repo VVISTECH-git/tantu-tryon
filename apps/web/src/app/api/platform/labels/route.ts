@@ -1,6 +1,6 @@
 import { inArray } from "drizzle-orm";
 import { db, garments } from "@/db";
-import { CroppedOnWebsite, listLabels, saveLabel, type LabelUpload } from "@/lib/partLabels";
+import { CroppedOnWebsite, dropLabel, listLabels, saveLabel, type LabelUpload } from "@/lib/partLabels";
 import { assetUrl } from "@/lib/storage";
 import { requirePlatform, unauthorised } from "@/lib/session";
 
@@ -58,5 +58,17 @@ export async function GET() {
     );
   } catch (error) {
     return unauthorised(error) ?? Response.json({ error: "Could not list the photos." }, { status: 500 });
+  }
+}
+
+/** Drop a training photo the user no longer wants (`?source=` its file name). Platform admin only. */
+export async function DELETE(request: Request) {
+  try {
+    await requirePlatform();
+    const source = new URL(request.url).searchParams.get("source") ?? "";
+    if (!source) return Response.json({ error: "Which photo?" }, { status: 400 });
+    return (await dropLabel(source)) ? Response.json({ ok: true }) : Response.json({ error: "No such photo." }, { status: 404 });
+  } catch (error) {
+    return unauthorised(error) ?? Response.json({ error: "Could not drop it." }, { status: 500 });
   }
 }

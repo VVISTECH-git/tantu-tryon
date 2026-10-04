@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { accounts, db, garments, partLabels, type Account, type PartLabel, type PartRegion } from "@/db";
 import { isHouseShop } from "@/lib/session";
-import { assetUrl, getObject, headObject, presignPut, putObject } from "@/lib/storage";
+import { assetUrl, getObject, headObject, presignPut, putObject, remove } from "@/lib/storage";
 
 /**
  * Training photos for Tantu's own part finder (4 Oct): marked on the laptop,
@@ -280,6 +280,14 @@ export async function saveFixedMarks(
     })
     .returning();
   return row ?? null;
+}
+
+/** Drop a training photo: its marks and its copies in the labelling folder (a product's own photo stays). */
+export async function dropLabel(source: string): Promise<boolean> {
+  const [row] = await db.delete(partLabels).where(eq(partLabels.source, source)).returning();
+  if (!row) return false;
+  for (const key of [row.previewKey, row.photoKey]) if (key.startsWith("labelling/")) await remove(key);
+  return true;
 }
 
 export async function listLabels(): Promise<PartLabel[]> {
