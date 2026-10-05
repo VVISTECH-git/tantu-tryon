@@ -20,7 +20,8 @@ export async function POST(request: Request) {
     if (regions.length === 0) delete marks[body.file!];
     else marks[body.file!] = { regions, by: account.username ?? account.name, at: new Date().toISOString() };
     await writeJson(key, marks);
-    await noteMarked(body.shop!, body.id!, Object.keys(marks).length);
+    // Progress counts photos a person has saved, not the laptop's first tries ("auto").
+    await noteMarked(body.shop!, body.id!, Object.values(marks).filter((m) => m.by !== "auto").length);
     return Response.json({ ok: true });
   } catch (error) {
     return unauthorised(error) ?? Response.json({ error: error instanceof Error ? error.message : "Could not save." }, { status: 500 });
