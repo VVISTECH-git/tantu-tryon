@@ -1,6 +1,6 @@
 import { canReviewLabels, cleanRegions } from "@/lib/partLabels";
 import { Forbidden, requireAccount, unauthorised } from "@/lib/session";
-import { TRAINING_SHOPS, readJson, writeJson, type TrainingMarks } from "@/lib/trainingStore";
+import { TRAINING_SHOPS, noteMarked, readJson, writeJson, type TrainingMarks } from "@/lib/trainingStore";
 
 export const runtime = "nodejs";
 
@@ -20,6 +20,7 @@ export async function POST(request: Request) {
     if (regions.length === 0) delete marks[body.file!];
     else marks[body.file!] = { regions, by: account.username ?? account.name, at: new Date().toISOString() };
     await writeJson(key, marks);
+    await noteMarked(body.shop!, body.id!, Object.keys(marks).length);
     return Response.json({ ok: true });
   } catch (error) {
     return unauthorised(error) ?? Response.json({ error: error instanceof Error ? error.message : "Could not save." }, { status: 500 });
