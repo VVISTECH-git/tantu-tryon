@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { canReviewLabels } from "@/lib/partLabels";
 import { requirePage } from "@/lib/page-auth";
-import { TRAINING_SHOPS, listFolders, photoLink, previewKey, readProduct, trainingConfigured } from "@/lib/trainingStore";
+import { TRAINING_SHOPS, photoLink, previewKey, productFromIndex, readProduct, shopIndex, trainingConfigured } from "@/lib/trainingStore";
 import { TrainingPhotos } from "./TrainingPhotos";
 
 export const dynamic = "force-dynamic";
@@ -56,12 +56,15 @@ export default async function TrainingPage({ searchParams }: { searchParams: Pro
     );
   }
 
-  const all = (await listFolders(`${shop}/`)).filter((id) => /^\d+$/.test(id)).sort().reverse();
+  // The whole shop from its index: one read, kept in memory a few minutes.
+  const index = await shopIndex(shop);
+  const all = index.map((p) => p.id);
 
   // One product: every photo, with what it is.
   if (sp.open) {
-    const p = await readProduct(shop, sp.open);
     const at = all.indexOf(sp.open);
+    // Known to the index: only its live kinds and marks are read. Otherwise the slow way.
+    const p = at >= 0 ? await productFromIndex(shop, index[at]!) : await readProduct(shop, sp.open);
     const back = href({ shop, q, page: at >= 0 ? Math.floor(at / PER_PAGE) + 1 : 1 });
     const prev = at > 0 ? all[at - 1] : null;
     const next = at >= 0 && at < all.length - 1 ? all[at + 1] : null;
@@ -122,11 +125,15 @@ export default async function TrainingPage({ searchParams }: { searchParams: Pro
   }
 
   // The list: newest product numbers first, a page at a time.
-  const matching = q ? all.filter((id) => id.includes(q)) : all;
+  const needle = q?.toLowerCase();
+  const matching = needle ? index.filter((p) => p.id.includes(needle) || (p.title ?? "").toLowerCase().includes(needle)) : index;
   const pages = Math.max(1, Math.ceil(matching.length / PER_PAGE));
   const page = Math.min(pages, Math.max(1, Number(sp.page) || 1));
-  const ids = matching.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-  const products = (await Promise.all(ids.map((id) => readProduct(shop, id)))).filter((p) => p !== null);
+  // Straight from the index: no reads of the bucket, only links signed here.
+  const products = matching
+    .slice((page - 1) * PER_PAGE, page * PER_PAGE)
+    .map((p) => ({ ...p, url: null, small: new Set(p.small), marks: {} as Record<string, never> }));
+  const ids = products.map((p) => p.id);
   const thumbs = await Promise.all(
     products.map((p) => {
       const f = p.photos.find((n) => p.kinds[n] === "full") ?? p.photos[0];
@@ -143,7 +150,7 @@ export default async function TrainingPage({ searchParams }: { searchParams: Pro
       {tabs}
       <form action="/admin/training" className="mt-4 flex flex-wrap gap-2">
         <input type="hidden" name="shop" value={shop} />
-        <input name="q" defaultValue={q ?? ""} placeholder="Find a product number" inputMode="numeric" className="w-56 max-w-full rounded-lg border border-line bg-surface px-3 py-2 text-[14px]" />
+        <input name="q" defaultValue={q ?? ""} placeholder="Find a saree: number or name" className="w-56 max-w-full rounded-lg border border-line bg-surface px-3 py-2 text-[14px]" />
         <button type="submit" className="rounded-lg border border-line px-4 py-2 text-[14px] hover:border-ink-faint">Find</button>
         {q && <Link href={href({ shop })} className="self-center text-[13px] text-ink-soft underline">Clear</Link>}
       </form>
