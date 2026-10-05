@@ -21,6 +21,7 @@ export function AdminNav({ platform, owner, labels }: { platform: boolean; owner
       : []),
     // The house shop's supervisor (a studio login) checks the parts marked on each product's photos here (4 Oct).
     ...(labels && !platform ? [{ href: "/admin/products", label: "Products" }] : []),
+    ...(labels ? [{ href: "/admin/training", label: "Training data" }] : []),
     ...(owner ? [{ href: "/admin/shop", label: "Shop" }] : []),
   ];
   return (
