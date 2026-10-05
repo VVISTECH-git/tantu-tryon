@@ -70,8 +70,12 @@ export function TrainingPhotos(props: { shop: string; id: string; photos: Traini
             <figcaption className="flex items-center justify-between text-[12px] text-ink-faint">
               {p.file}
               {props.toMark?.includes(p.file) && (
-                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${p.regions.length ? "bg-good/10 text-good" : "bg-accent-wash text-accent"}`}>
-                  {p.regions.length ? "Marked ✓" : "Mark this"}
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    p.markedBy === "auto" ? "bg-turmeric-wash text-ink-soft" : p.regions.length ? "bg-good/10 text-good" : "bg-accent-wash text-accent"
+                  }`}
+                >
+                  {p.markedBy === "auto" ? "Check auto marks" : p.regions.length ? "Marked ✓" : "Mark this"}
                 </span>
               )}
             </figcaption>
@@ -82,7 +86,7 @@ export function TrainingPhotos(props: { shop: string; id: string; photos: Traini
                 {p.regions.length > 0 && (
                   <p className="text-[11.5px] leading-snug text-ink-faint">
                     {[...new Set(p.regions.map((r) => r.label))].join(", ")}
-                    {p.markedBy ? ` · ${p.markedBy}` : ""}
+                    {p.markedBy ? ` · ${p.markedBy === "auto" ? "auto: to check" : p.markedBy}` : ""}
                   </p>
                 )}
               </>
