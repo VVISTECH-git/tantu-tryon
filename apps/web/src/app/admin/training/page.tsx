@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { canReviewLabels } from "@/lib/partLabels";
 import { requirePage } from "@/lib/page-auth";
 import { TRAINING_SHOPS, listFolders, photoLink, previewKey, readProduct, trainingConfigured } from "@/lib/trainingStore";
-import { KindPicker } from "./KindPicker";
+import { TrainingPhotos } from "./TrainingPhotos";
 
 export const dynamic = "force-dynamic";
 
@@ -99,19 +99,22 @@ export default async function TrainingPage({ searchParams }: { searchParams: Pro
             <p className="mt-3 text-[13px] text-ink-soft">
               <b className="text-ink">Full</b> = the saree draped, what the model should make. <b className="text-ink">Fabric</b> = close-ups,
               blouse piece, folded or held: what goes in. <b className="text-ink">Poster</b> = left out. Tap to correct; it saves at once.
+              <br />
+              <b className="text-ink">Mark parts</b> on the fabric photos <i>and</i> the worn ones: body, pallu, borders, blouse. That is how the model
+              learns where each part goes when the saree is worn.
             </p>
-            <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {p.photos.map((f, i) => (
-                <figure key={f} className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-2">
-                  <a href={links[i]} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg bg-surface-2">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={previews[i]} alt={f} loading="lazy" className="aspect-[3/4] w-full object-cover" />
-                  </a>
-                  <figcaption className="text-[12px] text-ink-faint">{f}</figcaption>
-                  <KindPicker shop={shop} id={p.id} file={f} kind={p.kinds[f] ?? null} />
-                </figure>
-              ))}
-            </div>
+            <TrainingPhotos
+              shop={shop}
+              id={p.id}
+              photos={p.photos.map((f, i) => ({
+                file: f,
+                full: links[i]!,
+                preview: previews[i]!,
+                kind: p.kinds[f] ?? null,
+                regions: p.marks[f]?.regions ?? [],
+                markedBy: p.marks[f]?.by ?? null,
+              }))}
+            />
           </>
         )}
       </div>
@@ -163,6 +166,7 @@ export default async function TrainingPage({ searchParams }: { searchParams: Pro
               <p className="line-clamp-2 text-[13px] font-semibold leading-snug">{p.title ?? p.id}</p>
               <p className="text-[12px] tabular-nums text-ink-soft">
                 {p.photos.length} photos · {counts.full} full · {counts.fabric} fabric
+                {Object.keys(p.marks).length > 0 && <span className="font-semibold text-good"> · {Object.keys(p.marks).length} marked</span>}
                 {Object.keys(p.kinds).length === 0 && <span className="text-ink-faint"> · not sorted yet</span>}
               </p>
             </Link>
