@@ -91,11 +91,18 @@ export async function writeJson(key: string, value: unknown): Promise<void> {
   if (!res.ok) throw new Error(`Training bucket put ${res.status} for ${key}`);
 }
 
-/** A link that shows one private photo for an hour. */
-export async function photoLink(key: string, seconds = 3600): Promise<string> {
+/**
+ * A link that shows one private photo. Signed as of the start of the hour and good for two,
+ * so the same photo gets the same link all hour and the browser shows it from its cache
+ * instead of fetching it again on every visit (5 Oct: pages were slow).
+ */
+export async function photoLink(key: string): Promise<string> {
+  const hour = new Date();
+  hour.setUTCMinutes(0, 0, 0);
+  const datetime = hour.toISOString().replace(/[:-]|\.\d{3}/g, "");
   const url = new URL(objectUrl(key));
-  url.searchParams.set("X-Amz-Expires", String(seconds));
-  const signed = await aws().sign(new Request(url, { method: "GET" }), { aws: { signQuery: true } });
+  url.searchParams.set("X-Amz-Expires", String(2 * 3600));
+  const signed = await aws().sign(new Request(url, { method: "GET" }), { aws: { signQuery: true, datetime } });
   return signed.url;
 }
 
@@ -107,6 +114,14 @@ export interface TrainingProduct {
   /** Photos with a small copy in _small/ (480 px), for showing many at once. */
   small: Set<string>;
   kinds: Record<string, PhotoKind>;
+  /** Parts marked on its photos on the website (5 Oct): marks.json in the bucket, the website's own. */
+  marks: Record<string, TrainingMarks>;
+}
+
+export interface TrainingMarks {
+  regions: { label: string; points: [number, number][] }[];
+  by: string;
+  at: string;
 }
 
 /** The small copy's key when there is one, else the photo itself. */
@@ -118,15 +133,16 @@ export function previewKey(shop: string, p: TrainingProduct, photo: string): str
 /** One product: its details, photo names and their kinds. */
 export async function readProduct(shop: string, id: string): Promise<TrainingProduct | null> {
   const prefix = `${shop}/${id}/`;
-  const [files, meta, kinds] = await Promise.all([
+  const [files, meta, kinds, marks] = await Promise.all([
     listFiles(prefix),
     readJson<{ title?: string; url?: string }>(`${prefix}product.json`),
     readJson<Record<string, PhotoKind>>(`${prefix}kinds.json`),
+    readJson<Record<string, TrainingMarks>>(`${prefix}marks.json`),
   ]);
   const names = files.map((f) => f.name);
   const photos = names.filter((n) => /^\d\d\.(jpe?g|png|webp|gif)$/i.test(n)).sort();
   const smallOnes = new Set(names.filter((n) => n.startsWith("_small/")).map((n) => n.slice(7).replace(/\.jpg$/, "")));
   const small = new Set(photos.filter((n) => smallOnes.has(n.replace(/\.[a-z0-9]+$/i, ""))));
   if (photos.length === 0 && !meta) return null;
-  return { id, title: meta?.title ?? null, url: meta?.url ?? null, photos, small, kinds: kinds ?? {} };
+  return { id, title: meta?.title ?? null, url: meta?.url ?? null, photos, small, kinds: kinds ?? {}, marks: marks ?? {} };
 }

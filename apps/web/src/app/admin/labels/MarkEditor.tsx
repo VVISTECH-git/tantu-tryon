@@ -32,6 +32,8 @@ export function MarkEditor(props: {
   regions: PartRegion[];
   onSave: (regions: PartRegion[]) => Promise<string | null>;
   onClose: () => void;
+  /** The save button's words; on the Products page saving also approves. */
+  saveLabel?: string;
 }) {
   const [regions, setRegions] = useState<PartRegion[]>(props.regions.map((r) => ({ label: r.label, points: r.points.map((p) => [...p] as Pt) })));
   const [past, setPast] = useState<PartRegion[][]>([]);
@@ -150,7 +152,7 @@ export function MarkEditor(props: {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 p-2 sm:p-4" role="dialog" aria-modal="true" aria-label={`Fix the marks on the ${props.title} photo`}>
       <div className="flex max-h-full w-full max-w-5xl flex-col gap-3 overflow-auto rounded-xl bg-surface p-3 sm:p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-[16px] font-semibold">Fix marks · <span className="capitalize">{props.title}</span></h2>
+          <h2 className="text-[16px] font-semibold">Fix marks · <span className={/\./.test(props.title) ? "" : "capitalize"}>{props.title}</span></h2>
           <span className="text-[12.5px] text-ink-faint">
             {drawing ? `Drag on the photo to draw the ${drawing}` : sel ? "Drag the white points · tap + to add one" : "Tap a part to change it"}
           </span>
@@ -293,7 +295,7 @@ export function MarkEditor(props: {
             onClick={() => void save()}
             className="rounded-lg bg-good px-4 py-2 text-[14px] font-semibold text-white disabled:opacity-50"
           >
-            {busy ? "Saving…" : "✓ Save and approve"}
+            {busy ? "Saving…" : (props.saveLabel ?? "✓ Save and approve")}
           </button>
         </div>
       </div>
