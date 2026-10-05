@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PartRegion } from "@/db/schema";
 import { KindPicker } from "./KindPicker";
 import { MarkTrainingPhoto } from "./MarkTrainingPhoto";
+import { Photo } from "./Photo";
 
 export interface TrainingPhoto {
   file: string;
@@ -18,7 +19,7 @@ export interface TrainingPhoto {
  * A product's photos: small copies in a grid, each with its kind and marks; a tap opens it
  * large, with Previous / Next (and the arrow keys) through the same product's photos (5 Oct).
  */
-export function TrainingPhotos(props: { shop: string; id: string; photos: TrainingPhoto[] }) {
+export function TrainingPhotos(props: { shop: string; id: string; photos: TrainingPhoto[]; toMark?: string[] }) {
   const [open, setOpen] = useState<number | null>(null);
   // Kinds as set here, so the viewer and the grid agree without a reload.
   const [kinds, setKinds] = useState<Record<string, string | null>>(() => Object.fromEntries(props.photos.map((p) => [p.file, p.kind])));
@@ -64,10 +65,16 @@ export function TrainingPhotos(props: { shop: string; id: string; photos: Traini
         {props.photos.map((p, i) => (
           <figure key={p.file} className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-2">
             <button type="button" onClick={() => setOpen(i)} className="block overflow-hidden rounded-lg bg-surface-2" aria-label={`Open ${p.file} large`}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.preview} alt={p.file} loading="lazy" className="aspect-[3/4] w-full object-cover" />
+              <Photo src={p.preview} alt={p.file} className="aspect-[3/4] w-full object-cover" />
             </button>
-            <figcaption className="text-[12px] text-ink-faint">{p.file}</figcaption>
+            <figcaption className="flex items-center justify-between text-[12px] text-ink-faint">
+              {p.file}
+              {props.toMark?.includes(p.file) && (
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${p.regions.length ? "bg-good/10 text-good" : "bg-accent-wash text-accent"}`}>
+                  {p.regions.length ? "Marked ✓" : "Mark this"}
+                </span>
+              )}
+            </figcaption>
             <KindPicker key={kinds[p.file] ?? "none"} shop={props.shop} id={props.id} file={p.file} kind={kinds[p.file] ?? null} />
             {kinds[p.file] !== "poster" && (
               <>

@@ -190,3 +190,33 @@ export async function productFromIndex(shop: string, item: IndexedProduct): Prom
     marks: marks ?? {},
   };
 }
+
+export interface MarkingItem {
+  shop: string;
+  id: string;
+  title: string | null;
+  worn: string;
+  fabric: string[];
+}
+
+let setCache: { at: number; items: MarkingItem[] } | null = null;
+
+/** The sarees chosen to mark first (training/marking_set.json, picked on the laptop), cached five minutes. */
+export async function markingSet(): Promise<MarkingItem[]> {
+  if (setCache && Date.now() - setCache.at < INDEX_FOR_MS) return setCache.items;
+  const items = (await readJson<MarkingItem[]>("training/marking_set.json")) ?? [];
+  setCache = { at: Date.now(), items };
+  return items;
+}
+
+/** How many photos are marked per saree ("shop/id" → count): kept up to date as marks are saved. */
+export async function markingProgress(): Promise<Record<string, number>> {
+  return (await readJson<Record<string, number>>("training/marking_progress.json")) ?? {};
+}
+
+export async function noteMarked(shop: string, id: string, count: number): Promise<void> {
+  const progress = await markingProgress();
+  if (count > 0) progress[`${shop}/${id}`] = count;
+  else delete progress[`${shop}/${id}`];
+  await writeJson("training/marking_progress.json", progress);
+}
