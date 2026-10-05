@@ -146,3 +146,47 @@ export async function readProduct(shop: string, id: string): Promise<TrainingPro
   if (photos.length === 0 && !meta) return null;
   return { id, title: meta?.title ?? null, url: meta?.url ?? null, photos, small, kinds: kinds ?? {}, marks: marks ?? {} };
 }
+
+export interface IndexedProduct {
+  id: string;
+  title: string | null;
+  photos: string[];
+  small: string[];
+  kinds: Record<string, PhotoKind>;
+}
+
+const indexCache = new Map<string, { at: number; products: IndexedProduct[] }>();
+const INDEX_FOR_MS = 5 * 60_000;
+
+/**
+ * A shop's products from its _index.json (one read for the whole list, built on the laptop),
+ * kept in this server's memory for five minutes (5 Oct: the bucket is in Asia, the server in
+ * the US, and listing a shop folder by folder took ~10 s). Newest product number first.
+ */
+export async function shopIndex(shop: string): Promise<IndexedProduct[]> {
+  const hit = indexCache.get(shop);
+  if (hit && Date.now() - hit.at < INDEX_FOR_MS) return hit.products;
+  const data = await readJson<{ products: IndexedProduct[] }>(`${shop}/_index.json`);
+  const products = data?.products ?? (await listFolders(`${shop}/`)).filter((id) => /^\d+$/.test(id)).sort().reverse().map((id) => ({ id, title: null, photos: [], small: [], kinds: {} }));
+  indexCache.set(shop, { at: Date.now(), products });
+  return products;
+}
+
+/** One product as the index knows it, with its kinds and marks read fresh (two reads, side by side). */
+export async function productFromIndex(shop: string, item: IndexedProduct): Promise<TrainingProduct> {
+  const prefix = `${shop}/${item.id}/`;
+  const [meta, kinds, marks] = await Promise.all([
+    readJson<{ url?: string }>(`${prefix}product.json`),
+    readJson<Record<string, PhotoKind>>(`${prefix}kinds.json`),
+    readJson<Record<string, TrainingMarks>>(`${prefix}marks.json`),
+  ]);
+  return {
+    id: item.id,
+    title: item.title,
+    url: meta?.url ?? null,
+    photos: item.photos,
+    small: new Set(item.small),
+    kinds: kinds ?? item.kinds,
+    marks: marks ?? {},
+  };
+}
