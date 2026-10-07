@@ -17,10 +17,65 @@ export interface UploadResult {
   missing: string[];
 }
 
+/**
+ * One photograph into its slot, the way the phone sends it (7 Oct): the file
+ * exactly as the camera made it goes straight to storage on a signed URL (an
+ * original can pass the 4.5 MB a server request may carry), with a 1600 px
+ * screen copy beside it, then the server records it. Where storage refuses
+ * the browser (no CORS rule yet, or no storage at all), the photo goes through
+ * the server at ~2000 px instead, and the rest of this visit does the same.
+ */
+let directBlocked = false;
+
 export async function uploadPart(file: File, slot: string, garmentId: string | null, type: string): Promise<UploadResult> {
-  // Resize in the browser: a 40 MP phone photograph becomes a ~2000px JPEG,
-  // upright and small enough for any server limit, still big enough for a
-  // 1000px sheet cell.
+  if (!directBlocked) {
+    try {
+      return await uploadDirect(file, slot, garmentId, type);
+    } catch (error) {
+      if (!(error instanceof DirectUploadUnavailable)) throw error;
+      directBlocked = true;
+    }
+  }
+  return uploadThroughServer(file, slot, garmentId, type);
+}
+
+class DirectUploadUnavailable extends Error {}
+
+async function uploadDirect(file: File, slot: string, garmentId: string | null, type: string): Promise<UploadResult> {
+  const contentType = file.type === "image/png" ? "image/png" : "image/jpeg";
+  const asked = await fetch("/api/garments/upload-url", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-tantu-device": deviceId() },
+    body: JSON.stringify({ slot, type, garmentId, contentType, withPreview: true }),
+  });
+  if (asked.status === 501 || asked.status === 404) throw new DirectUploadUnavailable();
+  const target = await json<{ garmentId: string; key: string; url: string; previewKey?: string; previewUrl?: string }>(asked);
+  // Straight to storage; a CORS refusal surfaces as a network error, not a status.
+  const put = await fetch(target.url, { method: "PUT", headers: { "content-type": contentType }, body: file }).catch(() => null);
+  if (!put) throw new DirectUploadUnavailable();
+  if (!put.ok) throw new Error(`The photo could not be sent (${put.status}). Please try again.`);
+  let previewKey: string | undefined;
+  if (target.previewUrl && target.previewKey) {
+    try {
+      const small = await loadImageFile(file, 1600);
+      const blob = await (await fetch(small.dataUrl)).blob();
+      const sent = await fetch(target.previewUrl, { method: "PUT", headers: { "content-type": "image/jpeg" }, body: blob }).catch(() => null);
+      if (sent?.ok) previewKey = target.previewKey;
+    } catch {
+      // No preview: the server reads the original instead.
+    }
+  }
+  return json<UploadResult>(
+    await fetch("/api/garments/upload-done", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ garmentId: target.garmentId, slot, key: target.key, previewKey }),
+    }),
+  );
+}
+
+async function uploadThroughServer(file: File, slot: string, garmentId: string | null, type: string): Promise<UploadResult> {
+  // Resized in the browser to ~2000 px, upright and under the server's request limit.
   const loaded = await loadImageFile(file, 2000);
   const blob = await (await fetch(loaded.dataUrl)).blob();
   const form = new FormData();
