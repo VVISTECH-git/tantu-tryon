@@ -53,6 +53,7 @@ export type Screen =
   | "splash"
   | "entry"
   | "upload"
+  | "saved"
   | "shots"
   | "analyzing"
   | "confirm"

@@ -31,6 +31,81 @@ export async function uploadPart(file: File, slot: string, garmentId: string | n
   return json<UploadResult>(await fetch("/api/garments/upload", { method: "POST", body: form }));
 }
 
+// ── Products (7 Oct: the same product-ID flow the phone has) ──────────────
+
+/** This browser's own id, so the server can hold an automatic number for it as it does for a phone. */
+export function deviceId(): string {
+  try {
+    const have = localStorage.getItem("tantu-device");
+    if (have) return have;
+    const made = crypto.randomUUID();
+    localStorage.setItem("tantu-device", made);
+    return made;
+  } catch {
+    return "web-" + Math.random().toString(36).slice(2, 14);
+  }
+}
+
+const jsonHeaders = () => ({ "content-type": "application/json", "x-tantu-device": deviceId() });
+
+/** Open (or reopen) the record for one product ID; every photograph after this is saved against it. */
+export async function openProduct(productId: string, type: string): Promise<GarmentView> {
+  const { garment } = await json<{ garment: GarmentView }>(
+    await fetch("/api/garments/open", { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ productId, type }) }),
+  );
+  return garment;
+}
+
+/** A record with no product ID; one can be given from the shot list later. */
+export async function openWithoutProductId(type: string): Promise<GarmentView> {
+  const { garment } = await json<{ garment: GarmentView }>(
+    await fetch("/api/garments/open", { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ noProductId: true, type }) }),
+  );
+  return garment;
+}
+
+/** The product ID the photographer's next Continue will get (9001, 9002, …). */
+export async function nextAutoProductId(): Promise<string> {
+  const { nextId } = await json<{ nextId: string }>(await fetch("/api/garments/open", { headers: { "x-tantu-device": deviceId() } }));
+  return nextId;
+}
+
+/** Give out the next automatic product ID and open its record (photographer login). */
+export async function openAutoProduct(type: string): Promise<GarmentView> {
+  const { garment } = await json<{ garment: GarmentView }>(
+    await fetch("/api/garments/open", { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ auto: true, type }) }),
+  );
+  return garment;
+}
+
+/** Give a record made without a product ID its ID. */
+export async function setProductId(id: string, productId: string): Promise<GarmentView> {
+  return patchGarment(id, { productCode: productId });
+}
+
+export interface SavedProduct {
+  id: string;
+  productId: string | null;
+  title: string;
+  garmentType: string;
+  photos: number;
+  slots: string[];
+  missing: string[];
+  thumb: string | null;
+  updatedAt: string;
+  images: number;
+}
+
+export async function savedProducts(): Promise<SavedProduct[]> {
+  const { products } = await json<{ products: SavedProduct[] }>(await fetch("/api/garments", { cache: "no-store" }));
+  return products;
+}
+
+/** Delete a product (owner or platform admin). Images already made from it are kept. */
+export async function deleteProduct(id: string): Promise<void> {
+  await json(await fetch(`/api/garments/${id}`, { method: "DELETE" }));
+}
+
 export async function getGarment(id: string): Promise<{ garment: GarmentView; words: Record<string, string | null> }> {
   return json(await fetch(`/api/garments/${id}`));
 }
@@ -56,7 +131,7 @@ export async function analyze(id: string): Promise<Analysis> {
 
 export async function patchGarment(
   id: string,
-  patch: { words?: Record<string, string>; answers?: Record<string, boolean>; rotations?: Record<string, number> },
+  patch: { words?: Record<string, string>; answers?: Record<string, boolean>; rotations?: Record<string, number>; removeSlots?: string[]; productCode?: string },
 ): Promise<GarmentView> {
   const { garment } = await json<{ garment: GarmentView }>(
     await fetch(`/api/garments/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) }),
