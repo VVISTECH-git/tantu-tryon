@@ -120,15 +120,10 @@ export function SiteHeader() {
           })}
         </nav>
 
+        {/* The New Studio is the studio now (7 Oct); the old one is retired. /app signs in first. */}
         <Link
-          href="/studio"
+          href="/app"
           className="ml-auto hidden rounded-full bg-accent px-5 py-2.5 text-[15px] font-medium text-white transition hover:bg-accent-hover lg:ml-0 lg:block"
-        >
-          Open the Studio
-        </Link>
-        <Link
-          href="/new-studio"
-          className="hidden rounded-full border border-madder px-5 py-2.5 text-[15px] font-medium text-madder transition hover:bg-madder hover:text-white lg:block"
         >
           New Studio
         </Link>
@@ -171,14 +166,8 @@ export function SiteHeader() {
             );
           })}
           <Link
-            href="/studio"
+            href="/app"
             className="mt-3 block rounded-full bg-accent px-5 py-3 text-center text-[16px] font-medium text-white"
-          >
-            Open the Studio
-          </Link>
-          <Link
-            href="/new-studio"
-            className="mt-2 block rounded-full border border-madder px-5 py-3 text-center text-[16px] font-medium text-madder"
           >
             New Studio
           </Link>

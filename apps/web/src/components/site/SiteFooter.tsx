@@ -16,7 +16,7 @@ const COLUMNS = [
   {
     heading: "Product",
     links: [
-      { href: "/studio", label: "Open the Studio" },
+      { href: "/app", label: "New Studio" },
       { href: "/tools", label: "All tools" },
       { href: "/library", label: "Your library" },
     ],

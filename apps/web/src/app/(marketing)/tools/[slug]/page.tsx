@@ -59,7 +59,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
 
           {tool.status === "live" && (
             <Link
-              href="/studio"
+              href="/app"
               className="inline-block rounded-full bg-accent px-6 py-3 text-[15px] font-medium text-white transition hover:bg-accent-hover"
             >
               Try it in the Studio →
