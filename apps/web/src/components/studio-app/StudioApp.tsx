@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREDIT_PAISE, rupees, type Quality } from "@/content/credits";
 import { PACKS, inr } from "@/content/pricing";
 import { ADULT_AGES, BACKGROUNDS, CHILD_AGES, TEMPLATES, type ModelType } from "@/content/promptTemplates";
-import { DEFAULT_GARMENT_TYPE, garmentType as typeOf, requiredSlots, shotFor, type Shot } from "@/content/shots";
+import { DEFAULT_GARMENT_TYPE, GARMENT_TYPES, garmentType as typeOf, requiredSlots, shotFor, type Shot } from "@/content/shots";
 import type { GenerationLook } from "@/db";
 import * as api from "./api";
 import { ConfirmModal, Copy, DownloadIcon, Modal, RefreshIcon, Spinner, TipsModal, Title } from "./screens";
@@ -68,6 +68,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   const [nextAutoId, setNextAutoId] = useState<string | null>(null);
   const [saved, setSaved] = useState<api.SavedProduct[] | null>(null);
   const [savedQuery, setSavedQuery] = useState("");
+  const [savedType, setSavedType] = useState<string>("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; productId: string | null } | null>(null);
   // The pose of the first image (7 Oct, as on the phone): P1 unless another is chosen.
   const [pose, setPose] = useState<string>(PRIMARY_PROMPT);
@@ -405,6 +406,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     go("saved");
     setSaved(null);
     setSavedQuery("");
+    setSavedType(garmentType);
     try {
       setSaved(await api.savedProducts());
     } catch (problem) {
@@ -599,6 +601,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     return made;
   }, [poseRuns, primary]);
   const canDelete = account.role === "owner" || account.platformAdmin;
+  const savedShown = useMemo(() => (saved ?? []).filter((p) => !savedType || p.garmentType === savedType), [saved, savedType]);
   const showBack = stack.length > 0 && !["analyzing", "generating", "posesGenerating"].includes(screen);
   const splash = screen === "splash";
   const gallery = poseRuns;
@@ -743,25 +746,40 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
             <div className="st-stack">
               <Title>{T.product.savedTitle}</Title>
               <Copy>{T.product.savedCopy}</Copy>
+              {/* The garment type chosen on the first screen narrows the list (user, 7 Oct); All shows every product. */}
+              {saved !== null && saved.length > 0 && (
+                <div className="st-type-chips">
+                  <button type="button" className={`st-chip ${savedType === "" ? "st-chip--accent" : ""}`} onClick={() => setSavedType("")}>
+                    {T.product.allTypes} ({saved.length})
+                  </button>
+                  {GARMENT_TYPES.filter((t) => saved.some((p) => p.garmentType === t.value)).map((t) => (
+                    <button key={t.value} type="button" className={`st-chip ${savedType === t.value ? "st-chip--accent" : ""}`} onClick={() => setSavedType(t.value)}>
+                      {t.label} ({saved.filter((p) => p.garmentType === t.value).length})
+                    </button>
+                  ))}
+                </div>
+              )}
               {saved !== null && saved.length > 0 && (
                 <input
                   className="st-input"
                   value={savedQuery}
                   onChange={(e) => setSavedQuery(e.target.value)}
-                  placeholder={T.product.search(saved.length)}
+                  placeholder={T.product.search(savedShown.length)}
                   autoCapitalize="characters"
                   spellCheck={false}
                   inputMode="search"
-                  aria-label={T.product.search(saved.length)}
+                  aria-label={T.product.search(savedShown.length)}
                 />
               )}
               {saved === null ? (
                 <Spinner text={T.common.wait} />
               ) : saved.length === 0 ? (
                 <p className="st-support">{T.product.none}</p>
+              ) : savedShown.length === 0 ? (
+                <p className="st-support">{T.product.noneOfType(typeOf(savedType).label)}</p>
               ) : (
                 <div className="st-list">
-                  {saved
+                  {savedShown
                     .filter((item) => !savedQuery.trim() || (item.productId ?? "").toUpperCase().includes(savedQuery.trim().toUpperCase()))
                     .map((item) => (
                       <div key={item.id} className="st-saved-row">
