@@ -64,6 +64,8 @@ export const T = {
     savedCopy: "Open one to add or retake photos.",
     search: (n: number) => `Search ${n} product${n === 1 ? "" : "s"} by ID`,
     none: "Nothing saved yet.",
+    allTypes: "All",
+    noneOfType: (type: string) => `No ${type.toLowerCase()} saved yet. Tap All to see every product.`,
     noMatch: "No product ID like that.",
     photos: (n: number) => `${n} photo${n === 1 ? "" : "s"}`,
     missing: (labels: string[]) => `Missing: ${labels.join(", ")}`,

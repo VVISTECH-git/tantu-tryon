@@ -30,7 +30,8 @@ export async function GET() {
     const account = await requireAccount();
     // A record is made when Continue is tapped, before any photo; one left
     // with no photos is not shown (28 Sep: empty rows filled the list).
-    const rows = (await listGarments(account.id)).filter((g) => g.parts.length > 0);
+    // Up to 2,000: the catalogue import alone is 413 (7 Oct); the first 200 cut the list short.
+    const rows = (await listGarments(account.id, 2000)).filter((g) => g.parts.length > 0);
     // Images made per product (30 Sep): shown in the list, for photographers too.
     const made = rows.length
       ? await db

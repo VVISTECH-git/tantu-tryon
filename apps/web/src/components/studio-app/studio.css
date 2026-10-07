@@ -637,3 +637,4 @@
 .st-made-chip { flex: none; color: var(--st-text-muted); }
 .st-made-chip.is-made { color: var(--st-good, #2e7d32); border-color: var(--st-good, #2e7d32); }
 .st-link--danger { align-self: center; color: var(--st-bad, #b83a2e); }
+.st-type-chips { display: flex; flex-wrap: wrap; gap: 6px; }
