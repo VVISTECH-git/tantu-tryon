@@ -141,7 +141,8 @@ export async function photosToMark(limit = 200): Promise<PhotoToMark[]> {
     .select({ id: garments.id, productCode: garments.productCode, parts: garments.parts })
     .from(garments)
     .innerJoin(accounts, eq(garments.accountId, accounts.id))
-    .where(and(isNull(garments.deletedAt), eq(accounts.kind, "shared")));
+    // Saree parts only: a kurti or frock has no pallu or borders to mark (7 Oct).
+    .where(and(isNull(garments.deletedAt), eq(accounts.kind, "shared"), eq(garments.garmentType, "saree")));
   const marks = await labelsForProducts(rows.map((r) => r.id));
   const out: PhotoToMark[] = [];
   for (const g of rows) {

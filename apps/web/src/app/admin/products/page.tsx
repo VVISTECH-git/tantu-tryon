@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { PartLabel } from "@/db";
 import { canReviewLabels, labelsForProducts } from "@/lib/partLabels";
 import { requirePage } from "@/lib/page-auth";
+import { GARMENT_TYPES, garmentType } from "@/content/shots";
 import { productInputsById, productRows } from "@/lib/productInputs";
 import { LabelCard } from "../labels/LabelCard";
 import { CropPhoto } from "./CropPhoto";
@@ -24,20 +25,23 @@ function marksSummary(labels: PartLabel[]): { text: string; tone: string } | nul
 const PER_PAGE = 10;
 
 /** The list's own address with these filters, leaving out the empty ones. */
-function listHref(f: { by?: string; q?: string; page?: number; open?: string }): string {
+function listHref(f: { by?: string; type?: string; q?: string; page?: number; open?: string }): string {
   const sp = new URLSearchParams();
   if (f.open) sp.set("open", f.open);
   if (f.by) sp.set("by", f.by);
+  if (f.type) sp.set("type", f.type);
   if (f.q) sp.set("q", f.q);
   if (f.page && f.page > 1) sp.set("page", String(f.page));
   const s = sp.toString();
   return `/admin/products${s ? `?${s}` : ""}`;
 }
 
-/** Products taken by this person and whose ID contains the search, in list order. */
-function filtered<T extends { takenBy: string[]; productCode: string | null }>(rows: T[], by?: string, q?: string): T[] {
+/** Products taken by this person, of this garment type, and whose ID contains the search, in list order. */
+function filtered<T extends { takenBy: string[]; productCode: string | null; garmentType: string }>(rows: T[], by?: string, q?: string, type?: string): T[] {
   const needle = q?.trim().toLowerCase();
-  return rows.filter((r) => (!by || r.takenBy.includes(by)) && (!needle || (r.productCode ?? "").toLowerCase().includes(needle)));
+  return rows.filter(
+    (r) => (!by || r.takenBy.includes(by)) && (!type || r.garmentType === type) && (!needle || (r.productCode ?? "").toLowerCase().includes(needle)),
+  );
 }
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" });
@@ -48,26 +52,26 @@ const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { timeZone: 
  * done). One product opens its inputs: the photos, the input sheet and the
  * prompt each pose would send. Nothing here generates or costs anything.
  */
-export default async function ProductsPage({ searchParams }: { searchParams: Promise<{ by?: string; open?: string; q?: string; page?: string }> }) {
+export default async function ProductsPage({ searchParams }: { searchParams: Promise<{ by?: string; type?: string; open?: string; q?: string; page?: string }> }) {
   // The platform admin sees every shop's products; the house shop's owner and
   // studio (the supervisor, 4 Oct) see their own, to check the parts marked on each photo.
   const account = await requirePage("/admin/products");
   const platform = account.platformAdmin;
   if (!platform && !canReviewLabels(account)) redirect("/app");
   const shop = platform ? undefined : account.id;
-  const { by, open, q: rawQ, page: rawPage } = await searchParams;
+  const { by, type, open, q: rawQ, page: rawPage } = await searchParams;
   const q = rawQ?.trim() || undefined;
 
   if (open) {
     const [g, list, labels] = await Promise.all([productInputsById(open, shop), productRows(shop), labelsForProducts([open])]);
     const marked = new Map(labels.map((l) => [l.slot, l]));
     // Previous / Next walk the list in its own order (newest first), keeping its filter.
-    const order = filtered(list, by, q);
+    const order = filtered(list, by, q, type);
     const at = order.findIndex((r) => r.id === open);
     const prev = at > 0 ? order[at - 1] : null;
     const next = at >= 0 && at < order.length - 1 ? order[at + 1] : null;
     // Back to the list on the page this product is on.
-    const back = listHref({ by, q, page: at >= 0 ? Math.floor(at / PER_PAGE) + 1 : 1 });
+    const back = listHref({ by, type, q, page: at >= 0 ? Math.floor(at / PER_PAGE) + 1 : 1 });
     const nav = (
       <div className="flex flex-wrap items-center justify-between gap-3 text-[13.5px]">
         <Link href={back} className="text-accent underline">
@@ -75,7 +79,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         </Link>
         <span className="flex items-center gap-4">
           {prev ? (
-            <Link href={listHref({ open: prev.id, by, q })} className="rounded-full border border-line px-3 py-1 hover:border-ink-faint">
+            <Link href={listHref({ open: prev.id, by, type, q })} className="rounded-full border border-line px-3 py-1 hover:border-ink-faint">
               ‹ Previous · {prev.productCode ?? "No product ID"}
             </Link>
           ) : (
@@ -83,7 +87,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
           )}
           {at >= 0 && <span className="text-ink-faint tabular-nums">{at + 1} of {order.length}</span>}
           {next ? (
-            <Link href={listHref({ open: next.id, by, q })} className="rounded-full border border-line px-3 py-1 hover:border-ink-faint">
+            <Link href={listHref({ open: next.id, by, type, q })} className="rounded-full border border-line px-3 py-1 hover:border-ink-faint">
               Next · {next.productCode ?? "No product ID"} ›
             </Link>
           ) : (
@@ -204,7 +208,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
   const all = await productRows(shop);
   const marks = await labelsForProducts(all.map((r) => r.id));
   const people = [...new Set(all.flatMap((r) => r.takenBy))].sort();
-  const matching = filtered(all, by, q);
+  const matching = filtered(all, by, q, type);
   const pages = Math.max(1, Math.ceil(matching.length / PER_PAGE));
   const page = Math.min(pages, Math.max(1, Number(rawPage) || 1));
   const rows = matching.slice((page - 1) * PER_PAGE, page * PER_PAGE);
@@ -223,6 +227,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
 
       <form action="/admin/products" className="mt-4 flex flex-wrap gap-2">
         {by && <input type="hidden" name="by" value={by} />}
+        {type && <input type="hidden" name="type" value={type} />}
         <input
           name="q"
           defaultValue={q ?? ""}
@@ -234,20 +239,36 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
           Find
         </button>
         {q && (
-          <Link href={listHref({ by })} className="self-center text-[13px] text-ink-soft underline">
+          <Link href={listHref({ by, type })} className="self-center text-[13px] text-ink-soft underline">
             Clear
           </Link>
         )}
       </form>
 
+      {/* By garment type, in the upload picker's order; a type shows once it has a product. */}
       <p className="mt-3 flex flex-wrap gap-2 text-[13px]">
-        <Link href={listHref({ q })} className={`rounded-full border px-3 py-1 ${!by ? "border-accent text-accent" : "border-line"}`}>
+        <Link href={listHref({ by, q })} className={`rounded-full border px-3 py-1 ${!type ? "border-accent text-accent" : "border-line"}`}>
+          All types ({all.filter((r) => !by || r.takenBy.includes(by)).length})
+        </Link>
+        {GARMENT_TYPES.filter((t) => all.some((r) => r.garmentType === t.value)).map((t) => (
+          <Link
+            key={t.value}
+            href={listHref({ by, type: t.value, q })}
+            className={`rounded-full border px-3 py-1 ${type === t.value ? "border-accent text-accent" : "border-line"}`}
+          >
+            {t.label} ({all.filter((r) => r.garmentType === t.value && (!by || r.takenBy.includes(by))).length})
+          </Link>
+        ))}
+      </p>
+
+      <p className="mt-2 flex flex-wrap gap-2 text-[13px]">
+        <Link href={listHref({ q, type })} className={`rounded-full border px-3 py-1 ${!by ? "border-accent text-accent" : "border-line"}`}>
           Everyone ({all.length})
         </Link>
         {people.map((p) => (
           <Link
             key={p}
-            href={listHref({ by: p, q })}
+            href={listHref({ by: p, type, q })}
             className={`rounded-full border px-3 py-1 ${by === p ? "border-accent text-accent" : "border-line"}`}
           >
             {p} ({all.filter((r) => r.takenBy.includes(p)).length})
@@ -257,7 +278,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
 
       <div className="mt-5 grid gap-3">
         {rows.map((r) => (
-          <Link key={r.id} href={listHref({ open: r.id, by, q })} className="flex items-center gap-4 rounded-xl border border-line bg-surface p-3 hover:border-ink-faint">
+          <Link key={r.id} href={listHref({ open: r.id, by, type, q })} className="flex items-center gap-4 rounded-xl border border-line bg-surface p-3 hover:border-ink-faint">
             <div className="flex gap-1.5">
               {r.photos.slice(0, 4).map((p) => (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -265,7 +286,9 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
               ))}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[14.5px] font-semibold">{r.productCode ?? "No product ID"}</p>
+              <p className="truncate text-[14.5px] font-semibold">
+                {r.productCode ?? "No product ID"} <span className="font-normal text-ink-soft">· {garmentType(r.garmentType).label}</span>
+              </p>
               <p className="text-[12.5px] text-ink-soft">
                 {r.photos.length} photo{r.photos.length === 1 ? "" : "s"} · {r.photos.map((p) => p.slot).join(", ")}
                 {r.takenBy.length ? ` · by ${r.takenBy.join(", ")}` : ""}
@@ -290,7 +313,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
       {pages > 1 && (
         <nav className="mt-6 flex flex-wrap items-center justify-between gap-3 text-[13.5px]" aria-label="Pages">
           {page > 1 ? (
-            <Link href={listHref({ by, q, page: page - 1 })} className="rounded-full border border-line px-3 py-1 hover:border-ink-faint">
+            <Link href={listHref({ by, type, q, page: page - 1 })} className="rounded-full border border-line px-3 py-1 hover:border-ink-faint">
               ‹ Previous 10
             </Link>
           ) : (
@@ -300,7 +323,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
             {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
               <Link
                 key={n}
-                href={listHref({ by, q, page: n })}
+                href={listHref({ by, type, q, page: n })}
                 aria-current={n === page ? "page" : undefined}
                 className={`min-w-8 rounded-full px-2.5 py-1 text-center tabular-nums ${n === page ? "bg-accent font-semibold text-white" : "text-ink-soft hover:text-ink"}`}
               >
@@ -309,7 +332,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
             ))}
           </span>
           {page < pages ? (
-            <Link href={listHref({ by, q, page: page + 1 })} className="rounded-full border border-line px-3 py-1 hover:border-ink-faint">
+            <Link href={listHref({ by, type, q, page: page + 1 })} className="rounded-full border border-line px-3 py-1 hover:border-ink-faint">
               Next 10 ›
             </Link>
           ) : (
