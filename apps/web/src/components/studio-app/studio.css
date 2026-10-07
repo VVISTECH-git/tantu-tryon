@@ -627,3 +627,13 @@
 .st-edit-grid { position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.35) 1px, transparent 1px); background-size: 12.5% 12.5%; }
 .st-edit-slider { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
 .st-edit-slider input { width: 100%; accent-color: #f08d42; }
+
+/* ── Offline bar, pose chooser, delete link (7 Oct) ── */
+.st-offline { padding: 8px 14px; background: #b83a2e; color: #fff; font-size: 13px; font-weight: 600; text-align: center; }
+.st-pose-row { align-items: center; min-height: 56px; cursor: pointer; }
+.st-radio { width: 20px; height: 20px; flex: none; border-radius: 50%; border: 2px solid var(--st-border-strong); display: grid; place-items: center; }
+.st-radio.is-on { border-color: var(--st-accent); }
+.st-radio.is-on::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--st-accent); }
+.st-made-chip { flex: none; color: var(--st-text-muted); }
+.st-made-chip.is-made { color: var(--st-good, #2e7d32); border-color: var(--st-good, #2e7d32); }
+.st-link--danger { align-self: center; color: var(--st-bad, #b83a2e); }

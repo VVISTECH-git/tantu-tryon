@@ -68,7 +68,30 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   const [nextAutoId, setNextAutoId] = useState<string | null>(null);
   const [saved, setSaved] = useState<api.SavedProduct[] | null>(null);
   const [savedQuery, setSavedQuery] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<api.SavedProduct | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; productId: string | null } | null>(null);
+  // The pose of the first image (7 Oct, as on the phone): P1 unless another is chosen.
+  const [pose, setPose] = useState<string>(PRIMARY_PROMPT);
+  // Online or not; one bar across every screen when not, and uploads wait for it to come back.
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    const sync = () => setOnline(navigator.onLine);
+    sync();
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    return () => {
+      window.removeEventListener("online", sync);
+      window.removeEventListener("offline", sync);
+    };
+  }, []);
+  // A photo still sending: leaving the page would lose it.
+  useEffect(() => {
+    if (busySlot === null) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [busySlot]);
   // The photo just taken or picked, waiting on Use photo / Edit / Retake (7 Oct).
   const [pending, setPending] = useState<{ file: File; slot: string; camera: boolean } | null>(null);
   const restored = useRef(false);
@@ -123,10 +146,13 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
         setWords(w);
         const runs = await api.listRuns(g);
         const done = runs.filter((r) => r.status === "done");
-        const p = [...done].reverse().find((r) => r.promptId === PRIMARY_PROMPT) ?? null;
+        const p = [...done].reverse()[0] ?? null;
         setPrimary(p);
-        setPoseRuns(runs.filter((r) => r.promptId !== PRIMARY_PROMPT));
-        if (p) setLook(p.look);
+        setPoseRuns(runs.filter((r) => r.id !== p?.id));
+        if (p) {
+          setLook(p.look);
+          setPose(p.promptId);
+        }
         setGarmentType(loaded.garmentType);
         setProductId(loaded.productCode ?? "");
         const allowed: Screen[] = ["shots", "saved", "confirm", "flats", "model", "background", "output", "result", "poses", "gallery", "myImages", "profile", "pricing"];
@@ -221,7 +247,22 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     try {
       // The record is opened before the first photo now (product ID flow); a photo with none open starts one.
       const fresh = garment?.source === "upload" ? garment.id : null;
-      const result = await api.uploadPart(file, slot, fresh, garment?.garmentType ?? garmentType, brightness);
+      let result: api.UploadResult | null = null;
+      for (let attempt = 0; result === null; attempt++) {
+        try {
+          result = await api.uploadPart(file, slot, fresh, garment?.garmentType ?? garmentType, brightness);
+        } catch (problem) {
+          // No internet (a network error, or the browser says so): keep the photo and send when it is back.
+          const network = problem instanceof TypeError || !navigator.onLine;
+          if (!network || attempt >= 20) throw problem;
+          setOnline(false);
+          await new Promise<void>((resolve) => {
+            const timer = setTimeout(resolve, 15_000);
+            window.addEventListener("online", () => { clearTimeout(timer); resolve(); }, { once: true });
+          });
+          setOnline(navigator.onLine);
+        }
+      }
       if (!fresh) {
         setPrimary(null);
         setPoseRuns([]);
@@ -301,6 +342,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     setPoseRuns([]);
     setWarnings([]);
     setBatch(crypto.randomUUID());
+    setPose(PRIMARY_PROMPT);
     go("shots");
   }
 
@@ -381,8 +423,10 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
       // Images already made from it come back too, so Result and the gallery are not empty.
       const runs = await api.listRuns(g.id);
       const done = runs.filter((r) => r.status === "done");
-      setPrimary([...done].reverse().find((r) => r.promptId === PRIMARY_PROMPT) ?? null);
-      setPoseRuns(runs.filter((r) => r.promptId !== PRIMARY_PROMPT));
+      const p = [...done].reverse()[0] ?? null;
+      setPrimary(p);
+      setPoseRuns(runs.filter((r) => r.id !== p?.id));
+      if (p) setPose(p.promptId);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "Could not open the product.");
     } finally {
@@ -398,7 +442,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     try {
       await api.deleteProduct(target.id);
       setSaved((list) => list?.filter((p) => p.id !== target.id) ?? null);
-      if (garment?.id === target.id) setGarment(null);
+      if (garment?.id === target.id) startOver();
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "Could not delete the product.");
     } finally {
@@ -422,12 +466,12 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
 
   async function generatePrimary(fresh = false) {
     if (!garment) return;
-    const key = fresh ? `again-${crypto.randomUUID()}` : `${batch}-${PRIMARY_PROMPT}`;
+    const key = fresh ? `again-${crypto.randomUUID()}` : `${batch}-${pose}`;
     setModal(null);
     go("generating");
     setBusy(true);
     try {
-      const run = await api.generate(garment.id, PRIMARY_PROMPT, look, key);
+      const run = await api.generate(garment.id, pose, look, key);
       setPrimary(run);
       setScreen("result");
     } catch (problem) {
@@ -438,7 +482,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
         error: problem instanceof Error ? problem.message : T.generate.failed,
         ms: null,
         model: "",
-        promptId: PRIMARY_PROMPT,
+        promptId: pose,
         promptVersion: "",
         look,
         verdict: null,
@@ -547,6 +591,14 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   const label = (slot: string) => shotFor(garmentType, slot)?.label ?? slot;
   const shotsReady = garment !== null && missing.length === 0 && blocked.length === 0 && busySlot === null;
   const livePoses = useMemo(() => TEMPLATES.filter((t) => t.live && t.id !== PRIMARY_PROMPT), []);
+  const allPoses = useMemo(() => TEMPLATES.filter((t) => t.live), []);
+  // The latest finished image per pose, for "Generated · View" and the Images made strip.
+  const madeByPose = useMemo(() => {
+    const made: Record<string, RunView> = {};
+    for (const r of [...poseRuns, ...(primary ? [primary] : [])]) if (r.status === "done" && r.imageUrl) made[r.promptId] = r;
+    return made;
+  }, [poseRuns, primary]);
+  const canDelete = account.role === "owner" || account.platformAdmin;
   const showBack = stack.length > 0 && !["analyzing", "generating", "posesGenerating"].includes(screen);
   const splash = screen === "splash";
   const gallery = poseRuns;
@@ -566,6 +618,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
             </div>
           </div>
         )}
+        {!splash && !online && <div className="st-offline">{T.offline}</div>}
         {!splash && (
         <header className="st-header">
           <div className="st-header-main">
@@ -787,6 +840,19 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                 onHow={(shot) => { setHowShot(shot); setModal("how"); }}
                 onClear={(shot) => void clearShot(shot.slot)}
               />
+              {Object.keys(madeByPose).length > 0 && (
+                <div className="st-stack" style={{ gap: 8 }}>
+                  <div className="st-section-title">{T.imagesMade}</div>
+                  <div className="st-strip">
+                    {allPoses.filter((p) => madeByPose[p.id]).map((p) => (
+                      <button key={p.id} type="button" className="st-strip-item" onClick={() => { setViewer(madeByPose[p.id]!); setModal("viewer"); }}>
+                        <span className="st-strip-thumb"><img src={madeByPose[p.id]!.imageUrl!} alt="" /></span>
+                        <span className="st-strip-label">{p.id} · {p.title.split(",")[0]}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <p className="st-support">{T.shots.support}</p>
               {photographer ? (
                 // The photographer only captures: the shop's other logins read and generate.
@@ -811,6 +877,11 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                       : busySlot
                         ? T.shots.uploading
                         : T.common.continue}
+                </button>
+              )}
+              {canDelete && garment && (
+                <button type="button" className="st-link st-link--danger" disabled={busy} onClick={() => { setDeleteTarget({ id: garment.id, productId: garment.productCode }); setModal("delete"); }}>
+                  {T.product.deleteHere}
                 </button>
               )}
             </div>
@@ -859,14 +930,8 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                 onHow={(shot) => { setHowShot(shot); setModal("how"); }}
                 onClear={(shot) => void clearShot(shot.slot)}
               />
-              {balance < CREDIT_PAISE[look.quality] && <p className="st-support">{T.output.exhausted}</p>}
-              <button
-                type="button"
-                className="st-action"
-                disabled={busy || busySlot !== null || balance < CREDIT_PAISE[look.quality]}
-                onClick={() => void generatePrimary()}
-              >
-                {T.generate.action}
+              <button type="button" className="st-action" disabled={busy || busySlot !== null} onClick={() => go("model")}>
+                {T.common.continue}
               </button>
             </div>
           )}
@@ -945,9 +1010,31 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                   </button>
                 ))}
               </div>
+              <div className="st-section-title">{T.pose.title}</div>
+              <div className="st-list">
+                {allPoses.map((p) => {
+                  const on = pose === p.id;
+                  const made = madeByPose[p.id];
+                  return (
+                    <div key={p.id} className={`st-tile st-pose-row ${on ? "is-selected" : ""}`} role="radio" aria-checked={on} tabIndex={0} onClick={() => setPose(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setPose(p.id); }}>
+                      <span className={`st-radio ${on ? "is-on" : ""}`} aria-hidden />
+                      <span className="st-tile-body">
+                        <span className="st-tile-label">{p.id} <span className="st-tile-help">· {p.title}</span></span>
+                      </span>
+                      {made ? (
+                        <button type="button" className="st-chip st-made-chip is-made" onClick={(e) => { e.stopPropagation(); setViewer(made); setModal("viewer"); }}>
+                          {T.pose.generated}
+                        </button>
+                      ) : (
+                        <span className="st-chip st-made-chip">{T.pose.notYet}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
               <p className="st-support">{balance < CREDIT_PAISE[look.quality] ? T.output.exhausted : T.output.trialHint}</p>
               <button type="button" className="st-action" disabled={busy || balance < CREDIT_PAISE[look.quality]} onClick={() => void generatePrimary()}>
-                {T.generate.action} · {rupees(CREDIT_PAISE[look.quality])}
+                {T.pose.generate(pose)} · {rupees(CREDIT_PAISE[look.quality])}
               </button>
             </div>
           )}

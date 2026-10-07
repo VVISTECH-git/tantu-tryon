@@ -72,8 +72,12 @@ export const T = {
     delete: "Delete",
     deleteTitle: (id: string | null) => `Delete ${id ?? "this product"}?`,
     deleteMessage: "Its photos go too. Images already made from it are kept.",
+    deleteHere: "Delete this product",
     noId: "No product ID",
   },
+  offline: "No internet. Photos you take are kept and send when it is back.",
+  imagesMade: "Images made",
+  pose: { title: "Pose", generated: "Generated · View", notYet: "Not yet", generate: (id: string) => `Generate ${id}` },
   review: {
     title: (slot: string) => `${slot} photo`,
     editTitle: (slot: string) => `Edit the ${slot.toLowerCase()} photo`,
