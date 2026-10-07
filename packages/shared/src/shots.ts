@@ -44,22 +44,16 @@ export interface GarmentTypeOption {
   enabled: boolean;
 }
 
+// Only what the shop actually sells (7 Oct, from the Kalamkari Works catalogue); the
+// underwear, tees and western types were never going to be used and were removed.
 export const GARMENT_TYPES: GarmentTypeOption[] = [
   { value: "saree", label: "Saree", group: "Women", family: "unstitched", enabled: true },
-  { value: "stitched_kurta", label: "Women's Stitched Kurta", group: "Women", family: "stitched_top", enabled: false },
-  { value: "unstitched_kurta", label: "Women's Unstitched Kurta", group: "Women", family: "unstitched", enabled: false },
-  { value: "womens_dress", label: "Women's Western Dress", group: "Women", family: "stitched_top", enabled: false },
-  { value: "womens_top", label: "Women's Top", group: "Women", family: "stitched_top", enabled: false },
-  { value: "womens_tee", label: "Women's Tee", group: "Women", family: "stitched_top", enabled: false },
-  { value: "womens_bra", label: "Women's Bra", group: "Women", family: "stitched_top", enabled: false },
-  { value: "womens_briefs", label: "Women's Briefs", group: "Women", family: "bottom", enabled: false },
-  { value: "womens_sleepwear", label: "Women's Sleepwear", group: "Women", family: "set", enabled: false },
-  { value: "womens_lehenga", label: "Women's Lehenga / Indian Bridal", group: "Women", family: "set", enabled: false },
-  { value: "mens_tee", label: "Men's Tee", group: "Men", family: "stitched_top", enabled: false },
-  { value: "mens_shirt", label: "Men's Shirt", group: "Men", family: "stitched_top", enabled: false },
-  { value: "mens_kurta", label: "Men's Kurta", group: "Men", family: "stitched_top", enabled: false },
-  { value: "kids_western_wear", label: "Kids Western Wear", group: "Kids", family: "set", enabled: false },
-  { value: "kids_indian_ethnic", label: "Kids Indian Ethnic", group: "Kids", family: "set", enabled: false },
+  { value: "blouse", label: "Blouse", group: "Women", family: "stitched_top", enabled: false },
+  { value: "kurti", label: "Kurti", group: "Women", family: "stitched_top", enabled: false },
+  { value: "frock", label: "Frock / Anarkali", group: "Women", family: "stitched_top", enabled: false },
+  { value: "coord_set", label: "Co-ord set", group: "Women", family: "set", enabled: false },
+  { value: "top_skirt", label: "Top & skirt", group: "Women", family: "set", enabled: false },
+  { value: "dupatta", label: "Dupatta", group: "Women", family: "unstitched", enabled: false },
 ];
 
 export const DEFAULT_GARMENT_TYPE = "saree";
@@ -71,6 +65,8 @@ export function garmentType(value: string | null | undefined): GarmentTypeOption
 export function garmentTypeGroups(): Record<GarmentTypeOption["group"], GarmentTypeOption[]> {
   const groups: Record<GarmentTypeOption["group"], GarmentTypeOption[]> = { Women: [], Men: [], Kids: [] };
   for (const t of GARMENT_TYPES) groups[t.group].push(t);
+  // A group with nothing in it would show as an empty heading in the picker.
+  for (const g of Object.keys(groups) as GarmentTypeOption["group"][]) if (groups[g].length === 0) delete groups[g];
   return groups;
 }
 

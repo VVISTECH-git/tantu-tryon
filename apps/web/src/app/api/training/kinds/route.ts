@@ -1,6 +1,6 @@
 import { canReviewLabels } from "@/lib/partLabels";
 import { Forbidden, requireAccount, unauthorised } from "@/lib/session";
-import { PHOTO_KINDS, TRAINING_SHOPS, readJson, writeJson, type PhotoKind } from "@/lib/trainingStore";
+import { PHOTO_KINDS, PRODUCT_ID, TRAINING_SHOPS, readJson, writeJson, type PhotoKind } from "@/lib/trainingStore";
 
 export const runtime = "nodejs";
 
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const account = await requireAccount();
     if (!canReviewLabels(account)) throw new Forbidden();
     const { shop, id, file, kind } = (await request.json().catch(() => ({}))) as { shop?: string; id?: string; file?: string; kind?: string };
-    if (!TRAINING_SHOPS.includes(shop as (typeof TRAINING_SHOPS)[number]) || !/^\d+$/.test(id ?? "") || !/^\d\d\.\w+$/.test(file ?? "")) {
+    if (!TRAINING_SHOPS.includes(shop as (typeof TRAINING_SHOPS)[number]) || !PRODUCT_ID.test(id ?? "") || !/^\d\d\.\w+$/.test(file ?? "")) {
       return Response.json({ error: "Which photo?" }, { status: 400 });
     }
     if (!PHOTO_KINDS.includes(kind as PhotoKind)) return Response.json({ error: "Choose full, fabric or poster." }, { status: 400 });

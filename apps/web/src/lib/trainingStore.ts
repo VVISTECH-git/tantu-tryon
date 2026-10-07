@@ -17,7 +17,9 @@ const BUCKET = process.env.TRAIN_R2_BUCKET ?? "sareeai-training";
 const KEY_ID = process.env.TRAIN_R2_ACCESS_KEY_ID ?? "";
 const SECRET = process.env.TRAIN_R2_SECRET_ACCESS_KEY ?? "";
 
-export const TRAINING_SHOPS = ["itokri", "shobitam", "holyweaves"] as const;
+export const TRAINING_SHOPS = ["itokri", "shobitam", "holyweaves", "kalamkari-works"] as const;
+/** Shop products are numbered (Shopify ids); our own test data uses IDs like KW-0042 (7 Oct). */
+export const PRODUCT_ID = /^(\d+|[A-Z]{2}-\d{4})$/;
 export const PHOTO_KINDS = ["full", "fabric", "poster"] as const;
 export type PhotoKind = (typeof PHOTO_KINDS)[number];
 
@@ -167,7 +169,7 @@ export async function shopIndex(shop: string): Promise<IndexedProduct[]> {
   const hit = indexCache.get(shop);
   if (hit && Date.now() - hit.at < INDEX_FOR_MS) return hit.products;
   const data = await readJson<{ products: IndexedProduct[] }>(`${shop}/_index.json`);
-  const products = data?.products ?? (await listFolders(`${shop}/`)).filter((id) => /^\d+$/.test(id)).sort().reverse().map((id) => ({ id, title: null, photos: [], small: [], kinds: {} }));
+  const products = data?.products ?? (await listFolders(`${shop}/`)).filter((id) => PRODUCT_ID.test(id)).sort().reverse().map((id) => ({ id, title: null, photos: [], small: [], kinds: {} }));
   indexCache.set(shop, { at: Date.now(), products });
   return products;
 }

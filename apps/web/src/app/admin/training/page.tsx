@@ -9,7 +9,7 @@ import { TrainingPhotos } from "./TrainingPhotos";
 export const dynamic = "force-dynamic";
 
 const PER_PAGE = 24;
-const SHOP_NAMES: Record<string, string> = { itokri: "iTokri", shobitam: "Shobitam", holyweaves: "Holy Weaves" };
+const SHOP_NAMES: Record<string, string> = { itokri: "iTokri", shobitam: "Shobitam", holyweaves: "Holy Weaves", "kalamkari-works": "Kalamkari Works" };
 
 function href(f: { shop?: string; page?: number; open?: string; q?: string; view?: string; set?: boolean }): string {
   const sp = new URLSearchParams();
@@ -213,7 +213,7 @@ export default async function TrainingPage({ searchParams }: { searchParams: Pro
 
   // The list: newest product numbers first, a page at a time.
   const needle = q?.toLowerCase();
-  const matching = needle ? index.filter((p) => p.id.includes(needle) || (p.title ?? "").toLowerCase().includes(needle)) : index;
+  const matching = needle ? index.filter((p) => p.id.toLowerCase().includes(needle) || (p.title ?? "").toLowerCase().includes(needle)) : index;
   const pages = Math.max(1, Math.ceil(matching.length / PER_PAGE));
   const page = Math.min(pages, Math.max(1, Number(sp.page) || 1));
   // Straight from the index: no reads of the bucket, only links signed here.

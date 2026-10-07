@@ -1,6 +1,6 @@
 import { canReviewLabels, cleanRegions } from "@/lib/partLabels";
 import { Forbidden, requireAccount, unauthorised } from "@/lib/session";
-import { TRAINING_SHOPS, noteMarked, readJson, writeJson, type TrainingMarks } from "@/lib/trainingStore";
+import { PRODUCT_ID, TRAINING_SHOPS, noteMarked, readJson, writeJson, type TrainingMarks } from "@/lib/trainingStore";
 
 export const runtime = "nodejs";
 
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const account = await requireAccount();
     if (!canReviewLabels(account)) throw new Forbidden();
     const body = (await request.json().catch(() => ({}))) as { shop?: string; id?: string; file?: string; regions?: unknown };
-    if (!TRAINING_SHOPS.includes(body.shop as (typeof TRAINING_SHOPS)[number]) || !/^\d+$/.test(body.id ?? "") || !/^\d\d\.\w+$/.test(body.file ?? "")) {
+    if (!TRAINING_SHOPS.includes(body.shop as (typeof TRAINING_SHOPS)[number]) || !PRODUCT_ID.test(body.id ?? "") || !/^\d\d\.\w+$/.test(body.file ?? "")) {
       return Response.json({ error: "Which photo?" }, { status: 400 });
     }
     const regions = Array.isArray(body.regions) && body.regions.length === 0 ? [] : cleanRegions(body.regions);
