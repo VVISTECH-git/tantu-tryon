@@ -29,7 +29,7 @@ interface Props {
   canDescribe: boolean;
 }
 
-type ModalKind = null | "tips" | "how" | "restart" | "regenerate" | "regeneratePose" | "tooLarge" | "limit" | "viewer";
+type ModalKind = null | "tips" | "how" | "restart" | "regenerate" | "regeneratePose" | "tooLarge" | "limit" | "viewer" | "delete";
 
 const KIDS: ModelType[] = ["girl", "boy"];
 
@@ -60,6 +60,14 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   const [myImages, setMyImages] = useState<RunView[] | null>(null);
   const [code, setCode] = useState("");
   const [showCode, setShowCode] = useState(false);
+  // Product IDs (7 Oct), as on the phone: typed, given automatically to the photographer, or added later.
+  const photographer = account.role === "photographer" && !account.platformAdmin;
+  const [productId, setProductId] = useState("");
+  const [lateId, setLateId] = useState("");
+  const [nextAutoId, setNextAutoId] = useState<string | null>(null);
+  const [saved, setSaved] = useState<api.SavedProduct[] | null>(null);
+  const [savedQuery, setSavedQuery] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<api.SavedProduct | null>(null);
   const restored = useRef(false);
   // Two pickers for the same slot: the camera one opens the phone camera, the other the photo library.
   const cameraInput = useRef<HTMLInputElement>(null);
@@ -117,8 +125,9 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
         setPoseRuns(runs.filter((r) => r.promptId !== PRIMARY_PROMPT));
         if (p) setLook(p.look);
         setGarmentType(loaded.garmentType);
-        const allowed: Screen[] = ["shots", "confirm", "flats", "model", "background", "output", "result", "poses", "gallery", "myImages", "profile", "pricing"];
-        setScreen(s && allowed.includes(s) ? s : p ? "result" : "confirm");
+        setProductId(loaded.productCode ?? "");
+        const allowed: Screen[] = ["shots", "saved", "confirm", "flats", "model", "background", "output", "result", "poses", "gallery", "myImages", "profile", "pricing"];
+        setScreen(s && allowed.includes(s) ? s : p ? "result" : loaded.parts.length ? "confirm" : "shots");
       } catch {
         // A stale link: start over quietly.
       } finally {
@@ -135,6 +144,20 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     return () => clearTimeout(timer);
   }, [screen]);
 
+  // The photographer's next automatic number, shown before Continue is tapped
+  // and again on the shot list once photos are in ("Done · next product 9007").
+  const takenHere = garment?.parts.length ?? 0;
+  // On the shot list with nothing taken yet, this product's own number is still the next one.
+  const holdsOwnNumber = screen === "shots" && takenHere === 0;
+  useEffect(() => {
+    if (!photographer || (screen !== "upload" && screen !== "shots") || holdsOwnNumber) return;
+    let live = true;
+    api.nextAutoProductId().then((id) => live && setNextAutoId(id)).catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [screen, photographer, garment?.id, holdsOwnNumber]);
+
   async function refreshBalance() {
     try {
       setBalance(await api.balance());
@@ -145,6 +168,8 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
 
   function resetAll() {
     setGarment(null);
+    setProductId("");
+    setLateId("");
     setWords({});
     setWarnings([]);
     setPrimary(null);
@@ -184,8 +209,9 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     setBusySlot(slot);
     setError(null);
     try {
-      const fresh = garment?.source === "upload" && garment.garmentType === garmentType ? garment.id : null;
-      const result = await api.uploadPart(file, slot, fresh, garmentType);
+      // The record is opened before the first photo now (product ID flow); a photo with none open starts one.
+      const fresh = garment?.source === "upload" ? garment.id : null;
+      const result = await api.uploadPart(file, slot, fresh, garment?.garmentType ?? garmentType);
       if (!fresh) {
         setPrimary(null);
         setPoseRuns([]);
@@ -203,7 +229,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     if (!garment) return;
     setBusySlot(slot);
     try {
-      setGarment(await api.patchGarment(garment.id, { rotations: {}, ...({ removeSlots: [slot] } as object) }));
+      setGarment(await api.patchGarment(garment.id, { removeSlots: [slot] }));
     } finally {
       setBusySlot(null);
     }
@@ -252,6 +278,136 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     } finally {
       setBusy(false);
     }
+  }
+
+  // ── Products: open, reopen, name later, list, delete ─────────────────────
+
+  function landOn(g: GarmentView) {
+    setGarment(g);
+    setGarmentType(g.garmentType);
+    setProductId(g.productCode ?? "");
+    setLateId("");
+    setPrimary(null);
+    setPoseRuns([]);
+    setWarnings([]);
+    setBatch(crypto.randomUUID());
+    go("shots");
+  }
+
+  /** The record for this product ID: made on first use, reopened after, with its photos. */
+  async function openProduct() {
+    const id = productId.trim();
+    if (!id) return;
+    setBusy(true);
+    setError(null);
+    try {
+      landOn(await api.openProduct(id, garmentType));
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not open the product.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function openAutoProduct() {
+    setBusy(true);
+    setError(null);
+    try {
+      landOn(await api.openAutoProduct(garmentType));
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not open the product.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function openWithoutId() {
+    setBusy(true);
+    setError(null);
+    try {
+      landOn(await api.openWithoutProductId(garmentType));
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not start the product.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveLateId() {
+    if (!garment || !lateId.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const g = await api.setProductId(garment.id, lateId.trim());
+      setGarment(g);
+      setProductId(g.productCode ?? "");
+      setLateId("");
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not save the product ID.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function showSaved() {
+    go("saved");
+    setSaved(null);
+    setSavedQuery("");
+    try {
+      setSaved(await api.savedProducts());
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not load the saved products.");
+      setSaved([]);
+    }
+  }
+
+  async function reopen(item: api.SavedProduct) {
+    setBusy(true);
+    setError(null);
+    try {
+      const { garment: g, words: w } = await api.getGarment(item.id);
+      setWords(w);
+      landOn(g);
+      // Images already made from it come back too, so Result and the gallery are not empty.
+      const runs = await api.listRuns(g.id);
+      const done = runs.filter((r) => r.status === "done");
+      setPrimary([...done].reverse().find((r) => r.promptId === PRIMARY_PROMPT) ?? null);
+      setPoseRuns(runs.filter((r) => r.promptId !== PRIMARY_PROMPT));
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not open the product.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteNow() {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    setModal(null);
+    setBusy(true);
+    try {
+      await api.deleteProduct(target.id);
+      setSaved((list) => list?.filter((p) => p.id !== target.id) ?? null);
+      if (garment?.id === target.id) setGarment(null);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : "Could not delete the product.");
+    } finally {
+      setDeleteTarget(null);
+      setBusy(false);
+    }
+  }
+
+  /** Photographer: this product is done; back to the start for the next number. */
+  function startOver() {
+    setGarment(null);
+    setProductId("");
+    setLateId("");
+    setPrimary(null);
+    setPoseRuns([]);
+    setWarnings([]);
+    setBatch(crypto.randomUUID());
+    setStack([]);
+    setScreen("upload");
   }
 
   async function generatePrimary(fresh = false) {
@@ -465,11 +621,33 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                 </p>
               </div>
               <div className="st-stack" style={{ width: "100%", gap: 8 }}>
+                <span className="st-section-title" style={{ margin: 0 }}>{T.upload.productLabel}</span>
+                {photographer ? (
+                  <>
+                    <div className="st-input st-product-auto">{nextAutoId ?? "…"}</div>
+                    <p className="st-support" style={{ margin: 0 }}>{T.upload.productAuto}</p>
+                  </>
+                ) : (
+                  <input
+                    className="st-input"
+                    value={productId}
+                    onChange={(e) => setProductId(e.target.value.toUpperCase())}
+                    placeholder={T.upload.productPlaceholder}
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    enterKeyHint="go"
+                    onKeyDown={(e) => { if (e.key === "Enter") void openProduct(); }}
+                    aria-label={T.upload.productLabel}
+                  />
+                )}
+              </div>
+              <div className="st-stack" style={{ width: "100%", gap: 8 }}>
                 <span className="st-section-title" style={{ margin: 0 }}>{T.upload.typeLabel}</span>
                 <GarmentTypeSelect value={garmentType} onChange={setGarmentType} />
                 <p className="st-support" style={{ margin: 0 }}>{T.upload.typeHelp}</p>
               </div>
-              <div className="st-grow" style={{ width: "100%", minHeight: "30vh" }}>
+              <div className="st-grow" style={{ width: "100%", minHeight: "24vh" }}>
                 <div className="st-callout">
                   {T.upload.calloutPrefix}{" "}
                   <button type="button" className="st-link" onClick={() => setModal("tips")}>
@@ -477,17 +655,114 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                   </button>{" "}
                   {T.upload.calloutSuffix}
                 </div>
-                <button type="button" className="st-action" style={{ maxWidth: 300 }} onClick={() => go("shots")}>
-                  {T.upload.dropzone}
+                {photographer ? (
+                  <button type="button" className="st-action" style={{ maxWidth: 300 }} disabled={busy} onClick={() => void openAutoProduct()}>
+                    {busy ? T.upload.opening : T.upload.dropzone}
+                  </button>
+                ) : (
+                  <>
+                    <button type="button" className="st-action" style={{ maxWidth: 300 }} disabled={busy || !productId.trim()} onClick={() => void openProduct()}>
+                      {busy ? T.upload.opening : T.upload.dropzone}
+                    </button>
+                    <button type="button" className="st-link" disabled={busy} onClick={() => void openWithoutId()}>
+                      {T.upload.noProductId}
+                    </button>
+                  </>
+                )}
+                <button type="button" className="st-secondary" style={{ maxWidth: 300 }} onClick={() => void showSaved()}>
+                  {T.upload.saved}
                 </button>
-                <p className="st-support">{T.upload.dropzoneCopy}</p>
               </div>
+            </div>
+          )}
+
+          {screen === "saved" && (
+            <div className="st-stack">
+              <Title>{T.product.savedTitle}</Title>
+              <Copy>{T.product.savedCopy}</Copy>
+              {saved !== null && saved.length > 0 && (
+                <input
+                  className="st-input"
+                  value={savedQuery}
+                  onChange={(e) => setSavedQuery(e.target.value)}
+                  placeholder={T.product.search(saved.length)}
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  inputMode="search"
+                  aria-label={T.product.search(saved.length)}
+                />
+              )}
+              {saved === null ? (
+                <Spinner text={T.common.wait} />
+              ) : saved.length === 0 ? (
+                <p className="st-support">{T.product.none}</p>
+              ) : (
+                <div className="st-list">
+                  {saved
+                    .filter((item) => !savedQuery.trim() || (item.productId ?? "").toUpperCase().includes(savedQuery.trim().toUpperCase()))
+                    .map((item) => (
+                      <div key={item.id} className="st-saved-row">
+                        <button type="button" className="st-saved-open" disabled={busy} onClick={() => void reopen(item)}>
+                          <span className="st-thumb" style={{ cursor: "inherit" }}>
+                            {item.thumb ? <img src={item.thumb} alt="" /> : <span className="st-thumb-empty">{typeOf(item.garmentType).label}</span>}
+                          </span>
+                          <span className="st-saved-text">
+                            <b>{item.productId ?? T.product.noId}</b>
+                            <span className="st-soft">
+                              {typeOf(item.garmentType).label} · {T.product.photos(item.photos)}
+                              {item.slots.length ? ` · ${item.slots.map((slot) => shotFor(item.garmentType, slot)?.label ?? slot).join(", ")}` : ""}
+                            </span>
+                            <span className={item.missing.length ? "st-saved-missing" : "st-saved-complete"}>
+                              {item.missing.length ? T.product.missing(item.missing.map((slot) => shotFor(item.garmentType, slot)?.label ?? slot)) : T.product.complete}
+                              {item.images ? <span className="st-soft">{`  ·  ${T.product.images(item.images)}`}</span> : null}
+                            </span>
+                          </span>
+                          <span className="st-muted">›</span>
+                        </button>
+                        {(account.role === "owner" || account.platformAdmin) && (
+                          <button type="button" className="st-chip st-saved-delete" disabled={busy} onClick={() => { setDeleteTarget(item); setModal("delete"); }}>
+                            {T.product.delete}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  {savedQuery.trim() && !saved.some((item) => (item.productId ?? "").toUpperCase().includes(savedQuery.trim().toUpperCase())) && (
+                    <p className="st-support">{T.product.noMatch}</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
           {screen === "shots" && (
             <div className="st-stack">
               <Title>{T.shots.title(typeOf(garmentType).label)}</Title>
+              {garment?.productCode ? (
+                <div className="st-product-under">
+                  <span className="st-soft">{T.product.savingUnder}</span>
+                  <b>{garment.productCode}</b>
+                </div>
+              ) : garment ? (
+                <div className="st-card st-product-late">
+                  <b>{T.product.noneYet}</b>
+                  <span className="st-support" style={{ margin: 0 }}>{T.product.noneYetHelp}</span>
+                  <div className="st-product-late-row">
+                    <input
+                      className="st-input"
+                      value={lateId}
+                      onChange={(e) => setLateId(e.target.value.toUpperCase())}
+                      placeholder={T.upload.productLabel}
+                      autoCapitalize="characters"
+                      spellCheck={false}
+                      onKeyDown={(e) => { if (e.key === "Enter") void saveLateId(); }}
+                      aria-label={T.upload.productLabel}
+                    />
+                    <button type="button" className="st-chip st-chip--accent" disabled={busy || !lateId.trim()} onClick={() => void saveLateId()}>
+                      {T.product.saveId}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               <Copy>{T.shots.copy}</Copy>
               <p className="st-shots-status">
                 {T.shots.progress(required.length - missing.length, required.length)}
@@ -503,15 +778,31 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                 onClear={(shot) => void clearShot(shot.slot)}
               />
               <p className="st-support">{T.shots.support}</p>
-              <button type="button" className="st-action" disabled={!shotsReady || busy} onClick={() => void analyzeNow()}>
-                {missing.length > 0
-                  ? T.shots.continueMissing(missing.map(label))
-                  : blocked.length > 0
-                    ? T.shots.continueRetake(blocked.map(label))
-                    : busySlot
-                      ? T.shots.uploading
-                      : T.common.continue}
-              </button>
+              {photographer ? (
+                // The photographer only captures: the shop's other logins read and generate.
+                <>
+                  <p className="st-support">
+                    {missing.length > 0
+                      ? `Still needed: ${missing.map(label).join(" and ")}.`
+                      : blocked.length > 0
+                        ? `Retake ${blocked.map(label).join(" and ")}.`
+                        : `All photos are saved under ${garment?.productCode ?? "this product"}.`}
+                  </p>
+                  <button type="button" className="st-action" disabled={busySlot !== null} onClick={startOver}>
+                    {T.product.doneNext(nextAutoId && nextAutoId !== garment?.productCode ? nextAutoId : null)}
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="st-action" disabled={!shotsReady || busy} onClick={() => void analyzeNow()}>
+                  {missing.length > 0
+                    ? T.shots.continueMissing(missing.map(label))
+                    : blocked.length > 0
+                      ? T.shots.continueRetake(blocked.map(label))
+                      : busySlot
+                        ? T.shots.uploading
+                        : T.common.continue}
+                </button>
+              )}
             </div>
           )}
 
@@ -844,10 +1135,11 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
               <Copy>{T.profile.copy}</Copy>
               <div className="st-card">
                 <Row label={T.profile.number} value={account.username ?? account.name} />
-                <Row label={T.profile.plan} value={<span className="st-badge st-badge--soft">{T.profile.trial}</span>} />
-                <Row label={T.profile.remaining} value={rupees(balance)} />
-                <div className="st-question-hint">{T.profile.possible}</div>
-                <div className="st-grid-2">
+                <Row label={T.profile.role} value={account.platformAdmin ? "Platform admin" : account.role} />
+                {!photographer && <Row label={T.profile.plan} value={<span className="st-badge st-badge--soft">{T.profile.trial}</span>} />}
+                {!photographer && <Row label={T.profile.remaining} value={rupees(balance)} />}
+                {!photographer && <div className="st-question-hint">{T.profile.possible}</div>}
+                {!photographer && <div className="st-grid-2">
                   <div className="st-row" style={{ display: "grid", gap: 4 }}>
                     <span className="st-soft" style={{ fontSize: 12 }}>1K</span>
                     <b style={{ fontSize: 20 }}>{Math.floor(balance / CREDIT_PAISE.standard)}</b>
@@ -856,7 +1148,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                     <span className="st-soft" style={{ fontSize: 12 }}>2K</span>
                     <b style={{ fontSize: 20 }}>{Math.floor(balance / CREDIT_PAISE.high)}</b>
                   </div>
-                </div>
+                </div>}
               </div>
               <div className="st-section-title">{T.profile.links}</div>
               <div className="st-list">
@@ -926,16 +1218,24 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
         {!splash && (
         <footer className="st-footer">
           <div className="st-footer-row">
-            <button type="button" className="st-footer-chip st-footer-chip--balance" onClick={() => go("profile")}>
-              {T.footer.balance(rupees(balance))}
-            </button>
-            <button
-              type="button"
-              className={`st-footer-chip ${balance <= 0 ? "st-footer-chip--recharge" : "st-footer-chip--buy"}`}
-              onClick={() => go("pricing")}
-            >
-              {balance <= 0 ? T.footer.recharge : T.footer.buy}
-            </button>
+            {photographer ? (
+              <button type="button" className="st-footer-chip st-footer-chip--balance" onClick={() => void showSaved()}>
+                {T.upload.saved}
+              </button>
+            ) : (
+              <>
+                <button type="button" className="st-footer-chip st-footer-chip--balance" onClick={() => go("profile")}>
+                  {T.footer.balance(rupees(balance))}
+                </button>
+                <button
+                  type="button"
+                  className={`st-footer-chip ${balance <= 0 ? "st-footer-chip--recharge" : "st-footer-chip--buy"}`}
+                  onClick={() => go("pricing")}
+                >
+                  {balance <= 0 ? T.footer.recharge : T.footer.buy}
+                </button>
+              </>
+            )}
             <button type="button" className="st-footer-chip st-footer-chip--gallery" onClick={() => void openMyImages()}>
               {T.myImages.title}
             </button>
@@ -948,6 +1248,9 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
       {modal === "how" && howShot && <ShotHowModal shot={howShot} onClose={() => setModal(null)} />}
       {modal === "restart" && (
         <ConfirmModal icon="👗" title={T.generate.restartTitle} message={T.generate.restartMessage} confirm={T.generate.restartButton} onConfirm={resetAll} onClose={() => setModal(null)} />
+      )}
+      {modal === "delete" && deleteTarget && (
+        <ConfirmModal icon="🗑" title={T.product.deleteTitle(deleteTarget.productId)} message={T.product.deleteMessage} confirm={T.product.delete} onConfirm={() => void deleteNow()} onClose={() => { setModal(null); setDeleteTarget(null); }} />
       )}
       {modal === "regenerate" && (
         <ConfirmModal icon="↻" title={T.generate.regenerateTitle} message={`${T.generate.regenerateMessage} (${rupees(CREDIT_PAISE[look.quality])})`} confirm={T.generate.action} onConfirm={() => void generatePrimary(true)} onClose={() => setModal(null)} />

@@ -577,3 +577,22 @@
   .st-header-link { width: 40px; min-height: 40px; padding: 0; justify-content: center; }
   .st-header-link-text { display: none; }
 }
+
+/* ── Products (7 Oct): the product ID the photos save under, and the saved list ── */
+.st-product-auto { display: grid; align-items: center; font-size: 18px; font-weight: 700; letter-spacing: 0.02em; }
+.st-product-under { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-radius: 14px; background: var(--st-accent-tint); border: 1px solid var(--st-accent-line); font-size: 13px; }
+.st-product-under b { font-size: 16px; font-weight: 700; color: var(--st-text); }
+.st-product-late { gap: 8px; }
+.st-product-late-row { display: flex; gap: 8px; align-items: center; }
+.st-product-late-row .st-input { flex: 1; }
+.st-saved-row { display: flex; align-items: stretch; gap: 8px; }
+.st-saved-open { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0; padding: 10px 12px; border-radius: 18px; border: 1px solid var(--st-border); background: var(--st-surface); box-shadow: var(--st-shadow-soft); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.st-saved-open:disabled { opacity: 0.6; cursor: default; }
+.st-saved-open .st-thumb { width: 52px; flex: none; }
+.st-saved-text { display: grid; gap: 3px; min-width: 0; flex: 1; font-size: 12.5px; }
+.st-saved-text b { font-size: 15px; font-weight: 700; color: var(--st-text); }
+.st-saved-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-saved-missing { color: var(--st-warn, #c77700); }
+.st-saved-complete { color: var(--st-good, #2e7d32); }
+.st-saved-delete { align-self: center; color: var(--st-bad, #b83a2e); }
+.st-link:disabled { opacity: 0.5; cursor: default; }
