@@ -10,6 +10,7 @@ import { DEFAULT_GARMENT_TYPE, garmentType as typeOf, requiredSlots, shotFor, ty
 import type { GenerationLook } from "@/db";
 import * as api from "./api";
 import { ConfirmModal, Copy, DownloadIcon, Modal, RefreshIcon, Spinner, TipsModal, Title } from "./screens";
+import { PhotoReview, type ReviewOutcome } from "./PhotoReview";
 import { GarmentTypeSelect, ShotHowModal, ShotList, ShotStrip, type ShotTile } from "./ShotList";
 import { T } from "./texts";
 import { POSE_TILES, PRIMARY_PROMPT, type GarmentView, type RunView, type Screen } from "./types";
@@ -68,6 +69,8 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   const [saved, setSaved] = useState<api.SavedProduct[] | null>(null);
   const [savedQuery, setSavedQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<api.SavedProduct | null>(null);
+  // The photo just taken or picked, waiting on Use photo / Edit / Retake (7 Oct).
+  const [pending, setPending] = useState<{ file: File; slot: string; camera: boolean } | null>(null);
   const restored = useRef(false);
   // Two pickers for the same slot: the camera one opens the phone camera, the other the photo library.
   const cameraInput = useRef<HTMLInputElement>(null);
@@ -201,17 +204,24 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
       setModal("tooLarge");
       return;
     }
-    void uploadShot(file, activeSlot.current);
+    // Shown first, as on the phone: Use photo sends it as it is; Edit crops, turns or brightens it.
+    setPending({ file, slot: activeSlot.current, camera: event.target === cameraInput.current });
+  }
+
+  function usePending(out: ReviewOutcome) {
+    const p = pending;
+    setPending(null);
+    if (p) void uploadShot(out.file, p.slot, out.brightness);
   }
 
   /** One photograph into its slot; the tile shows the quality verdict as soon as the server has looked. */
-  async function uploadShot(file: File, slot: string) {
+  async function uploadShot(file: File, slot: string, brightness = 0) {
     setBusySlot(slot);
     setError(null);
     try {
       // The record is opened before the first photo now (product ID flow); a photo with none open starts one.
       const fresh = garment?.source === "upload" ? garment.id : null;
-      const result = await api.uploadPart(file, slot, fresh, garment?.garmentType ?? garmentType);
+      const result = await api.uploadPart(file, slot, fresh, garment?.garmentType ?? garmentType, brightness);
       if (!fresh) {
         setPrimary(null);
         setPoseRuns([]);
@@ -1244,6 +1254,20 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
         )}
       </div>
 
+      {pending && (
+        <PhotoReview
+          file={pending.file}
+          slotLabel={label(pending.slot)}
+          onUse={usePending}
+          onBack={() => setPending(null)}
+          onRetake={() => {
+            const { slot, camera } = pending;
+            setPending(null);
+            activeSlot.current = slot;
+            (camera ? cameraInput : fileInput).current?.click();
+          }}
+        />
+      )}
       {modal === "tips" && <TipsModal index={tipIndex} onIndex={setTipIndex} onClose={() => setModal(null)} />}
       {modal === "how" && howShot && <ShotHowModal shot={howShot} onClose={() => setModal(null)} />}
       {modal === "restart" && (

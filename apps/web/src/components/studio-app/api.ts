@@ -27,10 +27,10 @@ export interface UploadResult {
  */
 let directBlocked = false;
 
-export async function uploadPart(file: File, slot: string, garmentId: string | null, type: string): Promise<UploadResult> {
+export async function uploadPart(file: File, slot: string, garmentId: string | null, type: string, brightness = 0): Promise<UploadResult> {
   if (!directBlocked) {
     try {
-      return await uploadDirect(file, slot, garmentId, type);
+      return await uploadDirect(file, slot, garmentId, type, brightness);
     } catch (error) {
       if (!(error instanceof DirectUploadUnavailable)) throw error;
       directBlocked = true;
@@ -41,7 +41,7 @@ export async function uploadPart(file: File, slot: string, garmentId: string | n
 
 class DirectUploadUnavailable extends Error {}
 
-async function uploadDirect(file: File, slot: string, garmentId: string | null, type: string): Promise<UploadResult> {
+async function uploadDirect(file: File, slot: string, garmentId: string | null, type: string, brightness = 0): Promise<UploadResult> {
   const contentType = file.type === "image/png" ? "image/png" : "image/jpeg";
   const asked = await fetch("/api/garments/upload-url", {
     method: "POST",
@@ -69,7 +69,8 @@ async function uploadDirect(file: File, slot: string, garmentId: string | null, 
     await fetch("/api/garments/upload-done", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ garmentId: target.garmentId, slot, key: target.key, previewKey }),
+      // Brightness the browser could not apply itself: the server applies it to the photo.
+      body: JSON.stringify({ garmentId: target.garmentId, slot, key: target.key, previewKey, ...(brightness ? { brightness } : {}) }),
     }),
   );
 }
