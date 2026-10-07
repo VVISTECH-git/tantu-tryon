@@ -47,10 +47,10 @@ export default function GalleryPage() {
             Until then, the honest thing to do is to put a saree through it yourself.
           </p>
             <Link
-              href="/studio"
+              href="/app"
               className="mt-7 inline-block rounded-full bg-accent px-6 py-3 text-[15px] font-medium text-white transition hover:bg-accent-hover"
             >
-              Open the Studio →
+              Open the New Studio →
             </Link>
           </div>
         </>

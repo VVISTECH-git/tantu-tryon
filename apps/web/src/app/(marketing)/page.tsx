@@ -59,10 +59,10 @@ export default function HomePage() {
 
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <Link
-              href="/studio"
+              href="/app"
               className="rounded-full bg-accent px-7 py-3.5 text-[16px] font-medium text-white transition hover:bg-accent-hover"
             >
-              Open the Studio →
+              Open the New Studio →
             </Link>
             <Link
               href="/tools"
@@ -290,10 +290,10 @@ export default function HomePage() {
               answer.
             </p>
             <Link
-              href="/studio"
+              href="/app"
               className="mt-8 inline-block rounded-full bg-accent px-7 py-3.5 text-[16px] font-medium text-white transition hover:bg-accent-hover"
             >
-              Open the Studio →
+              Open the New Studio →
             </Link>
           </div>
           <div className="hidden overflow-hidden rounded-3xl lg:block">
