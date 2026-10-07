@@ -39,7 +39,8 @@ export async function POST(request: Request) {
       return Response.json({ error: "Enter the product ID: letters and numbers, up to 40 characters." }, { status: 400 });
     }
     const type = garmentType(body.type ?? DEFAULT_GARMENT_TYPE);
-    if (!type.enabled) return Response.json({ error: `${type.label} is coming soon.` }, { status: 400 });
+    // A platform admin may file products of types not live yet (the catalogue import, 7 Oct).
+    if (!type.enabled && !account.platformAdmin) return Response.json({ error: `${type.label} is coming soon.` }, { status: 400 });
     const garment = await openProductGarment(account.id, productId, type.value);
     return Response.json({ garment: publicGarment(garment), missing: missingSlots(garment) }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
