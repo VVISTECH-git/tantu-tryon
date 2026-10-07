@@ -44,15 +44,14 @@ export interface GarmentTypeOption {
   enabled: boolean;
 }
 
-// Only what the shop actually sells (7 Oct, from the Kalamkari Works catalogue); the
-// underwear, tees and western types were never going to be used and were removed.
+// The user's list (7 Oct): only what the shop and its supplier sell, Saree first and live.
 export const GARMENT_TYPES: GarmentTypeOption[] = [
   { value: "saree", label: "Saree", group: "Women", family: "unstitched", enabled: true },
-  { value: "blouse", label: "Blouse", group: "Women", family: "stitched_top", enabled: false },
-  { value: "kurti", label: "Kurti", group: "Women", family: "stitched_top", enabled: false },
+  { value: "kurti", label: "Kurti / Kurta", group: "Women", family: "stitched_top", enabled: false },
   { value: "frock", label: "Frock / Anarkali", group: "Women", family: "stitched_top", enabled: false },
-  { value: "coord_set", label: "Co-ord set", group: "Women", family: "set", enabled: false },
-  { value: "top_skirt", label: "Top & skirt", group: "Women", family: "set", enabled: false },
+  { value: "blouse", label: "Blouse", group: "Women", family: "stitched_top", enabled: false },
+  { value: "coord_set", label: "Co-ord set (kurti + pant)", group: "Women", family: "set", enabled: false },
+  { value: "lehenga", label: "Lehenga / Top & skirt", group: "Women", family: "set", enabled: false },
   { value: "dupatta", label: "Dupatta", group: "Women", family: "unstitched", enabled: false },
 ];
 
