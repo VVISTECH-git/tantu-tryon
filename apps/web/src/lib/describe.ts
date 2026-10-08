@@ -200,7 +200,8 @@ const CUT_INSTRUCTIONS = `You are a garment technician. Look closely at this pro
 Return JSON with these keys, each a short precise phrase:
 - "garment": what it is (e.g. "tiered maxi frock", "straight kurti", "crop top and long skirt set")
 - "neckline": exact shape and any detail (e.g. "wide scoop neck with a small central V-notch", "deep V-neck with a narrow band")
-- "sleeves": exact length and style. Judge where the sleeve ends against the arm: "sleeveless", "cap sleeves", "short sleeves ending well above the elbow", "half sleeves ending just above the elbow", "elbow-length sleeves", "three-quarter sleeves ending below the elbow", "full-length sleeves to the wrist"; add the style (puff, gathered cuff, straight, bell, frill).
+- "sleeve_ratio": measure, do not guess. Take the length of one sleeve from the shoulder seam to the sleeve hem, and the length of the bodice from the shoulder seam straight down to the waist seam (or, with no waist seam, to the natural waist). Give sleeve length divided by bodice length as a number, e.g. 0.6. 0 if sleeveless.
+- "sleeve_style": the style only (puff at the shoulder, gathered cuff, straight, flared/bell, frill), no length words
 - "length": where the hem falls on a person (e.g. "ankle length", "mid-calf", "knee length", "hip length")
 - "waist_and_skirt": waist seam, gathers, tiers (count them), flare, frills
 - "print": the motifs, their size, spacing and arrangement
@@ -225,10 +226,22 @@ export async function describeGarmentCut(data: string, mime: string): Promise<{ 
     const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
     const f = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, "")) as Record<string, string>;
     const part = (k: string, label: string) => (f[k] && !/^(none|not visible)$/i.test(f[k].trim()) ? `${label}: ${f[k].trim()}` : null);
+    // On a body the elbow sits at about the waist seam's height, so a sleeve as long as the
+    // bodice ends at the elbow (8 Oct: words alone read half sleeves as three-quarter on hangers).
+    const ratio = Number(f.sleeve_ratio);
+    const length = !Number.isFinite(ratio) ? null
+      : ratio <= 0.05 ? "sleeveless"
+      : ratio < 0.3 ? "cap sleeves covering only the shoulder"
+      : ratio < 0.6 ? "short sleeves ending halfway between shoulder and elbow"
+      : ratio < 0.85 ? "half sleeves ending just above the elbow"
+      : ratio < 1.05 ? "elbow-length sleeves ending at the elbow"
+      : ratio < 1.45 ? "three-quarter sleeves ending between elbow and wrist"
+      : "full-length sleeves to the wrist";
+    const sleeves = [length, f.sleeve_style && !/^(none|not visible)$/i.test(f.sleeve_style.trim()) ? f.sleeve_style.trim() : null].filter(Boolean).join(", ");
     const spec = [
       part("garment", "Garment"),
       part("neckline", "Neckline"),
-      part("sleeves", "Sleeves"),
+      sleeves ? `Sleeves: ${sleeves}` : null,
       part("length", "Length"),
       part("waist_and_skirt", "Waist and skirt"),
       part("print", "Print"),
