@@ -26,6 +26,9 @@ export interface GenerationRecord {
   /** False when the sheet is the product's current one, not a record of what this run was sent. */
   sheetRecorded: boolean;
   promptText: string;
+  /** The product's photos as they are now: what a Qwen run (no sheet) was given. */
+  inputs: { slot: string; url: string }[];
+  provider: string;
 }
 
 const url = (key: string | null) => (key && storageConfigured() && !key.startsWith("local:") ? publicUrl(key) : null);
@@ -52,6 +55,8 @@ export async function generationRecords(options: { productCode?: string; id?: st
       imageKey: generations.imageKey,
       runSheetKey: generations.sheetKey,
       garmentSheetKey: garments.sheetKey,
+      parts: garments.parts,
+      provider: generations.provider,
       promptText: generations.promptText,
     })
     .from(generations)
@@ -75,5 +80,7 @@ export async function generationRecords(options: { productCode?: string; id?: st
     sheetUrl: url(r.runSheetKey ?? r.garmentSheetKey),
     sheetRecorded: Boolean(r.runSheetKey),
     promptText: r.promptText,
+    inputs: (r.parts ?? []).filter((p) => p.key).map((p) => ({ slot: p.slot, url: url(p.key!) ?? p.url })),
+    provider: r.provider,
   }));
 }

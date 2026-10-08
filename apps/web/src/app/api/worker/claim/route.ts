@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, or, sql } from "drizzle-orm";
 import { db, garments, generations } from "@/db";
 import { QWEN_PROVIDER, qwenInputs, qwenSize } from "@/lib/qwenPrompt";
 import { Forbidden, requireAccount, unauthorised } from "@/lib/session";
@@ -36,7 +36,13 @@ export async function POST() {
       const [next] = await tx
         .select()
         .from(generations)
-        .where(and(eq(generations.provider, QWEN_PROVIDER), eq(generations.status, "queued")))
+        // Queued, or left "running" by a worker that was restarted mid-job (8 Oct): taken again after 10 minutes.
+        .where(
+          and(
+            eq(generations.provider, QWEN_PROVIDER),
+            or(eq(generations.status, "queued"), and(eq(generations.status, "running"), sql`${generations.startedAt} < now() - interval '10 minutes'`)),
+          ),
+        )
         .orderBy(asc(generations.startedAt))
         .limit(1)
         .for("update", { skipLocked: true });
