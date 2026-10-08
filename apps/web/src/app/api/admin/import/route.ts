@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, like } from "drizzle-orm";
 import { db, garments, generations, type GenerationLook } from "@/db";
 import { Forbidden, requireAccount, unauthorised } from "@/lib/session";
 import { limits, listCostPaise } from "@/lib/spend";
@@ -14,6 +14,20 @@ export const runtime = "nodejs";
  *   { garmentId, promptId, promptText, model, size, look, clientKey }  → { id, key, url }  (PUT the PNG to url)
  *   { id, key, ms }                                                    → the row closes as done
  */
+/** GET ?prefix=laptop-pairs-v2- → [{ clientKey, verdict }]: the Review page's marks, for building a training set. */
+export async function GET(request: Request) {
+  try {
+    const account = await requireAccount();
+    if (!account.platformAdmin) throw new Forbidden();
+    const prefix = new URL(request.url).searchParams.get("prefix") ?? "laptop-";
+    if (!/^[\w-]+$/.test(prefix)) return Response.json({ error: "Bad prefix." }, { status: 400 });
+    const rows = await db.select({ clientKey: generations.clientKey, verdict: generations.verdict }).from(generations).where(like(generations.clientKey, `${prefix}%`));
+    return Response.json(rows, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    return unauthorised(error) ?? Response.json({ error: error instanceof Error ? error.message : "Could not read." }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const account = await requireAccount();
