@@ -64,10 +64,11 @@ const GARMENT: Record<string, { name: string; worn: string; rules: string }> = {
   },
 };
 
-// User (8 Oct): North Indian models, about 20 years old.
+// User (8 Oct): North Indian models, about 20 years old, and pleasant to look at: a
+// professional catalogue model, not a passer-by (the first plain wording was rejected).
 const MODEL: Record<string, string> = {
-  woman: "a real North Indian woman, natural North Indian complexion, slim natural build, calm pleasant expression, hair neatly tied back",
-  man: "a real North Indian man, natural North Indian complexion, natural build, calm expression, short neat hair",
+  woman: "a professional North Indian female fashion model, polished attractive features, symmetrical face, clear glowing skin in a natural North Indian complexion, slim graceful figure, light natural makeup, a soft pleasant smile, hair neatly styled in a low bun",
+  man: "a professional North Indian male fashion model, well-groomed, natural North Indian complexion, athletic build, confident calm expression, short neat hair",
   girl: "a real Indian girl, natural medium-brown Indian skin tone, cheerful expression, hair in two plaits",
   boy: "a real Indian boy, natural medium-brown Indian skin tone, cheerful expression, short neat hair",
 };
@@ -114,7 +115,7 @@ export function qwenPrompt(garment: Garment, promptId: string, look: GenerationL
     g.rules,
     `Pose: ${pose(promptId, garment.garmentType === "saree")}. ${framing}, camera at chest height, 3:4 portrait.`,
     `Scene: ${scene}. Remove the mannequin, hanger, vase, flowers, floor and any shop background from the photo.`,
-    `The result is a sharp, well-lit photograph, not an illustration. No text, no watermark, no extra people.`,
+    `The result is a sharp, well-lit, high-end catalogue photograph of a real person, not an illustration. Natural skin texture, no waxy or plastic look. No text, no watermark, no extra people.`,
   ].join("\n");
 }
 
