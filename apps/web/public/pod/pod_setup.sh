@@ -45,5 +45,5 @@ cd $W
 export TANTU_TOKEN_FILE=$W/.tantu-token
 echo -n "$TANTU_TOKEN" > $TANTU_TOKEN_FILE
 export QWEN_UNET=qwen_image_edit_2511_fp8mixed.safetensors QWEN_CLIP=qwen_2.5_vl_7b_fp8_scaled.safetensors QWEN_LOADER=full
-export COMFY_OUT=$W/ComfyUI/output WORKER_DIR=$W/worker WORKER_LOG=$W/tantu_worker.log
+export COMFY_OUT=$W/ComfyUI/output WORKER_DIR=$W/worker WORKER_LOG=$W/tantu_worker.log UPSCALE_DIR=$M/upscale_models
 exec python $W/tantu_worker.py
