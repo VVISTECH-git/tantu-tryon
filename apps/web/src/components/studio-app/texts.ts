@@ -27,7 +27,7 @@ export const T = {
     saved: "Saved products",
     opening: "Opening…",
     typeLabel: "Garment type",
-    typeHelp: "Saree is live. The other types are coming soon.",
+    typeHelp: "Saved products shows only this type.",
     calloutPrefix: "✨ Hanging the saree on the rod?",
     seeTips: "See Tips",
     calloutSuffix: "for the shots.",

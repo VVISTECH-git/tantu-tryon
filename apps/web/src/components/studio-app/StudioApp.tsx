@@ -736,13 +736,15 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                 <p className="st-support" style={{ margin: 0 }}>{T.upload.typeHelp}</p>
               </div>
               <div className="st-grow" style={{ width: "100%", minHeight: "24vh" }}>
-                <div className="st-callout">
-                  {T.upload.calloutPrefix}{" "}
-                  <button type="button" className="st-link" onClick={() => setModal("tips")}>
-                    {T.upload.seeTips}
-                  </button>{" "}
-                  {T.upload.calloutSuffix}
-                </div>
+                {garmentType === "saree" && (
+                  <div className="st-callout">
+                    {T.upload.calloutPrefix}{" "}
+                    <button type="button" className="st-link" onClick={() => setModal("tips")}>
+                      {T.upload.seeTips}
+                    </button>{" "}
+                    {T.upload.calloutSuffix}
+                  </div>
+                )}
                 {photographer ? (
                   <button type="button" className="st-action" style={{ maxWidth: 300 }} disabled={busy} onClick={() => void openAutoProduct()}>
                     {busy ? T.upload.opening : T.upload.dropzone}

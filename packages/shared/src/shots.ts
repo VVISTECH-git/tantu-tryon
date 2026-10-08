@@ -44,15 +44,15 @@ export interface GarmentTypeOption {
   enabled: boolean;
 }
 
-// The user's list (7 Oct): only what the shop and its supplier sell, Saree first and live.
+// The user's list (7 Oct): only what the shop and its supplier sell. All live since the Qwen track (8 Oct).
 export const GARMENT_TYPES: GarmentTypeOption[] = [
   { value: "saree", label: "Saree", group: "Women", family: "unstitched", enabled: true },
-  { value: "kurti", label: "Kurti / Kurta", group: "Women", family: "stitched_top", enabled: false },
-  { value: "frock", label: "Frock / Anarkali", group: "Women", family: "stitched_top", enabled: false },
-  { value: "blouse", label: "Blouse", group: "Women", family: "stitched_top", enabled: false },
-  { value: "coord_set", label: "Co-ord set (kurti + pant)", group: "Women", family: "set", enabled: false },
-  { value: "lehenga", label: "Lehenga / Top & skirt", group: "Women", family: "set", enabled: false },
-  { value: "dupatta", label: "Dupatta", group: "Women", family: "unstitched", enabled: false },
+  { value: "kurti", label: "Kurti / Kurta", group: "Women", family: "stitched_top", enabled: true },
+  { value: "frock", label: "Frock / Anarkali", group: "Women", family: "stitched_top", enabled: true },
+  { value: "blouse", label: "Blouse", group: "Women", family: "stitched_top", enabled: true },
+  { value: "coord_set", label: "Co-ord set (kurti + pant)", group: "Women", family: "set", enabled: true },
+  { value: "lehenga", label: "Lehenga / Top & skirt", group: "Women", family: "set", enabled: true },
+  { value: "dupatta", label: "Dupatta", group: "Women", family: "unstitched", enabled: true },
 ];
 
 export const DEFAULT_GARMENT_TYPE = "saree";
