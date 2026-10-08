@@ -91,14 +91,43 @@ def workflow(images, prompt, width, height, seed, upscale, steps=20, cfg=2.5):
     return w
 
 
+def detail_crops(path, job_id):
+    """The neckline (top centre) and a sleeve (upper side) of a garment photo, as two files; [] if the photo cannot be read."""
+    try:
+        from PIL import Image
+        im = Image.open(path)
+        im.load()
+        w, h = im.size
+        boxes = [(int(0.22 * w), 0, int(0.78 * w), int(0.38 * h)), (0, int(0.04 * h), int(0.42 * w), int(0.46 * h))]
+        out = []
+        for i, box in enumerate(boxes, 2):
+            crop = im.crop(box).convert("RGB")
+            p = os.path.join(WORK, f"{job_id}-crop{i}.jpg")
+            crop.save(p, quality=95)
+            out.append(p)
+        return out
+    except Exception:
+        return []
+
+
 def run_job(job):
     os.makedirs(WORK, exist_ok=True)
-    names = []
+    names, files = [], []
     for i, im in enumerate(job["images"], 1):
         ext = ".png" if im["url"].lower().endswith(".png") else ".jpg"
-        names.append(Q.upload(fetch(im["url"], os.path.join(WORK, f"{job['id']}-{i}{ext}"))))
+        files.append(fetch(im["url"], os.path.join(WORK, f"{job['id']}-{i}{ext}")))
+        names.append(Q.upload(files[-1]))
+    prompt = job["prompt"]
+    # One photo of a stitched garment (user, 8 Oct: "read from the input"): the neckline and a
+    # sleeve are cut from it and sent as photos 2 and 3, so the model copies them instead of
+    # taking our word for their shape.
+    if len(files) == 1 and job.get("garmentType") != "saree":
+        crops = detail_crops(files[0], job["id"])
+        names += [Q.upload(c) for c in crops]
+        if crops:
+            prompt += "\nPhoto 2 is the neckline and photo 3 a sleeve of the same garment, cut from photo 1. Copy their exact shape, cut and trim; do not change them."
     t0 = time.time()
-    wf = workflow(names, job["prompt"], job["width"], job["height"], job["seed"], job.get("upscale"))
+    wf = workflow(names, prompt, job["width"], job["height"], job["seed"], job.get("upscale"))
     pid = Q.post("/prompt", json.dumps({"prompt": wf}).encode())["prompt_id"]
     while True:
         time.sleep(5)
