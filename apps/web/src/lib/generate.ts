@@ -24,6 +24,8 @@ export interface GenerateInput {
   look: GenerationLook;
   clientKey: string;
   signal?: AbortSignal;
+  /** The exact prompt instead of the built one (platform admin tests). */
+  promptOverride?: string;
 }
 
 export interface GenerateOutput {
@@ -87,7 +89,7 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
       clientKey: input.clientKey,
       promptId: input.promptId,
       promptVersion: `qwen-${size.width}`,
-      promptText: qwenPrompt(input.garment, input.promptId, input.look),
+      promptText: input.promptOverride ?? qwenPrompt(input.garment, input.promptId, input.look),
       look: input.look,
       model: QWEN_MODEL,
       size: input.look.quality === "high" ? "2K" : "1K",
