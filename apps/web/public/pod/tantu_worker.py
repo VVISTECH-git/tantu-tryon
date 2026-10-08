@@ -53,7 +53,14 @@ def fetch(url, dest):
     return dest
 
 
-def workflow(images, prompt, width, height, seed, upscale, steps=20, cfg=2.5):
+STEPS = int(os.environ.get("QWEN_STEPS", "40"))  # Qwen's own guidance: 40-50 steps, cfg 4 (8 Oct; 20/2.5 drifted on details)
+CFG = float(os.environ.get("QWEN_CFG", "4.0"))
+CROPS = os.environ.get("QWEN_CROPS", "0") == "1"  # neckline/sleeve crops as photos 2-3: shortened the dress, off by default
+
+
+def workflow(images, prompt, width, height, seed, upscale, steps=None, cfg=None):
+    steps = steps or STEPS
+    cfg = cfg or CFG
     """Qwen edit with up to three input photos, then the sharpening upscaler to 2K (x2) or 4K (x4)."""
     if Q.LOADER == "full":
         loaders = {
@@ -121,7 +128,7 @@ def run_job(job):
     # One photo of a stitched garment (user, 8 Oct: "read from the input"): the neckline and a
     # sleeve are cut from it and sent as photos 2 and 3, so the model copies them instead of
     # taking our word for their shape.
-    if len(files) == 1 and job.get("garmentType") != "saree":
+    if CROPS and len(files) == 1 and job.get("garmentType") != "saree":
         crops = detail_crops(files[0], job["id"])
         names += [Q.upload(c) for c in crops]
         if crops:
