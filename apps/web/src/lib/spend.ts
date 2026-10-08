@@ -111,6 +111,11 @@ export interface ReserveInput {
   look: GenerationLook;
   model: string;
   size: ImageSize;
+  /**
+   * The platform admin's own runs (tests, training pairs): no Tantu credit is taken (user, 8 Oct:
+   * "I don't want to load funds like this"). Google's cost is still recorded on the row.
+   */
+  free?: boolean;
 }
 
 export type ReserveResult =
@@ -135,7 +140,7 @@ export async function reserveGeneration(input: ReserveInput): Promise<ReserveRes
   const costPaise = await listCostPaise(input.model, input.size, lim.ratePaisePerUsd);
   // The laptop's Qwen track is free to the shop while it is being proven (8 Oct).
   const local = input.model === QWEN_MODEL;
-  const creditsPaise = local ? 0 : CREDIT_PAISE[input.look.quality];
+  const creditsPaise = local || input.free ? 0 : CREDIT_PAISE[input.look.quality];
 
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext('tantu:spend'))`);

@@ -28,6 +28,8 @@ export interface GenerateInput {
   signal?: AbortSignal;
   /** The exact prompt instead of the built one (platform admin tests). */
   promptOverride?: string;
+  /** No Tantu credit taken: the platform admin's own runs. */
+  free?: boolean;
 }
 
 export interface GenerateOutput {
@@ -105,6 +107,7 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
   if (isQwenOption(await chosenImageOption())) {
     const size = qwenSize(input.look.quality);
     const reservedQ = await reserveGeneration({
+      free: input.free,
       accountId: input.accountId,
       garmentId: input.garment.id,
       clientKey: input.clientKey,
@@ -144,6 +147,7 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
   }
 
   const reserved: ReserveResult = await reserveGeneration({
+      free: input.free,
     accountId: input.accountId,
     garmentId: input.garment.id,
     clientKey: input.clientKey,
@@ -213,6 +217,7 @@ async function runGarmentGemini(input: GenerateInput): Promise<GenerateResult> {
   if (images.length === 0) return { ok: false, status: 400, message: "The product has no photo yet." };
 
   const reserved = await reserveGeneration({
+      free: input.free,
     accountId: input.accountId,
     garmentId: input.garment.id,
     clientKey: input.clientKey,
