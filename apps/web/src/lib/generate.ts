@@ -6,6 +6,7 @@ import { attachmentsFor, partPlan, sheetFor, wordsFor } from "@/lib/garments";
 import { chosenImageOption, type ImageSize } from "@/lib/imageModels";
 import { finishGeneration, imageSizeFor, reserveGeneration, type ReserveResult } from "@/lib/spend";
 import { renderUrl, saveRender } from "@/lib/storage";
+import { QWEN_MODEL, isQwenOption, qwenPrompt, qwenSize } from "@/lib/qwenPrompt";
 
 /**
  * One image, start to finish.
@@ -80,6 +81,25 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
   const template = TEMPLATES.find((t) => t.id === input.promptId);
   if (!template || !template.live) {
     return { ok: false, status: 400, message: `Prompt ${input.promptId} is not available.` };
+  }
+
+  // The Qwen track (8 Oct): the admin chose the laptop; the job is queued for the worker, nothing is called here.
+  if (isQwenOption(await chosenImageOption())) {
+    const size = qwenSize(input.look.quality);
+    const reservedQ = await reserveGeneration({
+      accountId: input.accountId,
+      garmentId: input.garment.id,
+      clientKey: input.clientKey,
+      promptId: template.id,
+      promptVersion: `qwen-${size.width}`,
+      promptText: qwenPrompt(input.garment, template.id, input.look),
+      look: input.look,
+      model: QWEN_MODEL,
+      size: input.look.quality === "high" ? "2K" : "1K",
+    });
+    if (!reservedQ.ok) return { ok: false, status: reservedQ.status, message: reservedQ.message };
+    const [rowQ] = await db.select().from(generations).where(eq(generations.id, reservedQ.id)).limit(1);
+    return { ok: true, generation: toOutput(rowQ!) };
   }
 
   const plan = partPlan(input.garment);

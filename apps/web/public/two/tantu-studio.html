@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tantu Studio</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Replica of the reference Studio page in Tantu orange: dark warm hero with a rotating campaign card, then light sections. */
+:root{
+  --bg:#fff8f3;--surface:#fff0e6;--card:#ffffff;--fg:#1a1410;--fg2:#4b4642;--fg3:#7a716b;--line:rgba(26,20,16,.07);
+  --primary:#f26a1b;--primary-strong:#c84e0f;--primary-dark:#a8400b;--primary-edge:#7a2e07;--primary-light:#ffb27a;--primary-soft:rgba(242,106,27,.12);
+  --gold:#f5c26b;--gold2:#ffd9a8;--night:#140e0a;--night2:#24160d;
+  --emerald:#009767;--emerald-soft:#ecfdf5;
+  --font:"Plus Jakarta Sans","Inter",system-ui,sans-serif;
+  --r-xl:.75rem;--r-2xl:.875rem;--r-3xl:1.125rem;--r-4xl:1.375rem;
+  --shadow:0 1px 2px rgba(26,20,16,.05),0 20px 40px -20px rgba(200,78,15,.28);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#140f0c;--surface:#1f1712;--card:#271d17;--fg:#fff7f2;--fg2:#d9cfc8;--fg3:#a39890;--line:rgba(255,255,255,.07);--primary:#ff7a2e;--primary-soft:rgba(255,122,46,.16);--emerald-soft:#0e2a21;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#140f0c;--surface:#1f1712;--card:#271d17;--fg:#fff7f2;--fg2:#d9cfc8;--fg3:#a39890;--line:rgba(255,255,255,.07);--primary:#ff7a2e;--primary-soft:rgba(255,122,46,.16);--emerald-soft:#0e2a21;color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth}
+[id]{scroll-margin-top:84px}
+body{margin:0;padding-bottom:env(safe-area-inset-bottom,0px);background:var(--bg);color:var(--fg);font-family:var(--font);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:clip}
+img{max-width:100%;display:block}
+h1,h2,h3{margin:0;letter-spacing:-.02em;line-height:1.1;text-wrap:balance}
+h2{font-size:clamp(1.7rem,4vw,2.5rem);font-weight:800;letter-spacing:-.025em}
+h3{font-size:1.1rem;font-weight:700}
+p{margin:0}
+a{color:inherit}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--primary-light);outline-offset:2px;border-radius:8px}
+.wrap{max-width:1180px;margin-inline:auto;padding-inline:20px}
+.eyebrow{font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--primary)}
+.muted{color:var(--fg2)}
+section{padding-block:72px}
+.sec-head{text-align:center;max-width:720px;margin:0 auto 36px;display:grid;gap:12px;justify-items:center}
+.sec-head p{font-size:1.05rem;color:var(--fg2)}
+.hl{color:var(--primary)}
+.alt{background:color-mix(in srgb,var(--card) 60%,transparent);border-block:1px solid var(--line)}
+
+/* buttons (keycap, as on the home page) */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 24px;border-radius:999px;font-weight:700;text-decoration:none;border:1px solid transparent;cursor:pointer;line-height:1.1;white-space:nowrap;transition:transform .13s cubic-bezier(.22,1,.36,1),box-shadow .13s}
+.btn-sm{padding:10px 16px;font-size:14px}
+.gb-key{position:relative;overflow:hidden;background:var(--primary-strong);color:#fff;box-shadow:0 6px 0 0 var(--primary-edge),0 10px 22px -6px rgba(200,78,15,.45);isolation:isolate}
+.gb-key:hover{background:var(--primary-dark)}
+.gb-key:active{transform:translateY(4px);box-shadow:0 2px 0 0 var(--primary-edge),0 6px 14px -6px rgba(200,78,15,.45)}
+.gb-key .ar{display:inline-block;transition:transform .25s cubic-bezier(.22,1,.36,1)}
+.gb-key:hover .ar{transform:translateX(5px)}
+@keyframes gbShine{0%,55%{transform:skew(-18deg) translateX(-220%)}85%,to{transform:skew(-18deg) translateX(420%)}}
+.gb-shine{pointer-events:none;position:absolute;top:0;bottom:0;width:34%;background:linear-gradient(90deg,#0000,#ffffff52,#0000);transform:skew(-18deg) translateX(-220%);animation:3.6s ease-in-out infinite gbShine}
+.btn-ghost{background:var(--card);border-color:var(--line);color:var(--fg)}
+.btn-dark{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.22);color:#fff}
+.btn-dark:hover{background:rgba(255,255,255,.12)}
+
+/* nav (dark over hero) */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;background:rgba(20,14,10,.82);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.08);color:#fff}
+.top .wrap{display:flex;align-items:center;gap:22px;min-height:64px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:1.25rem;letter-spacing:-.02em;text-decoration:none;color:inherit}
+.brand svg{width:30px;height:30px}
+.top nav{display:none;gap:22px;font-size:14px;font-weight:600;color:rgba(255,255,255,.75);margin-inline:auto}
+.top nav a{text-decoration:none}
+.top nav a:hover{color:#fff}
+.spacer{flex:1}
+@media (min-width:860px){.top nav{display:flex}.spacer{display:none}}
+
+/* hero */
+.hero{position:relative;overflow:hidden;color:#fff;background:radial-gradient(ellipse at 15% 10%,rgba(242,106,27,.22),transparent 55%),radial-gradient(ellipse at 85% 80%,rgba(245,194,107,.16),transparent 55%),linear-gradient(180deg,var(--night),var(--night2));padding-block:56px 72px}
+@media (min-width:1024px){.hero{padding-block:96px 104px}}
+.hero .wrap{display:grid;gap:40px;align-items:center}
+@media (min-width:1024px){.hero .wrap{grid-template-columns:1fr 1fr;gap:56px}}
+.hero-copy{display:grid;gap:22px}
+.mode{justify-self:start;display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid rgba(245,194,107,.45);background:rgba(245,194,107,.1);color:var(--gold);font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.hero h1{font-size:clamp(2.6rem,7vw,4.4rem);font-weight:800;letter-spacing:-.035em;line-height:1.02}
+.hero h1 .gold{background:linear-gradient(90deg,var(--gold),var(--gold2) 45%,#ffb4a0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .lede{font-size:clamp(1.02rem,2vw,1.2rem);color:rgba(255,255,255,.78);max-width:34rem}
+.cta-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.hstats{display:flex;flex-wrap:wrap;gap:10px}
+.hstats div{min-width:128px;padding:14px 18px;border-radius:var(--r-xl);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);text-align:center;display:grid;gap:2px}
+.hstats b{font-size:1.4rem;font-weight:800;letter-spacing:-.02em}
+.hstats span{font-size:12px;color:rgba(255,255,255,.65)}
+@keyframes heroLift{0%{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}
+.lift{animation:.6s cubic-bezier(.22,1,.36,1) both heroLift;animation-delay:var(--d,0s)}
+
+/* rotating campaign card */
+.show{position:relative;width:100%;max-width:540px;justify-self:center;padding:12px;border-radius:30px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);box-shadow:0 40px 80px -30px rgba(0,0,0,.7)}
+.show .chip{position:absolute;top:-14px;left:24px;z-index:3;display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;background:#1f150e;border:1px solid rgba(255,255,255,.14);font-size:12px;font-weight:700;color:#fff}
+.stage{position:relative;aspect-ratio:4/5;border-radius:22px;overflow:hidden;background:#2a1c12}
+.stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.04);transition:opacity .8s ease,transform 6s ease}
+.stage img.on{opacity:1;transform:scale(1)}
+.stage .real{position:absolute;top:12px;right:12px;z-index:3;padding:5px 10px;border-radius:999px;background:var(--primary);color:#fff;font-size:11px;font-weight:800;letter-spacing:.05em}
+.stage .shade{position:absolute;inset:auto 0 0 0;height:40%;z-index:2;background:linear-gradient(to top,rgba(0,0,0,.65),transparent)}
+.stage .cap{position:absolute;left:16px;right:16px;bottom:14px;z-index:3;display:flex;justify-content:space-between;align-items:end;gap:12px}
+.stage .cap small{display:block;font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--gold);text-transform:uppercase}
+.stage .cap b{font-size:15px}
+.stage .zoom{padding:6px 10px;border-radius:999px;border:0;background:rgba(255,255,255,.16);color:#fff;font-size:12px;font-weight:700;cursor:zoom-in;backdrop-filter:blur(6px)}
+.thumbs{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}
+.thumbs button{padding:0;border:2px solid transparent;border-radius:12px;overflow:hidden;aspect-ratio:1;cursor:pointer;background:#2a1c12;opacity:.7;transition:opacity .2s,border-color .2s}
+.thumbs button img{width:100%;height:100%;object-fit:cover}
+.thumbs button[aria-pressed="true"]{border-color:var(--gold);opacity:1}
+
+/* what-is card */
+.whatis{max-width:880px;margin:0 auto;display:grid;grid-template-columns:auto 1fr;gap:18px;padding:28px;border-radius:var(--r-4xl);background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow)}
+.whatis .ic{width:44px;height:44px;border-radius:var(--r-xl);background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;font-weight:800}
+.whatis p+p{margin-top:10px;font-size:15px;color:var(--fg3)}
+.whatis a{color:var(--primary);font-weight:700}
+@media (max-width:560px){.whatis{grid-template-columns:1fr}}
+
+/* deliverables grid */
+.deliv{display:grid;gap:14px;grid-template-columns:repeat(2,1fr)}
+@media (min-width:900px){.deliv{grid-template-columns:2fr 1fr 1fr;grid-template-rows:auto auto}}
+.dl{position:relative;border:0;padding:0;border-radius:var(--r-3xl);overflow:hidden;background:var(--surface);cursor:zoom-in;aspect-ratio:3/4;text-align:left}
+@media (min-width:900px){.dl.big{grid-row:span 2;aspect-ratio:auto}}
+.dl img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .5s ease-out}
+.dl:hover img{transform:scale(1.05)}
+.dl .shade{position:absolute;inset:auto 0 0 0;height:45%;background:linear-gradient(to top,rgba(0,0,0,.6),transparent)}
+.dl .lbl{position:absolute;left:14px;bottom:12px;right:14px;color:#fff}
+.dl .lbl b{display:block;font-size:15px}
+.dl .lbl span{font-size:12px;opacity:.85}
+
+/* colourways */
+.cw{display:grid;gap:28px;align-items:center}
+@media (min-width:960px){.cw{grid-template-columns:1fr 1fr}}
+.cw-controls{display:grid;gap:18px}
+.swatches{display:flex;gap:14px;flex-wrap:wrap}
+.sw{display:grid;justify-items:center;gap:6px;background:none;border:0;cursor:pointer;font-size:12px;font-weight:600;color:var(--fg2)}
+.sw i{width:44px;height:44px;border-radius:50%;border:3px solid transparent;box-shadow:0 0 0 2px var(--line)}
+.sw[aria-pressed="true"] i{border-color:#fff;box-shadow:0 0 0 2px var(--primary)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip2{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;cursor:pointer;color:var(--fg2)}
+.chip2[aria-pressed="true"]{background:var(--primary);color:#fff;border-color:var(--primary)}
+.warn{font-size:14px;color:#b75000;font-weight:600}
+.cw-ph{position:relative;aspect-ratio:3/4;max-width:420px;width:100%;justify-self:center;border-radius:var(--r-4xl);overflow:hidden;box-shadow:var(--shadow);background:var(--surface)}
+.cw-ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .35s}
+.cw-cap{position:absolute;left:12px;bottom:12px;z-index:2;font-size:11px;font-weight:700;color:#fff;background:rgba(26,20,16,.6);padding:6px 10px;border-radius:8px;backdrop-filter:blur(6px)}
+.cw-cap small{display:block;font-size:10px;opacity:.8;text-transform:uppercase;letter-spacing:.08em}
+
+/* calculator */
+.calc{display:grid;gap:24px;align-items:start}
+@media (min-width:900px){.calc{grid-template-columns:1.1fr 1fr}}
+.ctrl{display:grid;gap:8px;margin-top:18px}
+.ctrl>span{font-weight:700;font-size:14px}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.seg button{flex:1;min-width:90px;padding:10px;border-radius:var(--r-xl);border:1px solid var(--line);background:var(--card);font-weight:700;cursor:pointer;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--primary);color:#fff;border-color:var(--primary)}
+.money{background:var(--card);border:1px solid var(--line);border-radius:var(--r-4xl);padding:22px;display:grid;gap:12px;box-shadow:var(--shadow)}
+.money .row{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line);font-weight:600}
+.money .row small{display:block;font-size:12px;color:var(--fg3);font-weight:500}
+.money .big{font-size:1.6rem;font-weight:800;letter-spacing:-.02em;color:var(--primary)}
+.money .keep{background:var(--surface);border-radius:var(--r-2xl);padding:14px;text-align:center;font-weight:700}
+.money .keep b{color:var(--emerald);font-size:1.3rem}
+.money .fine{font-size:12px;color:var(--fg3);text-align:center}
+
+/* cards, steps, compare */
+.cards{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-3xl);padding:22px;display:grid;gap:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.card .ic{width:40px;height:40px;border-radius:var(--r-xl);background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;font-weight:800}
+.card p{font-size:14px;color:var(--fg2)}
+.steps{display:grid;gap:14px}
+@media (min-width:900px){.steps{grid-template-columns:repeat(5,1fr)}}
+.step{background:var(--card);border:1px solid var(--line);border-radius:var(--r-3xl);padding:20px;display:grid;gap:8px;align-content:start}
+.step .n{width:30px;height:30px;border-radius:50%;background:var(--primary-strong);color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px}
+.step p{font-size:14px;color:var(--fg2)}
+.tscroll{overflow-x:auto;border-radius:var(--r-3xl);border:1px solid var(--line);background:var(--card)}
+table{width:100%;border-collapse:collapse;min-width:640px;font-size:14px}
+th,td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{font-size:13px;font-weight:800;background:var(--surface)}
+thead th.us{color:var(--primary)}
+tbody th{font-weight:700;color:var(--fg2);width:22%}
+td.us{background:color-mix(in srgb,var(--primary-soft) 60%,transparent);font-weight:700}
+tr:last-child th,tr:last-child td{border-bottom:0}
+.center{display:grid;justify-items:center;gap:8px;margin-top:22px;text-align:center}
+.center small{font-size:13px;color:var(--fg3);max-width:52ch}
+
+/* faq */
+.faq{max-width:820px;margin:0 auto;display:grid;gap:10px}
+.faq details{background:var(--card);border:1px solid var(--line);border-radius:var(--r-2xl);padding:0 18px}
+.faq summary{cursor:pointer;padding:16px 0;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:12px;align-items:center}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";width:26px;height:26px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-weight:800;color:var(--fg3);flex:none}
+.faq details[open] summary::after{content:"–";background:var(--primary-soft);color:var(--primary)}
+.faq details p{padding:0 0 16px;font-size:15px;color:var(--fg2)}
+
+/* final band */
+.final{color:#fff;background:radial-gradient(ellipse at 20% 0%,rgba(242,106,27,.25),transparent 60%),linear-gradient(180deg,var(--night2),var(--night));text-align:center}
+.final h2 .gold{background:linear-gradient(90deg,var(--gold),var(--gold2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.final p{color:rgba(255,255,255,.78);max-width:46ch;margin-inline:auto}
+.final .ticks{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 20px;font-size:14px;color:rgba(255,255,255,.75)}
+.final .ticks span::before{content:"✓ ";color:var(--gold);font-weight:800}
+.related{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:6px}
+.related a{font-size:13px;padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.18);text-decoration:none;color:rgba(255,255,255,.85)}
+footer{padding-block:28px 40px;font-size:13px;color:var(--fg3);text-align:center;border-top:1px solid var(--line)}
+
+/* lightbox */
+.lb{position:fixed;inset:0;z-index:80;background:rgba(10,8,6,.88);display:grid;place-items:center;padding:24px}
+.lb img{max-width:min(92vw,760px);max-height:84vh;border-radius:var(--r-3xl)}
+.lb figcaption{color:#fff;font-weight:700;font-size:14px;margin-top:10px;text-align:center}
+.lb button{position:absolute;top:16px;right:16px;width:42px;height:42px;border-radius:50%;border:0;background:#fff;font-size:20px;cursor:pointer;color:#111}
+.tmark{display:inline-block;width:1.35em;height:.85em;vertical-align:-.08em;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 20'%3E%3Cpath d='M2 10c5-9 9-9 12-4s7 5 12-4' fill='none' stroke='%23000' stroke-width='3.4' stroke-linecap='round'/%3E%3Cpath d='M2 17c5-9 9-9 12-4s7 5 12-4' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' opacity='.55'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 20'%3E%3Cpath d='M2 10c5-9 9-9 12-4s7 5 12-4' fill='none' stroke='%23000' stroke-width='3.4' stroke-linecap='round'/%3E%3Cpath d='M2 17c5-9 9-9 12-4s7 5 12-4' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' opacity='.55'/%3E%3C/svg%3E") center/contain no-repeat}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+/* r3: mobile menu */
+.top .wrap{position:relative}
+.menu{display:none;width:40px;height:40px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:transparent;color:#fff;font-size:20px;line-height:1;cursor:pointer;margin-left:6px;margin-right:8px}
+.top nav .m-only{display:none}
+@media (max-width:859px){
+  .menu{display:inline-grid;place-items:center}
+  .top.open nav{display:flex;position:absolute;left:0;right:0;top:100%;flex-direction:column;align-items:flex-start;gap:18px;padding:18px 20px 24px;background:rgba(20,14,10,.97);border-bottom:1px solid rgba(255,255,255,.08);font-size:16px;color:#fff}
+  .top.open nav .m-only{display:block}
+}
+</style>
+</head>
+<body>
+<div style="background:#1a1410;color:#ffd9bf;font-size:12px;font-weight:700;text-align:center;padding:7px 16px">Internal test build · sample images courtesy of Drapify, to be replaced with Tantu shoots before launch</div>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="tantu-landing.html" aria-label="Tantu home">
+      <svg viewBox="0 0 30 30" aria-hidden="true"><defs><linearGradient id="lg" x1="0" x2="1"><stop offset="0" stop-color="#f26a1b"/><stop offset="1" stop-color="#ffb27a"/></linearGradient></defs><path d="M3 21c5-11 9-11 12-5s7 6 12-5" fill="none" stroke="url(#lg)" stroke-width="3.2" stroke-linecap="round"/><path d="M3 26c5-11 9-11 12-5s7 6 12-5" fill="none" stroke="#f26a1b" stroke-width="2.4" stroke-linecap="round" opacity=".55"/></svg>
+      Tantu
+    </a>
+    <nav aria-label="Primary" id="primary-nav"><a href="#gallery">Gallery</a><a href="#pricing">Pricing</a><a href="#how">How it works</a><a href="#faq">FAQ</a><a class="m-only" href="tantu-landing.html">Tantu home</a></nav>
+    <div class="spacer"></div>
+    <button type="button" class="menu" aria-label="Open menu" aria-expanded="false" aria-controls="primary-nav">☰</button>
+    <a class="btn gb-key btn-sm" href="tantu-landing.html#start">Start free<span class="gb-shine" aria-hidden="true"></span></a>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <span class="mode lift" style="--d:0s">✦ Tantu Studio · Campaign mode</span>
+      <h1 class="lift" style="--d:.08s">Your whole collection. <span class="gold">One AI campaign.</span></h1>
+      <p class="lede lift" style="--d:.2s">Upload 2–4 looks. Studio plans the shoot like a creative director, then makes a collection cover, combo covers and every look — in one matching style. No studio, no model booking, no two-week wait.</p>
+      <div class="cta-row lift" style="--d:.3s">
+        <a class="btn gb-key" href="tantu-landing.html#start"><span class="ar">→</span> Create my campaign<span class="gb-shine" aria-hidden="true"></span></a>
+        <a class="btn btn-dark" href="#gallery">See every shot ›</a>
+      </div>
+      <div class="hstats lift" style="--d:.4s"><div><b>2–4</b><span>looks per campaign</span></div><div><b>~20 min</b><span>start to download</span></div><div><b>84</b><span>credits for 6 shots</span></div></div>
+    </div>
+    <div class="show lift" style="--d:.15s" id="show">
+      <span class="chip">🪄 AI creative director · planned 5 shots</span>
+      <div class="stage" id="stage">
+        <span class="real">REAL OUTPUT</span>
+        <span class="shade"></span>
+        <div class="cap"><div><small id="cap-k">Collection cover</small><b id="cap-t">Website banner · launch post</b></div><button type="button" class="zoom" id="cap-zoom">⊕ Zoom</button></div>
+      </div>
+      <div class="thumbs" id="thumbs" role="group" aria-label="Campaign shots"></div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-block:56px 24px">
+  <div class="wrap">
+    <div class="whatis">
+      <div class="ic"><i class="tmark" aria-hidden="true"></i></div>
+      <div>
+        <h2 style="font-size:1.5rem;margin-bottom:10px">What is Tantu Studio?</h2>
+        <p>Tantu Studio is Tantu's campaign mode for fashion collections. You upload 2–4 looks of the same garment type, AI plans the art direction, and it generates a full collection cover, combo covers and individual look shots that share one scene, colour grade and styling mood.</p>
+        <p>A traditional collection shoot costs ₹50,000–₹2,00,000 and weeks of coordination. Every image on this page came out of one Studio campaign. New here? Start with a <a href="tantu-landing.html">single-garment photoshoot</a> — your first 2 HD photos are free.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="gallery">
+  <div class="wrap">
+    <div class="sec-head"><span class="eyebrow">One campaign · five deliverables</span><h2>Every shot a launch needs, <span class="hl">in one go</span></h2><p>Tap any shot to see it full size.</p></div>
+    <div class="deliv" id="deliv"></div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap cw">
+    <div class="cw-controls">
+      <span class="eyebrow">Colour variants · any location</span>
+      <h2>One saree. Every colour. Any backdrop.</h2>
+      <p class="muted">Shoot one colourway and render the rest — same weave, same pallu, same styling. Then move the whole shoot from a golden stepwell to a Himalayan temple. Go on, tap a colour.</p>
+      <div><div class="eyebrow" style="color:var(--fg3);margin-bottom:10px">Colourway</div><div class="swatches" id="sw"></div></div>
+      <div><div class="eyebrow" style="color:var(--fg3);margin-bottom:10px">Location</div><div class="chips" id="loc"></div></div>
+      <p class="warn">🔥 Every colourway you don't list is a buyer who scrolls past.</p>
+      <div><a class="btn gb-key" href="tantu-landing.html#start"><span class="ar">→</span> Make my colour variants<span class="gb-shine" aria-hidden="true"></span></a></div>
+    </div>
+    <div style="display:grid;gap:10px;justify-items:center">
+      <div class="cw-ph"><img id="cw-img" alt="Saree colour variant on a model"><span class="cw-cap"><small>Made with Tantu</small><span id="cw-cap">Lilac · Himalayan temple</span></span></div>
+      <small class="muted" style="font-size:12px">🎨 4 colourways · 2 locations · 0 reshoots</small>
+    </div>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="wrap calc">
+    <div>
+      <span class="eyebrow">Campaign calculator</span>
+      <h2 style="margin-top:10px">Price your next collection shoot <span class="hl">in 10 seconds</span></h2>
+      <p class="muted" style="margin-top:10px">Pick how many looks you are launching and what you need. This is the real Studio pricing — planning plus each shot.</p>
+      <div class="ctrl"><span>Looks in your collection</span><div class="seg" id="c-looks"><button type="button" aria-pressed="false" data-v="2">2 looks</button><button type="button" aria-pressed="false" data-v="3">3 looks</button><button type="button" aria-pressed="true" data-v="4">4 looks</button></div></div>
+      <div class="ctrl"><span>Quality</span><div class="seg" id="c-q"><button type="button" aria-pressed="true" data-v="9">1K · catalogue</button><button type="button" aria-pressed="false" data-v="25">2K · HD</button><button type="button" aria-pressed="false" data-v="35">4K · print</button></div></div>
+      <div class="ctrl"><span>Add-ons</span><div class="seg" id="c-add"><button type="button" aria-pressed="true" data-v="cover">Collection cover</button><button type="button" aria-pressed="true" data-v="combo">Combo cover</button></div></div>
+    </div>
+    <div class="money" aria-live="polite">
+      <div class="row"><span>Your campaign</span><span id="m-shots">6 shots</span></div>
+      <div class="row"><span>Credits<small id="m-break">30 planning + 6 × 9</small></span><span class="big" id="m-cred">84</span></div>
+      <div class="row"><span>About<small>at the Spark pack rate</small></span><span class="big" id="m-inr">₹84</span></div>
+      <div class="row"><span id="m-day-l">A studio day for 4 looks</span><span id="m-day">₹98,000+</span></div>
+      <div class="keep">You keep <b id="m-keep">₹97,916+</b></div>
+      <a class="btn gb-key" href="tantu-landing.html#start"><span class="ar">→</span> Plan my campaign<span class="gb-shine" aria-hidden="true"></span></a>
+      <p class="fine">Studio unlocks with any credit pack · failed shots refund automatically</p>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="sec-head"><span class="eyebrow">What's inside</span><h2>A whole studio team, <span class="hl">planned by AI</span></h2></div>
+    <div class="cards">
+      <div class="card"><div class="ic">🪄</div><h3>AI creative director</h3><p>Reads every upload, writes a creative brief, casts models and engineers prompts — like briefing a real studio team.</p></div>
+      <div class="card"><div class="ic">▦</div><h3>Multi-look collection covers</h3><p>One hero frame featuring every colourway in a single luxury editorial cover — the shot brands pay ₹50,000+ for.</p></div>
+      <div class="card"><div class="ic">◫</div><h3>Combo cover shots</h3><p>Pair two looks in one frame for drop teasers, carousel heroes and WhatsApp catalogue headers.</p></div>
+      <div class="card"><div class="ic">👤</div><h3>Per-look model &amp; pose</h3><p>Different model identity, pose and aspect ratio per look while keeping one unified campaign aesthetic.</p></div>
+      <div class="card"><div class="ic">💎</div><h3>Jewelry &amp; product listings</h3><p>Marketplace-ready A+ galleries for rings, earrings, necklaces and packaged goods — not just apparel.</p></div>
+      <div class="card"><div class="ic">↺</div><h3>Commercial rights &amp; refunds</h3><p>Every image is yours commercially. Failed shots return credits automatically — never pay twice.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head"><span class="eyebrow">How it works</span><h2>From upload to campaign <span class="hl">in 5 steps</span></h2></div>
+    <div class="steps">
+      <div class="step"><span class="n">1</span><h3>Upload your collection</h3><p>Add 2–4 looks of the same garment type — sarees, lehengas, kurtis, jewelry angles or product shots.</p></div>
+      <div class="step"><span class="n">2</span><h3>Set creative direction</h3><p>Pick feel, background mood, model preferences and listing style. AI plans art direction before generation.</p></div>
+      <div class="step"><span class="n">3</span><h3>Build your shot list</h3><p>Configure cover photos, combo frames and per-look shots — aspect ratio and pose per shot.</p></div>
+      <div class="step"><span class="n">4</span><h3>AI generates the campaign</h3><p>Creative planning runs first, then every shot renders with live progress. Failed shots refund automatically.</p></div>
+      <div class="step"><span class="n">5</span><h3>Download &amp; list</h3><p>Export a unified editorial set ready for website heroes, Instagram, WhatsApp catalogues and marketplaces.</p></div>
+    </div>
+    <div class="center"><a class="btn gb-key" href="tantu-landing.html#start"><span class="ar">→</span> Start step 1<span class="gb-shine" aria-hidden="true"></span></a></div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="sec-head"><span class="eyebrow">Who uses Studio</span><h2>Made for collection launches</h2></div>
+    <div class="cards">
+      <div class="card"><div class="ic">🥻</div><h3>Ethnic wear collections</h3><p>Launch a festive drop with four saree colourways — one cover, four look shots, one look and feel.</p></div>
+      <div class="card"><div class="ic">📖</div><h3>D2C lookbooks</h3><p>Replace a costly studio day with a campaign that is ready the same afternoon.</p></div>
+      <div class="card"><div class="ic">💍</div><h3>Jewelry &amp; product brands</h3><p>Hero, on-model, close-up and lifestyle shots planned as one listing gallery.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="eyebrow">Compare</span><h2>Studio vs regular vs a traditional shoot</h2></div>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th></th><th>Traditional studio</th><th>Regular Tantu</th><th class="us">Tantu Studio <i class="tmark" aria-hidden="true"></i></th></tr></thead>
+        <tbody>
+          <tr><th>Best for</th><td>Hero brand campaigns</td><td>Single SKU catalogues</td><td class="us">Multi-look collection drops</td></tr>
+          <tr><th>Looks per session</th><td>1–2 (booked)</td><td>1 garment</td><td class="us">2–4+ looks</td></tr>
+          <tr><th>Collection cover</th><td>Custom art direction · ₹50k+</td><td>Not included</td><td class="us">AI-generated · included</td></tr>
+          <tr><th>Creative planning</th><td>Manual briefing</td><td>Pose picker</td><td class="us">Full AI creative director</td></tr>
+          <tr><th>Turnaround</th><td>1–2 weeks</td><td>~3 minutes</td><td class="us">~15–30 minutes</td></tr>
+          <tr><th>Starting credits</th><td>Cash · ₹15k+</td><td>9 per photo (1K)</td><td class="us">30 planning + 9 per shot</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="center"><b>Studio unlocks at 51+ credits</b><small>Any credit pack unlocks it, and credits never expire. Want to try first? Your first 2 HD photos in the regular flow are free.</small></div>
+  </div>
+</section>
+
+<section id="faq" class="alt">
+  <div class="wrap">
+    <div class="sec-head"><span class="eyebrow">Got questions?</span><h2>Tantu Studio FAQ</h2></div>
+    <div class="faq">
+      <details open><summary>What is Tantu Studio?</summary><p>Tantu Studio is Tantu's flagship multi-look campaign mode. You upload a collection of the same garment type, set creative direction, and AI plans plus generates a unified editorial photoshoot — full collection covers, combo covers, and individual look shots with per-look models, poses and aspect ratios.</p></details>
+      <details><summary>How is Tantu Studio different from regular Tantu photoshoots?</summary><p>Regular photoshoots generate up to 12 poses from one garment upload — ideal for single-SKU catalogues. Studio handles multi-look collections: AI creative planning, collection covers that stitch multiple looks together, combo frames, and per-look configuration. Studio is built for brands shipping coordinated drops, not one-off listings.</p></details>
+      <details><summary>How many credits does Tantu Studio cost?</summary><p>Studio campaigns charge 30 credits for AI creative planning plus per-shot generation (9 credits at 1K, 25 at 2K, 35 at 4K per image). A four-look campaign with a collection cover and a combo cover at 1K is 84 credits. Studio unlocks at 51+ credits, so any credit pack unlocks it.</p></details>
+      <details><summary>Can Tantu Studio shoot saree and lehenga collections?</summary><p>Yes. Studio supports Kurti Set, Saree, Lehenga, Men Ethnic, Western, Shirt, Trouser, Jewelry and Product categories. Saree and lehenga campaigns include blouse style control and drape-accurate prompts tuned for Indian ethnic wear.</p></details>
+      <details><summary>Are Tantu Studio images accepted on Myntra, Amazon and Shopify?</summary><p>Yes. Outputs render at marketplace-ready aspect ratios (1:1, 3:4, 4:5, 9:16, 16:9) up to 4K. Sellers use Studio heroes on websites and listing galleries; images include full commercial usage rights.</p></details>
+      <details><summary>Does Tantu Studio keep the same model across all looks?</summary><p>You choose. Each look can have its own model, pose and aspect ratio while the campaign shares one creative direction — scene, colour grade and styling mood — so the set reads as one photoshoot, not random AI images.</p></details>
+      <details><summary>What is a collection cover vs a combo cover?</summary><p>A collection cover shows all looks in one editorial hero frame — ideal for website banners and collection launch posts. A combo cover pairs two looks in one shot — ideal for teasers and carousel slides. Both are generated automatically in Studio.</p></details>
+      <details><summary>Can I retry failed shots in Tantu Studio?</summary><p>Yes. Individual failed shots can be retried from the results page without regenerating the entire campaign. Credits for failed generations are refunded automatically during the main generation pass.</p></details>
+      <details><summary>Is Tantu Studio available internationally?</summary><p>Yes. Studio runs in the web app worldwide. Pricing displays in INR for India and USD for international visitors. Credits never expire regardless of region.</p></details>
+      <details><summary>Who should use Tantu Studio vs regular generation?</summary><p>Use regular generation for single garments and fast SKU catalogues from 9 credits per photo. Use Studio when you launch multi-look collections, need cover and combo heroes, or want AI to plan an entire editorial campaign before shooting.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap" style="display:grid;gap:18px;justify-items:center">
+    <h2>Launch your next collection <span class="gold">this week</span>, not next month.</h2>
+    <p>Upload your looks, let Studio plan the shoot, and download a full campaign today.</p>
+    <a class="btn gb-key" href="tantu-landing.html#start"><span class="ar">→</span> Create my campaign<span class="gb-shine" aria-hidden="true"></span></a>
+    <div class="ticks"><span>Single saree shoots</span><span>Auto-refund on failure</span><span>Credits never expire</span><span>From 9 credits/shot</span></div>
+    <div class="related"><a href="tantu-landing.html">AI saree photoshoot</a><a href="tantu-landing.html">AI lehenga photography</a><a href="tantu-landing.html">Boutique catalogue</a><a href="tantu-landing.html">E-commerce product photos</a><a href="tantu-landing.html">Tantu home</a></div>
+  </div>
+</section>
+</main>
+
+<footer>© 2026 Tantu · AI fashion photography for Indian sellers · WhatsApp <b style="color:var(--fg);user-select:all">+91 93769 33769</b></footer>
+
+<div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-label="Zoomed photo"><button type="button" id="lb-x" aria-label="Close">×</button><figure style="margin:0"><img id="lb-img" alt=""><figcaption id="lb-cap"></figcaption></figure></div>
+
+<script>
+(function(){
+  const SHOTS=[
+    {src:'img/studio/cover-collection.webp',k:'Collection cover',t:'Website banner · launch post'},
+    {src:'img/studio/cover-combo.webp',k:'Combo cover',t:'Instagram carousel · teaser'},
+    {src:'img/studio/look-purple.webp',k:'Look 1',t:'Listing gallery · WhatsApp'},
+    {src:'img/studio/look-blue.webp',k:'Look 2',t:'Listing gallery · WhatsApp'},
+    {src:'img/studio/look-green.webp',k:'Look 3',t:'Listing gallery · WhatsApp'}];
+
+  // lightbox
+  const lb=document.getElementById('lb'),li=document.getElementById('lb-img'),lc=document.getElementById('lb-cap');
+  const openLb=(s)=>{li.src=s.src;lc.textContent=s.k+' · '+s.t;lb.hidden=false;document.getElementById('lb-x').focus();};
+  const closeLb=()=>{lb.hidden=true;};
+  document.getElementById('lb-x').addEventListener('click',closeLb);lb.addEventListener('click',e=>{if(e.target===lb)closeLb();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLb();});
+
+  // hero rotating card: crossfade with a slow settle, 3.6s per shot, pause on hover
+  const stage=document.getElementById('stage'),thumbs=document.getElementById('thumbs'),ck=document.getElementById('cap-k'),ctt=document.getElementById('cap-t');
+  const imgs=SHOTS.map((s,i)=>{const im=document.createElement('img');im.src=s.src;im.alt=s.k+' — '+s.t;if(i===0)im.className='on';stage.insertBefore(im,stage.firstChild);return im;});
+  const tb=SHOTS.map((s,i)=>{const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',s.k);b.setAttribute('aria-pressed',String(i===0));b.innerHTML='<img alt="" src="'+s.src+'">';b.addEventListener('click',()=>{go(i);restart();});thumbs.appendChild(b);return b;});
+  let cur=0,timer=null,paused=false;
+  function go(i){imgs[cur].classList.remove('on');tb[cur].setAttribute('aria-pressed','false');cur=i;imgs[cur].classList.add('on');tb[cur].setAttribute('aria-pressed','true');ck.textContent=SHOTS[cur].k;ctt.textContent=SHOTS[cur].t;}
+  function restart(){clearInterval(timer);if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;timer=setInterval(()=>{if(!paused&&!document.hidden)go((cur+1)%SHOTS.length);},3600);}
+  const show=document.getElementById('show');show.addEventListener('mouseenter',()=>paused=true);show.addEventListener('mouseleave',()=>paused=false);
+  document.getElementById('cap-zoom').addEventListener('click',()=>openLb(SHOTS[cur]));
+  go(0);restart();
+
+  // deliverables grid
+  const deliv=document.getElementById('deliv');
+  SHOTS.forEach((s,i)=>{const b=document.createElement('button');b.type='button';b.className='dl'+(i===0?' big':'');b.setAttribute('aria-label','Zoom: '+s.k);
+    b.innerHTML='<img alt="" loading="lazy" src="'+s.src+'"><span class="shade"></span><span class="lbl"><b>'+s.k+'</b><span>'+s.t+'</span></span>';b.addEventListener('click',()=>openLb(s));deliv.appendChild(b);});
+
+  // colour variants: names and files match the actual photos
+  const COLS=[['Lilac','#b9a7e8','lilac'],['Rose','#e9a3b4','rose'],['Sky','#9ec3ea','sky'],['Sage','#a9c7a3','sage']];
+  const LOCS=[['🏛️ Golden stepwell','Golden stepwell','stepwell'],['🏔️ Himalayan temple','Himalayan temple','himalaya'],['Whole collection','Whole collection','quartet']];
+  const FILES={'lilac-himalaya':'saree-lilac-himalaya-480','lilac-stepwell':'saree-lilac-stepwell-480','rose-himalaya':'saree-rose-himalaya-480','rose-stepwell':'saree-rose-himalaya-480','sky-himalaya':'saree-sky-himalaya-480','sky-stepwell':'saree-sky-stepwell-480','sage-himalaya':'saree-sage-himalaya-480','sage-stepwell':'saree-sage-stepwell-480','quartet-himalaya':'saree-quartet-himalaya-800','quartet-stepwell':'saree-quartet-stepwell-800'};
+  let col=0,loc=1,lastPlace='himalaya';
+  const sw=document.getElementById('sw'),lc2=document.getElementById('loc'),cwImg=document.getElementById('cw-img'),cwCap=document.getElementById('cw-cap');
+  const swB=COLS.map(([n,h],i)=>{const b=document.createElement('button');b.type='button';b.className='sw';b.setAttribute('aria-pressed',String(i===0));b.innerHTML='<i style="background:'+h+'"></i>'+n;b.addEventListener('click',()=>{col=i;if(loc===2)loc=lastPlace==='stepwell'?0:1;upd();});sw.appendChild(b);return b;});
+  const lcB=LOCS.map(([lab],i)=>{const b=document.createElement('button');b.type='button';b.className='chip2';b.setAttribute('aria-pressed',String(i===1));b.textContent=lab;b.addEventListener('click',()=>{loc=i;if(i<2)lastPlace=LOCS[i][2];upd();});lc2.appendChild(b);return b;});
+  function upd(){const place=loc===2?lastPlace:LOCS[loc][2];const key=loc===2?'quartet-'+place:COLS[col][2]+'-'+place;
+    swB.forEach((b,i)=>b.setAttribute('aria-pressed',String(i===col&&loc!==2)));lcB.forEach((b,i)=>b.setAttribute('aria-pressed',String(i===loc)));
+    cwImg.style.opacity='0';setTimeout(()=>{cwImg.src='img/wall/'+FILES[key]+'.webp';cwImg.onload=()=>{cwImg.style.opacity='1';};},150);
+    cwCap.textContent=(loc===2?'All 4 colourways':COLS[col][0])+' · '+(loc===2?LOCS[place==='stepwell'?0:1][1]:LOCS[loc][1]);}
+  upd();
+
+  // campaign calculator (reference math: 30 planning + shots × rate; studio day ≈ ₹24,500 per look)
+  let looks=4,rate=9,add={cover:true,combo:true};
+  const inr=n=>'₹'+Math.round(n).toLocaleString('en-IN');
+  function calc(){const shots=looks+(add.cover?1:0)+(add.combo?1:0),cred=30+shots*rate,rs=cred*(249/250),day=looks*24500;
+    document.getElementById('m-shots').textContent=shots+' shots';document.getElementById('m-break').textContent='30 planning + '+shots+' × '+rate;
+    document.getElementById('m-cred').textContent=cred;document.getElementById('m-inr').textContent=inr(rs);
+    document.getElementById('m-day-l').textContent='A studio day for '+looks+' looks';document.getElementById('m-day').textContent=inr(day)+'+';document.getElementById('m-keep').textContent=inr(day-rs)+'+';}
+  const seg=(id,fn,multi)=>{const bs=[...document.querySelectorAll('#'+id+' button')];bs.forEach(b=>b.addEventListener('click',()=>{if(multi){b.setAttribute('aria-pressed',String(b.getAttribute('aria-pressed')!=='true'));}else{bs.forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');}fn(b);calc();}));};
+  seg('c-looks',b=>looks=+b.dataset.v);seg('c-q',b=>rate=+b.dataset.v);seg('c-add',b=>add[b.dataset.v]=b.getAttribute('aria-pressed')==='true',true);
+  calc();
+
+  // in-page links: the artifact viewer swallows plain #anchor clicks, so scroll in script
+  document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;const el=document.getElementById(a.getAttribute('href').slice(1));if(!el)return;e.preventDefault();el.scrollIntoView({behavior:'smooth',block:'start'});});
+})();
+</script>
+<script>(function(){var top=document.querySelector('.top'),btn=document.querySelector('.menu'),nav=document.getElementById('primary-nav');if(!top||!btn||!nav)return;var set=function(o){top.classList.toggle('open',o);btn.setAttribute('aria-expanded',String(o));btn.setAttribute('aria-label',o?'Close menu':'Open menu');btn.textContent=o?'✕':'☰';};btn.addEventListener('click',function(){set(!top.classList.contains('open'));});nav.addEventListener('click',function(e){if(e.target.closest('a'))set(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')set(false);});addEventListener('resize',function(){if(innerWidth>959)set(false);});})();</script>
+</body>
+</html>

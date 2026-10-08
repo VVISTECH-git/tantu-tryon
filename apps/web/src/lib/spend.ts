@@ -2,6 +2,7 @@ import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { creditLedger, db, generations, settings, type GenerationLook } from "@/db";
 import { CREDIT_PAISE, rupees } from "@/content/credits";
 import { savedPrices, usdFor, type ImageSize } from "@/lib/imageModels";
+import { QWEN_MODEL, QWEN_PROVIDER } from "@/lib/qwenPrompt";
 
 export { CREDIT_PAISE, rupees };
 
@@ -43,6 +44,7 @@ export function imageSizeFor(quality: GenerationLook["quality"]): "1K" | "2K" {
  * not know, so an unknown model is over- rather than under-counted.
  */
 export async function listCostPaise(model: string, size: ImageSize, ratePaisePerUsd: number): Promise<number> {
+  if (model === QWEN_MODEL) return 0; // the laptop's own electricity
   const usd = (usdFor(await savedPrices(), model, size) ?? 0.134) + INPUT_USD;
   return Math.round(usd * ratePaisePerUsd);
 }
@@ -131,7 +133,9 @@ export async function reserveGeneration(input: ReserveInput): Promise<ReserveRes
 
   const lim = await limits();
   const costPaise = await listCostPaise(input.model, input.size, lim.ratePaisePerUsd);
-  const creditsPaise = CREDIT_PAISE[input.look.quality];
+  // The laptop's Qwen track is free to the shop while it is being proven (8 Oct).
+  const local = input.model === QWEN_MODEL;
+  const creditsPaise = local ? 0 : CREDIT_PAISE[input.look.quality];
 
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext('tantu:spend'))`);
@@ -185,9 +189,10 @@ export async function reserveGeneration(input: ReserveInput): Promise<ReserveRes
         promptVersion: input.promptVersion,
         promptText: input.promptText,
         look: input.look,
-        provider: input.model.includes("/") ? "openrouter" : "gemini",
+        provider: local ? QWEN_PROVIDER : input.model.includes("/") ? "openrouter" : "gemini",
         model: input.model,
-        status: "running",
+        // A laptop job waits in the queue until the worker claims it; a cloud call runs now.
+        status: local ? "queued" : "running",
         costPaise,
         ratePaisePerUsd: lim.ratePaisePerUsd,
         creditsPaise,
@@ -261,7 +266,12 @@ export async function sweepStale(): Promise<number> {
   const stale = await db
     .select({ id: generations.id })
     .from(generations)
-    .where(and(eq(generations.status, "running"), lt(generations.startedAt, sql`now() - interval '6 minutes'`)));
+    .where(
+      and(
+        eq(generations.status, "running"),
+        sql`${generations.startedAt} < now() - (case when ${generations.provider} = ${QWEN_PROVIDER} then interval '30 minutes' else interval '6 minutes' end)`,
+      ),
+    );
   for (const { id } of stale) {
     await finishGeneration(id, { ok: false, status: "failed", error: "Timed out before an image came back.", billed: true });
   }

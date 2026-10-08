@@ -37,6 +37,8 @@ export const IMAGE_OPTIONS: ImageOption[] = [
   // Through OpenRouter, not Google (27 Sep): the slug's slash sends the call there.
   { id: "qwen3-2k", model: "qwen/qwen-image-3", priceSize: "2K", name: "Qwen Image 3", detail: "2K · OpenRouter", selectable: true },
   { id: "qwen3-1k", model: "qwen/qwen-image-3", priceSize: "1K", name: "Qwen Image 3", detail: "1K · OpenRouter", selectable: true },
+  // The shop's own laptop (8 Oct): Qwen-Image-Edit-2511, squeezed to fit an 8 GB card. Free, slow, ours.
+  { id: "qwen-local", model: "qwen-image-edit-2511-q4", priceSize: "1K", name: "Qwen Image Edit · laptop", detail: "Free · the shop laptop makes it, 3–7 min a photo", selectable: true },
 ];
 
 /** Rows priced from OpenRouter's list, not Google's page. */
