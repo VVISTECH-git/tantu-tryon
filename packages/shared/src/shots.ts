@@ -142,9 +142,36 @@ export const SAREE_SHOTS: Shot[] = [
   },
 ];
 
-/** The shots for a garment type. Only the saree has a list today. */
+/**
+ * Stitched garments and dupattas (8 Oct): one photo of the whole piece is
+ * enough for the model; a close-up of the print helps it keep the motif true.
+ */
+export const GARMENT_SHOTS: Shot[] = [
+  {
+    slot: "whole",
+    sample: "/shots/garment/whole.jpg",
+    label: "The garment",
+    required: true,
+    orientation: "upright",
+    where: "The whole piece in frame, front on, nothing cut off",
+    how: "Hold the phone upright. On a hanger, a mannequin or laid flat: the whole garment from top to hem inside the frame, straight on, in even light. Plain background if you can; the model removes hangers and stands anyway.",
+    gives: "This one photo gives the cut, the print and the colours.",
+  },
+  {
+    slot: "body_motif",
+    sample: "/shots/garment/motif.jpg",
+    label: "Print close-up",
+    required: false,
+    orientation: "upright",
+    where: "Close, one motif or a few repeats sharp in frame",
+    how: "Step in close so one motif, or three or four repeats of a small print, fill the frame, sharp.",
+    gives: "Keeps the motif's shape and colours exact in the result.",
+  },
+];
+
+/** The shots for a garment type: the saree's own list, or the plain one for everything stitched. */
 export function shotsFor(type: string): Shot[] {
-  return garmentType(type).value === "saree" ? SAREE_SHOTS : [];
+  return garmentType(type).value === "saree" ? SAREE_SHOTS : GARMENT_SHOTS;
 }
 
 export function shotFor(type: string, slot: string): Shot | undefined {

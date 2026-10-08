@@ -866,7 +866,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                   </div>
                 </div>
               ) : null}
-              <Copy>{T.shots.copy}</Copy>
+              <Copy>{garmentType === "saree" ? T.shots.copy : T.shots.copyGarment}</Copy>
               <p className="st-shots-status">
                 {T.shots.progress(required.length - missing.length, required.length)}
                 {retakes > 0 && ` · ${T.shots.retakeCount(retakes)}`}
