@@ -117,8 +117,11 @@ export function qwenPrompt(garment: Garment, promptId: string, look: GenerationL
   const p = poseFor(garment.garmentType, promptId) ?? primaryPose(garment.garmentType);
   // Adults are about 20 (user's choice); the age picked for a child stands.
   const age = look.modelType === "girl" || look.modelType === "boy" ? look.age : "about 20 years old";
-  const seed = pick(garment.productCode ?? garment.id ?? "");
-  const looks = look.modelType === "woman" ? `, ${FACES[seed % FACES.length]}, ${HAIR[Math.floor(seed / 7) % HAIR.length]}` : "";
+  // Numbered products (KW-0088) step through the faces and hairstyles in turn, so neighbours never
+  // share a model; anything else is spread by a hash of its ID.
+  const n = Number((garment.productCode ?? "").match(/(\d+)$/)?.[1] ?? NaN);
+  const seed = Number.isFinite(n) ? n : pick(garment.productCode ?? garment.id ?? "");
+  const looks = look.modelType === "woman" ? `, ${FACES[seed % FACES.length]}, ${HAIR[(seed * 3 + 1) % HAIR.length]}` : "";
   const model = `${MODEL[look.modelType] ?? MODEL.woman}${looks}, ${age}`;
   const scene = SCENE[look.background] ?? SCENE.studio!;
   const framing = p.framing === "full" ? "full-length photo from head to feet" : p.framing === "waist" ? "photo from the waist up" : "close photo of the garment detail";
