@@ -64,7 +64,7 @@ export async function modelFor(quality: GenerationLook["quality"]): Promise<{ mo
   if (quality === "high") return { model: process.env.GEMINI_IMAGE_MODEL_HIGH || GEMINI_MODELS.high, size: imageSizeFor(quality) };
   if (process.env.GEMINI_IMAGE_MODEL) return { model: process.env.GEMINI_IMAGE_MODEL, size: "1K" };
   const option = await chosenImageOption();
-  return { model: option.model, size: option.priceSize === "2K" ? "2K" : "1K" };
+  return { model: option.model, size: option.priceSize === "4K" ? "4K" : option.priceSize === "2K" ? "2K" : "1K" };
 }
 
 export function toOutput(row: Generation): GenerateOutput {
