@@ -18,6 +18,8 @@ interface Body {
   promptId?: string;
   look?: Partial<GenerationLook>;
   clientKey?: string;
+  /** Platform admin only (8 Oct): the exact prompt to send, for like-for-like engine tests. */
+  promptOverride?: string;
 }
 
 export async function POST(request: Request) {
@@ -59,6 +61,7 @@ export async function POST(request: Request) {
       look: { modelType: look.modelType!, age: look.age, background: look.background!, quality: look.quality },
       clientKey: body.clientKey,
       signal: request.signal,
+      promptOverride: account.platformAdmin && typeof body.promptOverride === "string" ? body.promptOverride.slice(0, 6000) : undefined,
     });
     if (!result.ok) return Response.json({ error: result.message }, { status: result.status });
     return Response.json({ generation: result.generation }, { headers: { "Cache-Control": "no-store" } });
