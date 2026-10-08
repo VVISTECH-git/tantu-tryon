@@ -40,7 +40,7 @@ const GARMENT: Record<string, { name: string; worn: string; rules: string }> = {
   },
   frock: {
     name: "frock (long flared dress)",
-    worn: "worn as a long flared frock, fitted at the waist and flowing to the ankle, with simple flat sandals",
+    worn: "worn as it is cut, with nude block-heel sandals, holding a small woven straw tote bag",
     rules: "Keep the print exactly as in the photo: same flowers and leaves, same colours, same scale of the pattern, same neckline, same sleeves, same frills or tiers if the photo shows them. The inside of the neckline is the same fabric as the frock. Do not redraw, simplify, recolour or add any decoration.",
   },
   blouse: {
@@ -68,7 +68,7 @@ const GARMENT: Record<string, { name: string; worn: string; rules: string }> = {
 // User (8 Oct): North Indian models, about 20 years old, and pleasant to look at: a
 // professional catalogue model, not a passer-by (the first plain wording was rejected).
 const MODEL: Record<string, string> = {
-  woman: "a professional North Indian female fashion model, polished attractive features, symmetrical face, clear glowing skin in a natural North Indian complexion, slim graceful figure, light natural makeup, a soft pleasant smile, hair neatly styled in a low bun",
+  woman: "a beautiful Indian woman with warm natural skin and fine skin texture, a genuine soft smile, minimal natural makeup, long dark wavy hair in a loose braid falling forward over one shoulder with a few soft strands framing her face, a fine gold chain necklace, small gold stud earrings and a thin gold bangle",
   man: "a professional North Indian male fashion model, well-groomed, natural North Indian complexion, athletic build, confident calm expression, short neat hair",
   girl: "a real Indian girl, natural medium-brown Indian skin tone, cheerful expression, hair in two plaits",
   boy: "a real Indian boy, natural medium-brown Indian skin tone, cheerful expression, short neat hair",
@@ -78,6 +78,7 @@ const SCENE: Record<string, string> = {
   studio: "plain light-grey seamless studio backdrop, soft even studio light, neutral white balance, catalogue photo",
   courtyard: "a sunlit traditional Indian courtyard with a stone arch and pillars softly blurred behind, warm golden light",
   outdoor: "a quiet garden path with green foliage softly blurred behind, soft daylight",
+  gallery: "a bright minimalist modern art gallery, light grey polished concrete floor, white walls with large framed abstract paintings in warm beige, taupe and charcoal tones and a small sculpture on a pedestal, softly blurred behind her; soft natural daylight from a tall window at the side, gentle realistic shadows on the floor, clean white balance",
 };
 
 export function qwenPrompt(garment: Garment, promptId: string, look: GenerationLook): string {
@@ -89,8 +90,11 @@ export function qwenPrompt(garment: Garment, promptId: string, look: GenerationL
   const scene = SCENE[look.background] ?? SCENE.studio!;
   const framing = p.framing === "full" ? "full-length photo from head to feet" : p.framing === "waist" ? "photo from the waist up" : "close photo of the garment detail";
   const extra = qwenInputs(garment).length > 1 ? " Photos 2 and 3 show the same garment's other parts; use them for those parts." : "";
+  // The garment's cut as read from its own photo (8 Oct): stated as fixed facts, so nothing is guessed.
+  const spec = garment.words?.garmentSpec;
   return [
     `Photo 1 shows a ${g.name}.${extra} Make one catalogue photograph of this exact ${g.name} ${g.worn}, on ${model}.`,
+    ...(spec ? [`The garment in photo 1, read closely — these details are fixed and must be copied exactly: ${spec}`] : []),
     `Priority: 1. the garment's fabric, print and colours exactly as in the photos; 2. correct anatomy (one person, two arms, two hands, five fingers each); 3. pose and framing; 4. a natural, original face.`,
     g.rules,
     `Pose: ${p.how}. ${framing}, camera at chest height, 3:4 portrait.`,

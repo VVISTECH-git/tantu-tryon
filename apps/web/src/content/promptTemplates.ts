@@ -36,7 +36,7 @@ import * as lockedV3 from "./locked/promptTemplatesV3";
 export type { GarmentWords } from "./garmentWords";
 
 export type ModelType = "woman" | "man" | "girl" | "boy";
-export type BackgroundId = "courtyard" | "studio" | "outdoor";
+export type BackgroundId = "courtyard" | "studio" | "outdoor" | "gallery";
 
 /**
  * How the photographs reach the model.
@@ -131,6 +131,13 @@ export const BACKGROUNDS: Background[] = [
     label: "Studio",
     scene: "A seamless plain light grey studio backdrop, no props, no visible horizon line.",
     lighting: "Soft, even studio lighting, neutral colour temperature so the fabric colours read true.",
+  },
+  {
+    id: "gallery",
+    label: "Art gallery",
+    scene:
+      "A bright minimalist modern art gallery: light grey polished concrete floor, white walls with large framed abstract paintings in warm beige, taupe and charcoal tones and a small sculpture on a pedestal, all softly blurred behind {her}.",
+    lighting: "Soft natural daylight from a tall window at the side, gentle realistic shadows on the floor, clean white balance.",
   },
   {
     id: "outdoor",
@@ -256,6 +263,10 @@ const SCENE_V3: Record<BackgroundId, { scene: string; back?: string; lighting: s
   outdoor: {
     scene: "An outdoor heritage stone wall with greenery behind {her}, background softly blurred.",
     lighting: "Soft, even daylight with no harsh shadows, neutral white balance, so the fabric's colours read exactly as in the photograph.",
+  },
+  gallery: {
+    scene: "A bright minimalist modern art gallery: light grey polished concrete floor, white walls with large framed abstract paintings in warm beige, taupe and charcoal tones, all softly blurred behind {her}.",
+    lighting: "Soft natural daylight from a tall window at the side, neutral white balance, so the fabric's colours read exactly as in the photograph.",
   },
 };
 

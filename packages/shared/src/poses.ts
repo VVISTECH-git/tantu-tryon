@@ -35,7 +35,7 @@ export const POSES: Record<string, Pose[]> = {
     { id: "F1", title: "Front, standing", summary: "Straight on, the whole frock from neck to hem.", how: STAND, framing: "full", group: "front" },
     { id: "F2", title: "Three-quarter, hand on hip", summary: "Turned a little, hand on hip, the flare of the skirt visible.", how: QUARTER, framing: "full", group: "side" },
     { id: "F3", title: "Twirl", summary: "Skirt flaring out in a circle; shows the flow and the tiers.", how: TWIRL, framing: "full", group: "front" },
-    { id: "F4", title: "Walking", summary: "A step towards the camera, the skirt in motion.", how: WALK, framing: "full", group: "front" },
+    { id: "F4", title: "Walking, holding the skirt", summary: "A step towards the camera, one hand holding the skirt out so its flow shows.", how: "walking naturally towards the camera with a gentle sway, lightly holding the skirt out to the side with one hand to show its flow and volume, the other hand holding a small woven straw tote, a genuine soft smile", framing: "full", group: "front" },
     { id: "F5", title: "Seated, skirt spread", summary: "On a stool, the skirt spread around; the print laid out.", how: SEATED + ", the skirt spread out around the stool", framing: "full", group: "front" },
     { id: "F6", title: "Back view", summary: "From behind; the back of the frock and the hem.", how: BACK, framing: "full", group: "back" },
   ],
