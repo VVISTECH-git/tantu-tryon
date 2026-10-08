@@ -62,6 +62,7 @@ export async function POST(request: Request) {
       clientKey: body.clientKey,
       signal: request.signal,
       promptOverride: account.platformAdmin && typeof body.promptOverride === "string" ? body.promptOverride.slice(0, 6000) : undefined,
+      free: account.platformAdmin,
     });
     if (!result.ok) return Response.json({ error: result.message }, { status: result.status });
     return Response.json({ generation: result.generation }, { headers: { "Cache-Control": "no-store" } });
