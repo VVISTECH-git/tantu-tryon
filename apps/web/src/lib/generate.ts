@@ -6,6 +6,8 @@ import { attachmentsFor, partPlan, sheetFor, wordsFor } from "@/lib/garments";
 import { chosenImageOption, type ImageSize } from "@/lib/imageModels";
 import { finishGeneration, imageSizeFor, reserveGeneration, type ReserveResult } from "@/lib/spend";
 import { readAsset, renderUrl, saveRender } from "@/lib/storage";
+import { describeGarmentCut } from "@/lib/describe";
+import { updateGarment } from "@/lib/garments";
 import { QWEN_MODEL, isQwenOption, qwenInputs, qwenPrompt, qwenSize } from "@/lib/qwenPrompt";
 
 /**
@@ -79,7 +81,26 @@ export function toOutput(row: Generation): GenerateOutput {
   };
 }
 
+/**
+ * A stitched garment's cut, read from its photo once and kept on the product (words.garmentSpec).
+ * A failed read is not fatal: the prompt then asks to copy the photo, as before.
+ */
+async function withGarmentSpec(garment: Garment): Promise<Garment> {
+  if (garment.garmentType === "saree" || garment.words?.garmentSpec) return garment;
+  const first = qwenInputs(garment)[0];
+  if (!first) return garment;
+  try {
+    const data = Buffer.from(await readAsset(first.key)).toString("base64");
+    const read = await describeGarmentCut(data, first.key.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg");
+    if (!read.ok) return garment;
+    return await updateGarment(garment.id, { words: { ...(garment.words ?? {}), garmentSpec: read.spec } });
+  } catch {
+    return garment;
+  }
+}
+
 export async function runGeneration(input: GenerateInput): Promise<GenerateResult> {
+  if (!input.promptOverride) input = { ...input, garment: await withGarmentSpec(input.garment) };
   // The Qwen track (8 Oct): the admin chose the laptop or the rented GPU; the job is queued for the worker, nothing is called here.
   if (isQwenOption(await chosenImageOption())) {
     const size = qwenSize(input.look.quality);

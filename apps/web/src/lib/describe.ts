@@ -190,3 +190,55 @@ export async function describeSheet(sheetBase64: string, mime = "image/png"): Pr
 
   return { ok: false, status: 502, message: failures.join(" · ") };
 }
+
+/**
+ * The cut of a stitched garment, read from its photo (8 Oct, user: "the sleeves are half
+ * sleeves; read from the input"). The image model is told these in plain words, so it does
+ * not guess them. One Gemini Flash read, a few paise.
+ */
+const CUT_INSTRUCTIONS = `You are a garment technician. Look closely at this product photo of one garment (it may be on a hanger, a mannequin or laid flat) and describe its construction exactly, so a photographer can dress a model in it without seeing the photo.
+Return JSON with these keys, each a short precise phrase:
+- "garment": what it is (e.g. "tiered maxi frock", "straight kurti", "crop top and long skirt set")
+- "neckline": exact shape and any detail (e.g. "wide scoop neck with a small central V-notch", "deep V-neck with a narrow band")
+- "sleeves": exact length and style. Judge where the sleeve ends against the arm: "sleeveless", "cap sleeves", "short sleeves ending well above the elbow", "half sleeves ending just above the elbow", "elbow-length sleeves", "three-quarter sleeves ending below the elbow", "full-length sleeves to the wrist"; add the style (puff, gathered cuff, straight, bell, frill).
+- "length": where the hem falls on a person (e.g. "ankle length", "mid-calf", "knee length", "hip length")
+- "waist_and_skirt": waist seam, gathers, tiers (count them), flare, frills
+- "print": the motifs, their size, spacing and arrangement
+- "colours": the ground colour and the print colours
+- "other": buttons, ties, borders, piping, lining, pockets, anything else visible; "none" if nothing
+Be literal: describe what you see, never what is usual. If something is hidden, say "not visible".`;
+
+export async function describeGarmentCut(data: string, mime: string): Promise<{ ok: true; spec: string; model: string } | { ok: false; message: string }> {
+  if (!process.env.GEMINI_API_KEY) return { ok: false, message: "No Gemini key to read the photo with." };
+  const model = process.env.GEMINI_TEXT_MODEL || "gemini-3.6-flash";
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: CUT_INSTRUCTIONS }, { inline_data: { mime_type: mime, data } }] }],
+        generationConfig: { responseMimeType: "application/json", temperature: 0.1 },
+      }),
+    });
+    if (!res.ok) return { ok: false, message: `Gemini refused the read: ${res.status} ${(await res.text()).slice(0, 200)}` };
+    const json = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    const f = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, "")) as Record<string, string>;
+    const part = (k: string, label: string) => (f[k] && !/^(none|not visible)$/i.test(f[k].trim()) ? `${label}: ${f[k].trim()}` : null);
+    const spec = [
+      part("garment", "Garment"),
+      part("neckline", "Neckline"),
+      part("sleeves", "Sleeves"),
+      part("length", "Length"),
+      part("waist_and_skirt", "Waist and skirt"),
+      part("print", "Print"),
+      part("colours", "Colours"),
+      part("other", "Other details"),
+    ]
+      .filter(Boolean)
+      .join(". ");
+    return spec ? { ok: true, spec: `${spec}.`, model } : { ok: false, message: "The read came back empty." };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : String(error) };
+  }
+}
