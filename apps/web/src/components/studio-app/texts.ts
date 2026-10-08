@@ -96,6 +96,7 @@ export const T = {
   shots: {
     title: (type: string) => `${type} photos`,
     copy: "Hang it once. Only the phone moves.",
+    copyGarment: "One clear photo of the whole piece. A close-up of the print helps.",
     required: "Required",
     optional: "Optional",
     camera: "Camera",
