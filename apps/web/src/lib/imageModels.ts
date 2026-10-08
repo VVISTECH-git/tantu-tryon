@@ -13,13 +13,14 @@ import { db, settings } from "@/db";
  * checked by hand on the date below.
  */
 
-export type ImageSize = "1K" | "2K";
+/** 4K: Nano Banana Pro only (8 Oct: 1K went soft when the print was zoomed). */
+export type ImageSize = "1K" | "2K" | "4K";
 
 export interface ImageOption {
   id: string;
   model: string;
   /** The size as Google's price page names it. */
-  priceSize: "0.5K" | "1K" | "2K";
+  priceSize: "0.5K" | "1K" | "2K" | "4K";
   name: string;
   detail: string;
   /** Rows the app cannot use are still priced, so the table matches Google's. */
@@ -33,6 +34,7 @@ export const IMAGE_OPTIONS: ImageOption[] = [
   { id: "nb2-2k", model: "gemini-3.1-flash-image", priceSize: "2K", name: "Nano Banana 2", detail: "2K", selectable: true },
   { id: "pro-1k", model: "gemini-3-pro-image", priceSize: "1K", name: "Nano Banana Pro", detail: "1K", selectable: true },
   { id: "pro-2k", model: "gemini-3-pro-image", priceSize: "2K", name: "Nano Banana Pro", detail: "2K", selectable: true },
+  { id: "pro-4k", model: "gemini-3-pro-image", priceSize: "4K", name: "Nano Banana Pro", detail: "4K, for zoom and print", selectable: true },
   { id: "nb-2.5", model: "gemini-2.5-flash-image", priceSize: "1K", name: "Nano Banana (2.5)", detail: "Google shuts it down on 2 Oct 2026", selectable: false },
   // Through OpenRouter, not Google (27 Sep): the slug's slash sends the call there.
   { id: "qwen3-2k", model: "qwen/qwen-image-3", priceSize: "2K", name: "Qwen Image 3", detail: "2K · OpenRouter", selectable: true },
@@ -66,6 +68,7 @@ const HAND_CHECKED: PriceTable = {
   "nb2-2k": { normal: 0.101, batch: 0.05 },
   "pro-1k": { normal: 0.134, batch: 0.067 },
   "pro-2k": { normal: 0.134, batch: 0.067 },
+  "pro-4k": { normal: 0.24, batch: 0.12 },
   "nb-2.5": { normal: 0.039, batch: 0.0195 },
   // openrouter.ai/api/v1/images/models/qwen/qwen-image-3/endpoints, 27 Sep: $0.03 an
   // image at 1K and 2K alike, plus $0.003 for each input image. No batch tier.
@@ -90,11 +93,11 @@ function pageText(html: string): string {
 }
 
 /** "$0.067 per 1K image", "$0.134 per 1K/2K image", "$0.0336 per 1K resolution image", "$0.039 per image". */
-function sizedPrices(block: string): Partial<Record<"0.5K" | "1K" | "2K" | "any", number>> {
-  const out: Partial<Record<"0.5K" | "1K" | "2K" | "any", number>> = {};
+function sizedPrices(block: string): Partial<Record<"0.5K" | "1K" | "2K" | "4K" | "any", number>> {
+  const out: Partial<Record<"0.5K" | "1K" | "2K" | "4K" | "any", number>> = {};
   for (const m of block.matchAll(/\$([0-9]*\.?[0-9]+) per (0\.5K|1K\/2K|1K|2K|4K)\b/g)) {
     const usd = Number(m[1]);
-    const sizes = m[2] === "1K/2K" ? (["1K", "2K"] as const) : m[2] === "4K" ? [] : [m[2] as "0.5K" | "1K" | "2K"];
+    const sizes = m[2] === "1K/2K" ? (["1K", "2K"] as const) : [m[2] as "0.5K" | "1K" | "2K" | "4K"];
     for (const s of sizes) out[s] ??= usd;
   }
   const flat = block.match(/\$([0-9]*\.?[0-9]+) per image/);

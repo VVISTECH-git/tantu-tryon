@@ -149,7 +149,7 @@ export class GeminiProvider implements TryOnProvider {
 
 // ── One image, one call ─────────────────────────────────────────────────────
 
-export type ImageSize = "1K" | "2K";
+export type ImageSize = "1K" | "2K" | "4K";
 
 export interface GenerateImageOptions {
   /** The whole prompt, already composed. Sent first. */
