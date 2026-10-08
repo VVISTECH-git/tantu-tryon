@@ -68,17 +68,48 @@ const GARMENT: Record<string, { name: string; worn: string; rules: string }> = {
 // User (8 Oct): North Indian models, about 20 years old, and pleasant to look at: a
 // professional catalogue model, not a passer-by (the first plain wording was rejected).
 const MODEL: Record<string, string> = {
-  woman: "a beautiful Indian woman with warm natural skin and fine skin texture, a genuine soft smile, minimal natural makeup, long dark wavy hair in a loose braid falling forward over one shoulder with a few soft strands framing her face, a fine gold chain necklace, small gold stud earrings and a thin gold bangle",
+  woman: "a beautiful Indian woman, fine natural skin texture, minimal natural makeup, a fine gold chain necklace, small gold stud earrings and a thin gold bangle",
   man: "a professional North Indian male fashion model, well-groomed, natural North Indian complexion, athletic build, confident calm expression, short neat hair",
   girl: "a real Indian girl, natural medium-brown Indian skin tone, cheerful expression, hair in two plaits",
   boy: "a real Indian boy, natural medium-brown Indian skin tone, cheerful expression, short neat hair",
 };
 
+/*
+  Rotated per product (user, 8 Oct: "the hairstyle is the same across, the model is the same
+  across — rotate them"). A product keeps one model and one hairstyle in all its poses; the
+  next product gets another. Natural Indian skin tones, no "fair".
+*/
+const FACES = [
+  "an oval face, light wheatish skin, large dark eyes and a soft open smile",
+  "a heart-shaped face, warm medium-brown skin, defined brows and a warm smile",
+  "a round face, wheatish skin, a dimpled cheerful smile",
+  "high cheekbones, deep dusky-brown skin, almond eyes and a confident closed-lip smile",
+  "a soft square jaw, light-brown skin, gentle eyes and a calm smile",
+  "a long face, warm golden-brown skin, a few freckles and a bright smile",
+];
+const HAIR = [
+  "long dark hair in a loose braid falling forward over one shoulder",
+  "dark hair in a neat low bun at the nape",
+  "long dark hair worn open in soft waves past the shoulders",
+  "dark hair in a high sleek ponytail",
+  "long dark hair half tied up, the rest falling open behind",
+  "long dark hair side-parted and swept over one shoulder",
+  "sleek straight dark hair worn open, centre-parted",
+  "dark hair in a soft messy bun with a few loose strands framing the face",
+];
+
+/** A product's own index into the rotations, the same on every run (FNV-1a of its ID). */
+function pick(seed: string): number {
+  let h = 0x811c9dc5;
+  for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0;
+  return h;
+}
+
 const SCENE: Record<string, string> = {
   studio: "plain light-grey seamless studio backdrop, soft even studio light, neutral white balance, catalogue photo",
   courtyard: "a sunlit traditional Indian courtyard with a stone arch and pillars softly blurred behind, warm golden light",
   outdoor: "a quiet garden path with green foliage softly blurred behind, soft daylight",
-  gallery: "a bright minimalist modern art gallery, light grey polished concrete floor, white walls with large framed abstract paintings in warm beige, taupe and charcoal tones and a small sculpture on a pedestal, softly blurred behind her; soft natural daylight from a tall window at the side, gentle realistic shadows on the floor, clean white balance",
+  gallery: "a bright minimalist modern art gallery, light grey polished concrete floor, white walls with large framed abstract paintings in warm beige, taupe and charcoal tones and a small sculpture on a pedestal, softly blurred behind her; bright, even, neutral daylight from tall windows, gentle realistic shadows on the floor, neutral white balance that keeps the garment's colours true",
 };
 
 export function qwenPrompt(garment: Garment, promptId: string, look: GenerationLook): string {
@@ -86,7 +117,9 @@ export function qwenPrompt(garment: Garment, promptId: string, look: GenerationL
   const p = poseFor(garment.garmentType, promptId) ?? primaryPose(garment.garmentType);
   // Adults are about 20 (user's choice); the age picked for a child stands.
   const age = look.modelType === "girl" || look.modelType === "boy" ? look.age : "about 20 years old";
-  const model = `${MODEL[look.modelType] ?? MODEL.woman}, ${age}`;
+  const seed = pick(garment.productCode ?? garment.id ?? "");
+  const looks = look.modelType === "woman" ? `, ${FACES[seed % FACES.length]}, ${HAIR[Math.floor(seed / 7) % HAIR.length]}` : "";
+  const model = `${MODEL[look.modelType] ?? MODEL.woman}${looks}, ${age}`;
   const scene = SCENE[look.background] ?? SCENE.studio!;
   const framing = p.framing === "full" ? "full-length photo from head to feet" : p.framing === "waist" ? "photo from the waist up" : "close photo of the garment detail";
   const extra = qwenInputs(garment).length > 1 ? " Photos 2 and 3 show the same garment's other parts; use them for those parts." : "";
@@ -97,6 +130,7 @@ export function qwenPrompt(garment: Garment, promptId: string, look: GenerationL
     ...(spec ? [`The garment in photo 1, read closely — these details are fixed and must be copied exactly: ${spec}`] : []),
     `Priority: 1. the garment's fabric, print and colours exactly as in the photos; 2. correct anatomy (one person, two arms, two hands, five fingers each); 3. pose and framing; 4. a natural, original face.`,
     g.rules,
+    `Colour: keep every colour of the fabric exactly as bright, as saturated and as light or dark as in photo 1; do not mute, grey, warm or darken them.`,
     `Pose: ${p.how}. ${framing}, camera at chest height, 3:4 portrait.`,
     `Scene: ${scene}. Remove the mannequin, hanger, vase, flowers, floor and any shop background from the photo.`,
     `The result is a sharp, well-lit, high-end catalogue photograph of a real person, not an illustration. Natural skin texture, no waxy or plastic look. No text, no watermark, no extra people.`,

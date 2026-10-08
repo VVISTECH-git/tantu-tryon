@@ -29,20 +29,23 @@ async function main() {
   const out = path.join(process.env.OUT || path.join(CATALOGUE, "pairs"), kind);
   mkdirSync(out, { recursive: true });
   const skip = new Set((process.env.SKIP ?? "").split(",").filter(Boolean));
+  const only = new Set((process.env.ONLY ?? "").split(",").filter(Boolean));
 
   const { generateImage } = await import("@tantu/engine");
   const { describeGarmentCut } = await import("../src/lib/describe");
   const { qwenPrompt } = await import("../src/lib/qwenPrompt");
   const { posesFor } = await import("../src/content/poses");
   const poses = posesFor(kind).map((p) => p.id);
-  const list = rows().filter((r) => r.type === kind);
+  const all = rows().filter((r) => r.type === kind);
+  // ONLY keeps each product's place in the rotation, so a test run gets the poses a full run would.
+  const list = all;
   console.log(`${list.length} ${kind} products, ${model} ${size}, poses ${poses.join(" ")}`);
 
   let made = 0;
   const one = async (r: { id: string }, i: number) => {
     const pose = poses[i % poses.length]!;
     const file = path.join(out, `${r.id}-${pose}.png`);
-    if (skip.has(r.id) || existsSync(file)) return `${r.id}: skipped`;
+    if (skip.has(r.id) || (only.size && !only.has(r.id)) || existsSync(file)) return `${r.id}: skipped`;
     const dir = path.join(CATALOGUE, "catalogue", r.id);
     const photo = readdirSync(dir).filter((f) => /^\d\d\.(jpe?g|png)$/i.test(f)).sort()[0];
     if (!photo) return `${r.id}: no photo`;
@@ -51,7 +54,7 @@ async function main() {
     const data = bytes.toString("base64");
     const t0 = Date.now();
     const read = await describeGarmentCut(data, mime);
-    const garment = { garmentType: kind, parts: [{ slot: "whole", key: photo }], words: read.ok ? { garmentSpec: read.spec } : {} } as never;
+    const garment = { garmentType: kind, productCode: r.id, parts: [{ slot: "whole", key: photo }], words: read.ok ? { garmentSpec: read.spec } : {} } as never;
     const prompt = qwenPrompt(garment, pose, { modelType: "woman", age: "early 20s", background: "gallery", quality: "standard" });
     try {
       const image = await generateImage({ prompt, images: [{ data, mime }], model, aspectRatio: "3:4", imageSize: size });
