@@ -25,7 +25,7 @@ TOKEN = open(os.environ.get("TANTU_TOKEN_FILE", r"C:\SareeAI\.tantu-token")).rea
 LOG = os.environ.get("WORKER_LOG", r"C:\SareeAI\tantu_worker.log")
 WORK = os.environ.get("WORKER_DIR", r"C:\SareeAI\worker")
 UPSCALER = "4x-UltraSharp.safetensors"
-UPSCALE_DIR = os.environ.get("UPSCALE_DIR", r"C:\ComfyUI\models\upscale_models")
+UPSCALE_DIR = os.environ.get("UPSCALE_DIR", r"C:\ComfyUI\models\upscale_models" if os.name == "nt" else "/workspace/ComfyUI/models/upscale_models")
 NAME = os.environ.get("WORKER_NAME", "laptop")
 POLL = 8  # seconds between asks when the queue is empty
 UA = "TantuWorker/1.0"

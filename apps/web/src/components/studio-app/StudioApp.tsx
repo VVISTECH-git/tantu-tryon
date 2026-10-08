@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CREDIT_PAISE, rupees, type Quality } from "@/content/credits";
 import { PACKS, inr } from "@/content/pricing";
 import { ADULT_AGES, BACKGROUNDS, CHILD_AGES, TEMPLATES, type ModelType } from "@/content/promptTemplates";
+import { posesFor, primaryPose } from "@/content/poses";
 import { DEFAULT_GARMENT_TYPE, GARMENT_TYPES, garmentType as typeOf, requiredSlots, shotFor, type Shot } from "@/content/shots";
 import type { GenerationLook } from "@/db";
 import * as api from "./api";
@@ -365,7 +366,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     setPoseRuns([]);
     setWarnings([]);
     setBatch(crypto.randomUUID());
-    setPose(PRIMARY_PROMPT);
+    setPose(primaryPose(g.garmentType).id);
     go("shots");
   }
 
@@ -614,8 +615,11 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   const retakes = tiles.filter((t) => t.quality?.status === "block").length;
   const label = (slot: string) => shotFor(garmentType, slot)?.label ?? slot;
   const shotsReady = garment !== null && missing.length === 0 && blocked.length === 0 && busySlot === null;
-  const livePoses = useMemo(() => TEMPLATES.filter((t) => t.live && t.id !== PRIMARY_PROMPT), []);
-  const allPoses = useMemo(() => TEMPLATES.filter((t) => t.live), []);
+  // The poses of the garment type in hand (8 Oct): sarees keep P1–P5, every other type has its own list.
+  const poseType = garment?.garmentType ?? garmentType;
+  const allPoses = useMemo(() => posesFor(poseType), [poseType]);
+  const livePoses = useMemo(() => allPoses.filter((p) => p.id !== primaryPose(poseType).id), [allPoses, poseType]);
+  const poseTitle = (id: string) => allPoses.find((p) => p.id === id)?.title ?? id;
   // The latest finished image per pose, for "Generated · View" and the Images made strip.
   const madeByPose = useMemo(() => {
     const made: Record<string, RunView> = {};
@@ -1161,13 +1165,13 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
               </div>
               <Copy>{T.poses.copy}</Copy>
               {(["front", "side", "back", "garment"] as const).map((group) => {
-                const items = livePoses.filter((t) => POSE_TILES[t.id]?.group === group);
+                const items = livePoses.filter((t) => t.group === group);
                 if (!items.length) return null;
                 return (
                   <div key={group} className="st-stack" style={{ gap: 8 }}>
                     <div className="st-section-title">{T.poses.groups[group]}</div>
                     {items.map((t) => {
-                      const tile = POSE_TILES[t.id]!;
+                      const tile = POSE_TILES[t.id] ?? { pose: t.id, silhouette: null, group: t.group };
                       const on = selectedPoses.has(t.id);
                       return (
                         <button key={t.id} type="button" className={`st-tile ${on ? "is-selected" : ""}`} onClick={() => setSelectedPoses((s) => { const n = new Set(s); if (n.has(t.id)) n.delete(t.id); else n.add(t.id); return n; })}>
@@ -1177,7 +1181,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                           <div className="st-tile-body">
                             <div className="st-tile-top">
                               <span className="st-tile-label">{t.title}</span>
-                              {t.frozen && <span className="st-badge st-badge--violet">v{t.frozen.version}</span>}
+                              {TEMPLATES.find((x) => x.id === t.id)?.frozen && <span className="st-badge st-badge--violet">v{TEMPLATES.find((x) => x.id === t.id)!.frozen!.version}</span>}
                             </div>
                             <span className="st-tile-help">{t.summary}</span>
                           </div>
@@ -1237,7 +1241,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                     ))}
                   </div>
                   <p className="st-caption">
-                    {TEMPLATES.find((t) => t.id === current.promptId)?.title ?? current.promptId} · {current.look.quality === "high" ? "2K" : "1K"}
+                    {poseTitle(current.promptId)} · {current.look.quality === "high" ? "2K" : "1K"}
                   </p>
                   {current.status === "done" && (
                     <div className="st-rate" role="group" aria-label={T.generate.rate}>

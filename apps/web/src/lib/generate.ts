@@ -78,21 +78,16 @@ export function toOutput(row: Generation): GenerateOutput {
 }
 
 export async function runGeneration(input: GenerateInput): Promise<GenerateResult> {
-  const template = TEMPLATES.find((t) => t.id === input.promptId);
-  if (!template || !template.live) {
-    return { ok: false, status: 400, message: `Prompt ${input.promptId} is not available.` };
-  }
-
-  // The Qwen track (8 Oct): the admin chose the laptop; the job is queued for the worker, nothing is called here.
+  // The Qwen track (8 Oct): the admin chose the laptop or the rented GPU; the job is queued for the worker, nothing is called here.
   if (isQwenOption(await chosenImageOption())) {
     const size = qwenSize(input.look.quality);
     const reservedQ = await reserveGeneration({
       accountId: input.accountId,
       garmentId: input.garment.id,
       clientKey: input.clientKey,
-      promptId: template.id,
+      promptId: input.promptId,
       promptVersion: `qwen-${size.width}`,
-      promptText: qwenPrompt(input.garment, template.id, input.look),
+      promptText: qwenPrompt(input.garment, input.promptId, input.look),
       look: input.look,
       model: QWEN_MODEL,
       size: input.look.quality === "high" ? "2K" : "1K",
@@ -100,6 +95,12 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
     if (!reservedQ.ok) return { ok: false, status: reservedQ.status, message: reservedQ.message };
     const [rowQ] = await db.select().from(generations).where(eq(generations.id, reservedQ.id)).limit(1);
     return { ok: true, generation: toOutput(rowQ!) };
+  }
+
+  // Gemini: the frozen saree templates only.
+  const template = TEMPLATES.find((t) => t.id === input.promptId);
+  if (!template || !template.live) {
+    return { ok: false, status: 400, message: input.garment.garmentType === "saree" ? `Prompt ${input.promptId} is not available.` : "This garment type is made on the Qwen engine; ask the admin to switch the engine." };
   }
 
   const plan = partPlan(input.garment);

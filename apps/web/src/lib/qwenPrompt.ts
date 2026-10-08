@@ -1,5 +1,6 @@
 import type { Garment, GenerationLook } from "@/db";
 import type { ImageOption } from "@/lib/imageModels";
+import { poseFor, primaryPose } from "@/content/poses";
 
 /**
  * The Qwen track (8 Oct): Qwen-Image-Edit-2511 running on the shop's own
@@ -79,41 +80,20 @@ const SCENE: Record<string, string> = {
   outdoor: "a quiet garden path with green foliage softly blurred behind, soft daylight",
 };
 
-/** The pose for each prompt id, in a sentence; the saree ones name the pallu, the others their own equivalent. */
-function pose(promptId: string, isSaree: boolean): string {
-  switch (promptId) {
-    case "P2":
-      return isSaree
-        ? "turned about 30 degrees to the camera, one hand on the hip, the pallu forward down the left front so its full pattern shows"
-        : "turned about 30 degrees to the camera, one hand on the hip, the other relaxed";
-    case "P3":
-      return isSaree
-        ? "back to the camera, head turned in profile, the pallu falling down the back, the hem and lower drape seen from behind"
-        : "back to the camera, head turned in profile, so the back of the garment shows";
-    case "P4":
-      return isSaree
-        ? "framed from the waist up, the pallu end brought over the left forearm so its print fills the frame"
-        : "framed from the waist up, hands gently holding the garment so its print fills the frame";
-    case "P5":
-      return "relaxed three-quarter stance, weight on one leg, hip angled to the camera, one hand on the hip";
-    default:
-      return "standing straight, weight even, arms relaxed at the sides, looking at the camera";
-  }
-}
-
 export function qwenPrompt(garment: Garment, promptId: string, look: GenerationLook): string {
   const g = GARMENT[garment.garmentType] ?? GARMENT.kurti!;
+  const p = poseFor(garment.garmentType, promptId) ?? primaryPose(garment.garmentType);
   // Adults are about 20 (user's choice); the age picked for a child stands.
   const age = look.modelType === "girl" || look.modelType === "boy" ? look.age : "about 20 years old";
   const model = `${MODEL[look.modelType] ?? MODEL.woman}, ${age}`;
   const scene = SCENE[look.background] ?? SCENE.studio!;
-  const framing = promptId === "P4" ? "photo from the waist up" : "full-length photo from head to feet";
+  const framing = p.framing === "full" ? "full-length photo from head to feet" : p.framing === "waist" ? "photo from the waist up" : "close photo of the garment detail";
   const extra = qwenInputs(garment).length > 1 ? " Photos 2 and 3 show the same garment's other parts; use them for those parts." : "";
   return [
     `Photo 1 shows a ${g.name}.${extra} Make one catalogue photograph of this exact ${g.name} ${g.worn}, on ${model}.`,
     `Priority: 1. the garment's fabric, print and colours exactly as in the photos; 2. correct anatomy (one person, two arms, two hands, five fingers each); 3. pose and framing; 4. a natural, original face.`,
     g.rules,
-    `Pose: ${pose(promptId, garment.garmentType === "saree")}. ${framing}, camera at chest height, 3:4 portrait.`,
+    `Pose: ${p.how}. ${framing}, camera at chest height, 3:4 portrait.`,
     `Scene: ${scene}. Remove the mannequin, hanger, vase, flowers, floor and any shop background from the photo.`,
     `The result is a sharp, well-lit, high-end catalogue photograph of a real person, not an illustration. Natural skin texture, no waxy or plastic look. No text, no watermark, no extra people.`,
   ].join("\n");

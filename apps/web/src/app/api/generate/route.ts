@@ -1,5 +1,6 @@
 import type { GenerationLook } from "@/db";
 import { BACKGROUNDS, MODEL_TYPES, TEMPLATES } from "@/content/promptTemplates";
+import { poseFor } from "@/content/poses";
 import { getGarment } from "@/lib/garments";
 import { runGeneration } from "@/lib/generate";
 import { requireRole, unauthorised } from "@/lib/session";
@@ -30,9 +31,6 @@ export async function POST(request: Request) {
     if (!/^[A-Za-z0-9:_-]{8,80}$/.test(body.clientKey)) {
       return Response.json({ error: "clientKey must be 8–80 plain characters." }, { status: 400 });
     }
-    if (!TEMPLATES.some((t) => t.id === body.promptId && t.live)) {
-      return Response.json({ error: `Prompt ${body.promptId} is not available.` }, { status: 400 });
-    }
     const look = body.look;
     if (!MODEL_TYPES.some((m) => m.id === look.modelType)) {
       return Response.json({ error: "Unknown model type." }, { status: 400 });
@@ -49,6 +47,10 @@ export async function POST(request: Request) {
 
     const garment = await getGarment(body.garmentId, account.id);
     if (!garment) return Response.json({ error: "No such garment." }, { status: 404 });
+    // The pose must be one of this garment type's (8 Oct); the saree's P1–P5 are also the frozen Gemini templates.
+    if (!poseFor(garment.garmentType, body.promptId) && !TEMPLATES.some((t) => t.id === body.promptId && t.live)) {
+      return Response.json({ error: `Pose ${body.promptId} is not available for this garment.` }, { status: 400 });
+    }
 
     const result = await runGeneration({
       accountId: account.id,
