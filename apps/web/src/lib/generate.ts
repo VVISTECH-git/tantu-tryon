@@ -5,8 +5,8 @@ import { TEMPLATES, composePrompt, defaultRules, promptVersion, type ModelType, 
 import { attachmentsFor, partPlan, sheetFor, wordsFor } from "@/lib/garments";
 import { chosenImageOption, type ImageSize } from "@/lib/imageModels";
 import { finishGeneration, imageSizeFor, reserveGeneration, type ReserveResult } from "@/lib/spend";
-import { renderUrl, saveRender } from "@/lib/storage";
-import { QWEN_MODEL, isQwenOption, qwenPrompt, qwenSize } from "@/lib/qwenPrompt";
+import { readAsset, renderUrl, saveRender } from "@/lib/storage";
+import { QWEN_MODEL, isQwenOption, qwenInputs, qwenPrompt, qwenSize } from "@/lib/qwenPrompt";
 
 /**
  * One image, start to finish.
@@ -99,10 +99,14 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
     return { ok: true, generation: toOutput(rowQ!) };
   }
 
-  // Gemini: the frozen saree templates only.
+  // Gemini for a stitched garment or dupatta (8 Oct): the same compact garment prompt the
+  // Qwen track uses, with the product's own photos attached (no labelled sheet; those are for sarees).
+  if (input.garment.garmentType !== "saree") return runGarmentGemini(input);
+
+  // Gemini for a saree: the frozen templates with the labelled sheet.
   const template = TEMPLATES.find((t) => t.id === input.promptId);
   if (!template || !template.live) {
-    return { ok: false, status: 400, message: input.garment.garmentType === "saree" ? `Prompt ${input.promptId} is not available.` : "This garment type is made on the Qwen engine; ask the admin to switch the engine." };
+    return { ok: false, status: 400, message: `Prompt ${input.promptId} is not available.` };
   }
 
   const plan = partPlan(input.garment);
@@ -166,6 +170,52 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
     });
   }
 
+  const [row] = await db.select().from(generations).where(eq(generations.id, reserved.id)).limit(1);
+  return { ok: true, generation: toOutput(row!) };
+}
+
+/** A frock, kurti, co-ord, lehenga, blouse or dupatta on Gemini: prompt from the garment catalogue, the product photos as references. */
+async function runGarmentGemini(input: GenerateInput): Promise<GenerateResult> {
+  const prompt = input.promptOverride ?? qwenPrompt(input.garment, input.promptId, input.look);
+  const { model, size } = await modelFor(input.look.quality);
+  let images: { data: string; mime: string }[];
+  try {
+    images = await Promise.all(
+      qwenInputs(input.garment).map(async (p) => ({
+        data: Buffer.from(await readAsset(p.key)).toString("base64"),
+        mime: p.key.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg",
+      })),
+    );
+  } catch (error) {
+    return { ok: false, status: 502, message: error instanceof Error ? error.message : "Could not read the product photos." };
+  }
+  if (images.length === 0) return { ok: false, status: 400, message: "The product has no photo yet." };
+
+  const reserved = await reserveGeneration({
+    accountId: input.accountId,
+    garmentId: input.garment.id,
+    clientKey: input.clientKey,
+    promptId: input.promptId,
+    promptVersion: "garment-v1",
+    promptText: prompt,
+    look: input.look,
+    model,
+    size,
+  });
+  if (!reserved.ok) return { ok: false, status: reserved.status, message: reserved.message };
+  if (reserved.existing) {
+    const [row] = await db.select().from(generations).where(eq(generations.id, reserved.id)).limit(1);
+    return { ok: true, generation: toOutput(row!) };
+  }
+  try {
+    const image = await generateImage({ prompt, images, model, aspectRatio: "3:4", imageSize: size, signal: input.signal });
+    const stem = input.garment.productCode ?? input.garment.title.replace(/[^A-Za-z0-9]+/g, "-").slice(0, 40);
+    const key = await saveRender(input.garment.id, reserved.id, Buffer.from(image.data, "base64"), image.mime, `${stem}-${input.promptId}-${reserved.id.slice(0, 6)}.${image.mime.includes("jpeg") ? "jpg" : "png"}`);
+    await finishGeneration(reserved.id, { ok: true, imageKey: key, imageMime: image.mime, ms: image.ms });
+  } catch (error) {
+    const gemini = error instanceof GeminiError ? error : null;
+    await finishGeneration(reserved.id, { ok: false, status: gemini?.kind === "refused" ? "refused" : "failed", error: error instanceof Error ? error.message : String(error), billed: gemini ? gemini.billed : false });
+  }
   const [row] = await db.select().from(generations).where(eq(generations.id, reserved.id)).limit(1);
   return { ok: true, generation: toOutput(row!) };
 }
