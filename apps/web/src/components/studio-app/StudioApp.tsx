@@ -95,6 +95,28 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   }, [busySlot]);
   // The photo just taken or picked, waiting on Use photo / Edit / Retake (7 Oct).
   const [pending, setPending] = useState<{ file: File; slot: string; camera: boolean } | null>(null);
+  // The Qwen track (8 Oct): a job waits for the shop laptop; this is what the spinner says meanwhile.
+  const [queueNote, setQueueNote] = useState<string | null>(null);
+
+  /** A run that is queued or still running on the laptop, polled until it is finished. */
+  async function awaitDone(run: RunView): Promise<RunView> {
+    let current = run;
+    const started = Date.now();
+    while (current.status === "queued" || current.status === "running") {
+      const perImage = 6;
+      const ahead = current.ahead ?? 0;
+      const minutes = Math.max(1, Math.round(perImage * (ahead + 1) - (Date.now() - started) / 60_000));
+      setQueueNote(current.status === "queued" ? T.generate.queued(ahead, minutes) : T.generate.making(minutes));
+      await new Promise((r) => setTimeout(r, 5000));
+      try {
+        current = await api.getRun(current.id);
+      } catch {
+        // A dropped poll: ask again next time round.
+      }
+    }
+    setQueueNote(null);
+    return current;
+  }
   const restored = useRef(false);
   // Two pickers for the same slot: the camera one opens the phone camera, the other the photo library.
   const cameraInput = useRef<HTMLInputElement>(null);
@@ -473,7 +495,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     go("generating");
     setBusy(true);
     try {
-      const run = await api.generate(garment.id, pose, look, key);
+      const run = await awaitDone(await api.generate(garment.id, pose, look, key));
       setPrimary(run);
       setScreen("result");
     } catch (problem) {
@@ -518,7 +540,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
         const promptId = queue.shift();
         if (!promptId) return;
         try {
-          results.push(await api.generate(garment.id, promptId, poseLook, `${batch}-${round}-${promptId}`));
+          results.push(await awaitDone(await api.generate(garment.id, promptId, poseLook, `${batch}-${round}-${promptId}`)));
         } catch (problem) {
           results.push({
             id: "",
@@ -553,7 +575,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     setModal(null);
     setBusy(true);
     try {
-      const fresh = await api.generate(garment.id, run.promptId, run.look, `again-${crypto.randomUUID()}`);
+      const fresh = await awaitDone(await api.generate(garment.id, run.promptId, run.look, `again-${crypto.randomUUID()}`));
       setPoseRuns((prev) => [...prev, fresh]);
       setGalleryIndex(poseRuns.length);
     } catch (problem) {
@@ -1057,7 +1079,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
             </div>
           )}
 
-          {screen === "generating" && <Spinner text={T.generate.processing} sub={T.generate.processingMobile} />}
+          {screen === "generating" && <Spinner text={queueNote ?? T.generate.processing} sub={queueNote ? T.generate.processingMobile : T.generate.processingMobile} />}
 
           {screen === "result" && primary && (
             <div className="st-stack">
@@ -1076,6 +1098,19 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                       <RefreshIcon />
                     </button>
                   </div>
+                  {tiles.some((t) => t.url) && (
+                    <div className="st-stack" style={{ gap: 6 }}>
+                      <span className="st-caption">{T.generate.fromPhoto}</span>
+                      <div className="st-strip">
+                        {tiles.filter((t) => t.url).map((t) => (
+                          <button key={t.slot} type="button" className="st-strip-item" onClick={() => { setViewer({ ...primary, id: `in-${t.slot}`, imageUrl: t.url! }); setModal("viewer"); }}>
+                            <span className="st-strip-thumb"><img src={t.url!} alt="" /></span>
+                            <span className="st-strip-label">{label(t.slot)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="st-center" style={{ gap: 6 }}>
                     <span className="st-caption">{T.generate.rate}</span>
                     <div className="st-rate" role="group" aria-label={T.generate.rate}>
@@ -1159,7 +1194,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
             </div>
           )}
 
-          {screen === "posesGenerating" && <Spinner text={T.poses.processing} sub={T.generate.processingMobile} />}
+          {screen === "posesGenerating" && <Spinner text={queueNote ?? T.poses.processing} sub={T.generate.processingMobile} />}
 
           {screen === "gallery" && (
             <div className="st-stack">

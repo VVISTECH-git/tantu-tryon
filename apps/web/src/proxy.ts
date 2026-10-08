@@ -14,8 +14,29 @@ import { COOKIE } from "@/lib/session";
 
 const PUBLIC_API = [/^\/api\/auth\//, /^\/api\/poses\//, /^\/api\/products\/\d+$/, /^\/api\/products\/\d+\/(sheet|image)/, /^\/api\/assets\//];
 
+/**
+ * tantu-two (8 Oct): the new catalogue-shoot screens, served from public/two
+ * when the request comes in on the tantu-two address. Same server, same
+ * database and storage as tantu-tryon; only the pages differ. The pages link
+ * to each other by file name (tantu-login.html, img/…), so every path on that
+ * host that is not an API or Next.js asset is read from /two.
+ */
+const TWO_HOSTS = (process.env.TWO_HOSTS ?? "tantu-two.vercel.app,two.localhost").split(",").map((h) => h.trim()).filter(Boolean);
+
+function twoHost(request: NextRequest): boolean {
+  const host = (request.headers.get("host") ?? "").split(":")[0];
+  return TWO_HOSTS.includes(host);
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (twoHost(request) && !pathname.startsWith("/api/") && !pathname.startsWith("/_next/") && !pathname.startsWith("/two/")) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname === "/" ? "/two/tantu-landing.html" : `/two${pathname}`;
+    return NextResponse.rewrite(url);
+  }
+  // The same paths on the tantu-tryon address are the public site's own: untouched.
+  if (pathname === "/" || pathname.startsWith("/tantu-") || pathname.startsWith("/img/")) return NextResponse.next();
   const signedIn = Boolean(request.cookies.get(COOKIE)?.value) || /^bearer /i.test(request.headers.get("authorization") ?? "");
   if (signedIn) return NextResponse.next();
 
@@ -33,5 +54,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/app/:path*", "/admin/:path*", "/studio", "/library", "/api/:path*"],
+  matcher: ["/", "/tantu-:file*", "/img/:path*", "/app/:path*", "/admin/:path*", "/studio", "/library", "/api/:path*"],
 };

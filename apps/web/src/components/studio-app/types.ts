@@ -32,7 +32,10 @@ export function toView(garment: Garment): GarmentView {
 /** One run as the screens see it. */
 export interface RunView {
   id: string;
-  status: "running" | "done" | "failed" | "refused";
+  /** queued: waiting for the shop laptop (the Qwen track, 8 Oct). */
+  status: "queued" | "running" | "done" | "failed" | "refused";
+  /** Queued laptop jobs before this one, while it waits. */
+  ahead?: number;
   imageUrl: string | null;
   error: string | null;
   ms: number | null;

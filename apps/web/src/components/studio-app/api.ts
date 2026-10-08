@@ -206,6 +206,12 @@ export async function generate(garmentId: string, promptId: string, look: Genera
   return { ...generation, promptId, look };
 }
 
+/** One run as it stands now: polled while the laptop makes it. */
+export async function getRun(id: string): Promise<RunView> {
+  const { generation } = await json<{ generation: RunView }>(await fetch(`/api/generations/${id}`, { cache: "no-store" }));
+  return generation;
+}
+
 export async function listRuns(garmentId: string): Promise<RunView[]> {
   const { generations } = await json<{ generations: RunView[] }>(await fetch(`/api/garments/${garmentId}/generations`));
   return generations;
