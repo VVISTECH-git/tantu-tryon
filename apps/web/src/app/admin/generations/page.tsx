@@ -56,7 +56,7 @@ export default async function GenerationsPage({ searchParams }: { searchParams: 
                 {new Date(r.startedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" })}
               </span>
               <span className="text-[13px] text-ink-soft">
-                prompt <b className="text-ink">{r.promptVersion}</b> · {r.model}
+                prompt <b className="text-ink">{r.promptVersion}</b> · {r.provider === "qwen-local" ? "Qwen · GPU/laptop" : r.model}
               </span>
               <span className={`text-[13px] ${r.status === "done" ? "text-good" : "text-danger"}`}>{r.status}</span>
               <span className="text-[13px] tabular-nums text-ink-faint">
@@ -69,9 +69,18 @@ export default async function GenerationsPage({ searchParams }: { searchParams: 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <figure>
                 <figcaption className="text-[12px] uppercase tracking-wide text-ink-faint">
-                  Input sheet{r.sheetRecorded ? "" : " (the product's current sheet; this run is older than sheet records)"}
+                  {r.provider === "qwen-local" || !r.sheetUrl ? "Input photos" : `Input sheet${r.sheetRecorded ? "" : " (the product's current sheet; this run is older than sheet records)"}`}
                 </figcaption>
-                {r.sheetUrl ? (
+                {(r.provider === "qwen-local" || !r.sheetUrl) && r.inputs.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {r.inputs.map((p) => (
+                      <a key={p.slot} href={p.url} target="_blank" rel="noreferrer" title={p.slot}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.url} alt={p.slot} className="h-80 max-w-full rounded-lg border border-line-soft object-contain" />
+                      </a>
+                    ))}
+                  </div>
+                ) : r.sheetUrl ? (
                   <a href={r.sheetUrl} target="_blank" rel="noreferrer">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={r.sheetUrl} alt="Input sheet" className="mt-2 max-h-80 w-full rounded-lg border border-line-soft object-contain" />
@@ -93,7 +102,7 @@ export default async function GenerationsPage({ searchParams }: { searchParams: 
               </figure>
             </div>
 
-            <details className="mt-4">
+            <details className="mt-4" open>
               <summary className="cursor-pointer text-[13.5px] font-medium">
                 Prompt sent ({r.promptText.length.toLocaleString("en-IN")} characters)
               </summary>
