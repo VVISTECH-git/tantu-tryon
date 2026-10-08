@@ -5,7 +5,7 @@ import { GARMENT_TYPES, garmentType as typeOf } from "@/content/shots";
 import { poseFor } from "@/content/poses";
 import { requirePage } from "@/lib/page-auth";
 import { assetUrl } from "@/lib/storage";
-import { ReviewButtons } from "./ReviewButtons";
+import { ReviewGrid } from "./ReviewGrid";
 
 export const dynamic = "force-dynamic";
 
@@ -74,38 +74,21 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
 
       {shown.length === 0 && <p className="mt-8 text-[14px] text-ink-soft">No {typeOf(type).label.toLowerCase()} images here yet.</p>}
 
-      <div className="mt-6 grid gap-5 md:grid-cols-2">
-        {shown.map((r) => {
+      <ReviewGrid
+        key={`${type}-${show}-${page}`}
+        items={shown.map((r) => {
           const photo = r.parts.find((p) => p.key);
-          const input = photo ? assetUrl(photo.thumbKey ?? photo.previewKey ?? photo.key!) : null;
-          const output = assetUrl(r.imageKey!);
-          return (
-            <article key={r.id} className={`rounded-xl border bg-surface p-3 ${r.verdict === "approved" ? "border-good" : r.verdict === "rejected" ? "border-danger" : "border-line"}`}>
-              <header className="mb-2 flex items-baseline justify-between gap-2 text-[13px]">
-                <b className="text-[14.5px]">{r.productCode}</b>
-                <span className="text-ink-soft">
-                  {r.promptId} · {poseFor(type, r.promptId)?.title ?? ""} · {r.model.replace("gemini-", "").replace("-image", "")}
-                </span>
-              </header>
-              <div className="grid grid-cols-2 gap-2">
-                {input ? (
-                  <a href={photo?.key ? assetUrl(photo.key) : input} target="_blank" rel="noreferrer">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={input} alt="Product photo" className="aspect-[3/4] w-full rounded-lg border border-line-soft object-cover" loading="lazy" />
-                  </a>
-                ) : (
-                  <div className="aspect-[3/4] rounded-lg bg-surface-2" />
-                )}
-                <a href={output} target="_blank" rel="noreferrer">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={output} alt="Made image" className="aspect-[3/4] w-full rounded-lg border border-line-soft object-cover" loading="lazy" />
-                </a>
-              </div>
-              <ReviewButtons id={r.id} verdict={r.verdict as "approved" | "rejected" | null} />
-            </article>
-          );
+          return {
+            id: r.id,
+            productCode: r.productCode ?? "",
+            label: `${r.promptId} · ${poseFor(type, r.promptId)?.title ?? ""} · ${r.model.replace("gemini-", "").replace("-image", "")}`,
+            input: photo ? assetUrl(photo.thumbKey ?? photo.previewKey ?? photo.key!) : null,
+            inputFull: photo?.key ? assetUrl(photo.key) : null,
+            output: assetUrl(r.imageKey!),
+            verdict: r.verdict as "approved" | "rejected" | null,
+          };
         })}
-      </div>
+      />
 
       {pages > 1 && (
         <nav className="mt-6 flex flex-wrap items-center gap-1 text-[13.5px]" aria-label="Pages">
