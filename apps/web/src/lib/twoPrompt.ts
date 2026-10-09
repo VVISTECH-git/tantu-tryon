@@ -15,7 +15,7 @@ export const TWO_GARMENTS: Record<string, { type: string; name?: string }> = {
   Frocks: { type: "frock" },
   "Kurti Set": { type: "kurti", name: "kurti set" },
   Saree: { type: "saree" },
-  Lehenga: { type: "lehenga" },
+  Lehenga: { type: "lehenga", name: "lehenga choli (a lehenga skirt with its blouse)" },
   Western: { type: "frock", name: "western dress" },
   "Men Ethnic": { type: "kurti", name: "men's ethnic kurta set" },
   "Shirt / T-Shirt / Pair": { type: "kurti", name: "shirt or t-shirt" },
@@ -113,6 +113,13 @@ export function twoPrompt(garment: Garment, c: TwoChoices): string {
   let worn = (kid && base.childWorn) || base.worn;
   // A kurti set (9 Oct): worn with the seller's own bottom and dupatta when they are photographed,
   // not the house default of black leggings.
+  // A lehenga (9 Oct): with its own blouse and, when the photos show one, its dupatta.
+  if (map.type === "lehenga") {
+    const has = (slot: string) => garment.parts.some((p) => p.slot === slot && p.key);
+    const blouse = has("blouse") ? "with the blouse exactly as in its photo" : "with the matching blouse if one is in the photos, otherwise a plain fitted blouse in a colour taken from the lehenga";
+    const dupatta = has("dupatta") ? ", the dupatta from its photo draped as the seller chose (or over one shoulder and across the front)" : ", and if a dupatta is part of the set in the photos, that exact dupatta draped over one shoulder; otherwise no dupatta";
+    worn = `worn as it is cut, the full flared lehenga skirt reaching the ankle, ${blouse}${dupatta}, with traditional gold jewellery kept light`;
+  }
   if (map.type === "kurti") {
     const has = (slot: string) => garment.parts.some((p) => p.slot === slot && p.key);
     // One photo often shows the whole set laid together (9 Oct, MA-03054: kurti, folded pants and
