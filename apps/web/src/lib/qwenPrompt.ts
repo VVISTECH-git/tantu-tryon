@@ -27,7 +27,7 @@ export function qwenSize(quality: GenerationLook["quality"]): { width: number; h
   return quality === "high" ? { width: 1024, height: 1365, upscale: 4, label: "4K" } : { width: 1024, height: 1365, upscale: 2, label: "2K" };
 }
 
-const GARMENT: Record<string, { name: string; worn: string; rules: string }> = {
+const GARMENT: Record<string, { name: string; worn: string; rules: string; childName?: string; childWorn?: string }> = {
   saree: {
     name: "saree",
     worn: "draped in the standard Nivi style: pleats at the front centre, the pallu over the left shoulder falling behind, the border running along the bottom hem, with a plain blouse matching the border colour",
@@ -41,6 +41,9 @@ const GARMENT: Record<string, { name: string; worn: string; rules: string }> = {
   frock: {
     name: "frock (long flared dress)",
     worn: "worn as it is cut, with nude block-heel sandals, holding a small woven straw tote bag",
+    // A child's frock (9 Oct, a girl's dress on a small hanger): its own length, no heels or bag.
+    childName: "frock",
+    childWorn: "worn as it is cut, with small white strap sandals",
     rules: "Keep the print exactly as in the photo: same flowers and leaves, same colours, same scale of the pattern, same neckline, same sleeves, same frills or tiers if the photo shows them. The neckline is open and edged in the same printed fabric: a dark or plain patch seen inside the neck in photo 1 is the inside of the frock's back (or the background) showing through the opening, not a panel or yoke, so do not copy it. Do not redraw, simplify, recolour or add any decoration.",
   },
   blouse: {
@@ -70,8 +73,9 @@ const GARMENT: Record<string, { name: string; worn: string; rules: string }> = {
 const MODEL: Record<string, string> = {
   woman: "a beautiful young North Indian woman, slim, with a fresh youthful college-age look, fine natural skin texture, minimal natural makeup, a small round red bindi on her forehead, a fine gold chain necklace, small gold stud earrings and a thin gold bangle",
   man: "a professional North Indian male fashion model, well-groomed, natural North Indian complexion, athletic build, confident calm expression, short neat hair",
-  girl: "a real Indian girl, natural medium-brown Indian skin tone, cheerful expression, hair in two plaits",
-  boy: "a real Indian boy, natural medium-brown Indian skin tone, cheerful expression, short neat hair",
+  // Same look as the women (user, 9 Oct): North Indian, light wheatish skin; a tiny bindi for girls.
+  girl: "a cute young North Indian girl, light wheatish skin, a cheerful natural smile, a tiny red bindi on her forehead, hair in two neat plaits",
+  boy: "a cute young North Indian boy, light wheatish skin, a cheerful natural smile, short neat hair",
 };
 
 /*
@@ -115,7 +119,9 @@ const SCENE: Record<string, string> = {
 };
 
 export function qwenPrompt(garment: Garment, promptId: string, look: GenerationLook): string {
-  const g = GARMENT[garment.garmentType] ?? GARMENT.kurti!;
+  const base = GARMENT[garment.garmentType] ?? GARMENT.kurti!;
+  const child = look.modelType === "girl" || look.modelType === "boy";
+  const g = { ...base, name: (child && base.childName) || base.name, worn: (child && base.childWorn) || base.worn };
   const p = poseFor(garment.garmentType, promptId) ?? primaryPose(garment.garmentType);
   // Adults are about 20 (user's choice); the age picked for a child stands.
   const age = look.modelType === "girl" || look.modelType === "boy" ? look.age : "about 20 years old";
