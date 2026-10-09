@@ -73,8 +73,8 @@ const GARMENT: Record<string, { name: string; worn: string; rules: string; child
 const MODEL: Record<string, string> = {
   woman: "a beautiful young North Indian woman, slim, with a fresh youthful college-age look, fine natural skin texture, minimal natural makeup, a small round red bindi on her forehead, a fine gold chain necklace, small gold stud earrings and a thin gold bangle",
   man: "a professional North Indian male fashion model, well-groomed, natural North Indian complexion, athletic build, confident calm expression, short neat hair",
-  // Same look as the women (user, 9 Oct): North Indian, light wheatish skin; a tiny bindi for girls.
-  girl: "a cute young North Indian girl, light wheatish skin, a cheerful natural smile, a tiny red bindi on her forehead, hair in two neat plaits",
+  // Same look as the women (user, 9 Oct): North Indian, light wheatish skin. No bindi on children ("it doesn't suit").
+  girl: "a cute young North Indian girl, light wheatish skin, a cheerful natural smile, no bindi, hair in two neat plaits",
   boy: "a cute young North Indian boy, light wheatish skin, a cheerful natural smile, short neat hair",
 };
 
