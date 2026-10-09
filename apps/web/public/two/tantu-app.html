@@ -1339,11 +1339,14 @@ textarea.custom{width:100%;min-height:76px;margin-top:8px;padding:12px;border-ra
       const stop=()=>{clearInterval(rot);clearInterval(tick);};
       (async()=>{try{
         const gid=await realUpload();const errs=[];const poses=C.poses.slice();let k=0;
-        const one=async id=>{const r=await window.__api('/api/two/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({garmentId:gid,clientKey:'two-'+crypto.randomUUID().replace(/-/g,'').slice(0,20),quality:C.quality,choices:choicesFor(poseLabel(id))})});
+        const one=async(id,anchor)=>{const r=await window.__api('/api/two/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({garmentId:gid,clientKey:'two-'+crypto.randomUUID().replace(/-/g,'').slice(0,20),quality:C.quality,choices:choicesFor(poseLabel(id)),anchorId:anchor||undefined})});
           const j=await r.json().catch(()=>({}));const gen=j.generation;
           if(!r.ok||!gen||gen.status!=='done'){errs.push(j.error||(gen&&gen.error)||('error '+r.status));return;}
           const b=await (await window.__api('/api/two/image/'+gen.id)).blob();F.results.push(URL.createObjectURL(b));F.meta.push({pose:id,id:gen.id});};
-        const worker=async()=>{while(k<poses.length){const id=poses[k++];await one(id);done++;dn.textContent=done+' of '+total+' photos done';}};
+        // Same look across poses (Drapify's anchor, 9 Oct): the first pose alone, then the rest from it.
+        let anchor=F.anchorId||null;
+        if(!anchor&&poses.length){await one(poses[k++],null);done++;dn.textContent=done+' of '+total+' photos done';anchor=(F.meta[0]||{}).id||null;}
+        const worker=async()=>{while(k<poses.length){const id=poses[k++];await one(id,anchor);done++;dn.textContent=done+' of '+total+' photos done';}};
         await Promise.all([worker(),worker()]);stop();window.__refreshBal();
         if(!F.results.length){g.remove();say('Could not make the photos: '+(errs[0]||'unknown error'));return;}
         if(errs.length)say(errs.length+' photo'+(errs.length>1?'s':'')+' failed: '+errs[0]);
@@ -1419,7 +1422,7 @@ textarea.custom{width:100%;min-height:76px;margin-top:8px;padding:12px;border-ra
       document.body.appendChild(d);const close=()=>d.remove();d.querySelector('.x').addEventListener('click',close);d.querySelector('.cn').addEventListener('click',close);d.addEventListener('click',e=>{if(e.target===d)close();});
       d.querySelector('.ok').addEventListener('click',()=>{const note=d.querySelector('textarea').value.trim();const at=F.cur,m=(F.meta||[])[at];close();if(!m)return;rRegen=true;renderResult();
         const ch=choicesFor(poseLabel(m.pose));if(note)ch.details['Fix from the last try']=note;
-        window.__api('/api/two/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({garmentId:F.gid,clientKey:'two-'+crypto.randomUUID().replace(/-/g,'').slice(0,20),quality:C.quality,choices:ch})})
+        window.__api('/api/two/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({garmentId:F.gid,clientKey:'two-'+crypto.randomUUID().replace(/-/g,'').slice(0,20),quality:C.quality,choices:ch,anchorId:(at>0&&F.meta[0]?F.meta[0].id:F.anchorId)||undefined})})
           .then(async r=>{const j=await r.json().catch(()=>({}));const gen=j.generation;if(!r.ok||!gen||gen.status!=='done')throw new Error(j.error||(gen&&gen.error)||('error '+r.status));
             const b=await (await window.__api('/api/two/image/'+gen.id)).blob();F.results[at]=URL.createObjectURL(b);F.meta[at]={pose:m.pose,id:gen.id};say('✅ Image regenerated');})
           .catch(e=>say('Could not regenerate: '+e.message)).finally(()=>{rRegen=false;renderResult();window.__refreshBal();});});}
@@ -1433,7 +1436,7 @@ textarea.custom{width:100%;min-height:76px;margin-top:8px;padding:12px;border-ra
     const VIEWS={upload:openUpload,tailoring:openTailoring,configure:openConfigure,result:openResult};
     function go(v,arg){location.hash='#'+v;}
     window.__flowOpen=function(v){if(v==='upload')openUpload(F.garment);else if(v==='result'&&!F.results.length){location.hash='#home';return false;}else if(VIEWS[v])VIEWS[v]();return true;};
-    window.__startFlow=function(garment){F.garment=garment;F.cfg.poses=[];F.shirtMode='stitched';F.shirtConfirmed=false;F.photos={};F.extra=0;F.gid=null;F.reuse=false;go('upload');};
+    window.__startFlow=function(garment){F.garment=garment;F.cfg.poses=[];F.shirtMode='stitched';F.shirtConfirmed=false;F.photos={};F.extra=0;F.gid=null;F.reuse=false;F.anchorId=null;go('upload');};
     // My photos (9 Oct): the seller's shoots from the engine, each with its own photos and pictures.
     let galPage=1;
     const esc=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
@@ -1447,7 +1450,7 @@ textarea.custom{width:100%;min-height:76px;margin-top:8px;padding:12px;border-ra
         +'<button type="button" class="gmore" data-more="'+si+'">More poses from these photos →</button></section>').join('');
       L.querySelectorAll('.gout button').forEach(b=>b.addEventListener('click',()=>galOpen(j.shoots[+b.dataset.s],+b.dataset.p)));
       L.querySelectorAll('[data-more]').forEach(b=>b.addEventListener('click',()=>{const sh=j.shoots[+b.dataset.more];
-        F.garment=sh.garment;F.gid=sh.garmentId;F.reuse=true;F.photos={};F.extra=0;F.cfg.poses=[];F.results=[];F.meta=[];go('configure');}));
+        F.garment=sh.garment;F.gid=sh.garmentId;F.reuse=true;F.anchorId=(sh.pictures[0]||{}).id||null;F.photos={};F.extra=0;F.cfg.poses=[];F.results=[];F.meta=[];go('configure');}));
       P.innerHTML=j.pages>1?Array.from({length:j.pages},(_,k)=>'<button type="button" data-g="'+(k+1)+'"'+(k+1===j.page?' aria-current="page"':'')+'>'+(k+1)+'</button>').join(''):'';
       P.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{window.__openGallery(+b.dataset.g);window.scrollTo(0,0);}));};
     function galOpen(sh,at){const d=document.createElement('div');d.className='glb';d.setAttribute('role','dialog');d.setAttribute('aria-modal','true');
