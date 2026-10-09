@@ -141,6 +141,8 @@ export function qwenPrompt(garment: Garment, promptId: string, look: GenerationL
     ...(spec ? [`The garment in photo 1, read closely — these details are fixed and must be copied exactly: ${spec}`] : []),
     `Priority: 1. the garment's fabric, print and colours exactly as in the photos; 2. correct anatomy (one person, two arms, two hands, five fingers each); 3. pose and framing; 4. a natural, original face.`,
     g.rules,
+    // 9 Oct, user: "you cannot imagine and draw — you have to draw based on what you see" (a back bow drawn on the front).
+    `Draw only what the photos show, and only where they show it. A detail seen only on the back of the garment (a bow, a tie, a zip, buttons) is only on the back: it must not appear in a front or side view. Do not invent any detail the photos do not show.`,
     `Colour: keep every colour of the fabric exactly as bright, as saturated and as light or dark as in photo 1; do not mute, grey, warm or darken them.`,
     `Pose: ${p.how}. ${framing}, camera at chest height, 3:4 portrait.`,
     `Scene: ${scene}. Remove the mannequin, hanger, vase, flowers, floor and any shop background from the photo.`,
