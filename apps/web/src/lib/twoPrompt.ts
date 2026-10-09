@@ -117,7 +117,14 @@ export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false): stri
   let rules = base.rules;
   if (map.type === "saree") {
     const has = (slot: string) => garment.parts.some((p) => p.slot === slot && p.key);
-    const blouse = has("blouse") ? "with a fitted blouse made from the blouse piece in its photo (same colour, print and border)" : "with a plain fitted blouse in a colour taken from the border";
+    // The blouse piece is often attached after the pallu (9 Oct, user): when the reading found one,
+    // the blouse is made from it even without its own photo.
+    const attached = /Blouse piece:/i.test(String(garment.words?.garmentSpec ?? ""));
+    const blouse = has("blouse")
+      ? "with a fitted blouse made from the blouse piece in its photo (same colour, print and border)"
+      : attached
+        ? "with a fitted blouse made from the saree's own blouse piece described above (same ground colour, motifs and border)"
+        : "with a plain fitted blouse in a colour taken from the border";
     // The seller's drape and pallu style (Drapify-style choices, 9 Oct) win over the house Nivi default.
     const drapeStyle = c.details["Drape Style"];
     const palluStyle = c.details["Pallu Style"];
@@ -128,7 +135,9 @@ export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false): stri
       "Keep the saree's body, border and pallu exactly as in the photos: same motifs, colours, scale and order.",
       "The pallu is the decorated end of the saree (its last 1 to 1.2 metres). Where it shows, it carries its own design exactly as read above and as photographed — every panel and band in the same order, ending in its end strip and tassels — and it is never filled with the body print.",
       "The border runs along both long edges of the saree, the pallu included.",
-      has("blouse") ? "The blouse is made only from the blouse piece; that fabric never appears on the saree itself." : "The blouse is plain; no blouse fabric appears on the saree.",
+      has("blouse") || attached
+        ? "The blouse is made only from the blouse piece. A blouse piece attached at the end of the saree, after the pallu, is cut off and worn as the blouse: it never appears in the draped saree, the pleats or the pallu."
+        : "The blouse is plain; no blouse fabric appears on the saree.",
       "The saree reaches the floor.",
     ].join(" ");
   }
