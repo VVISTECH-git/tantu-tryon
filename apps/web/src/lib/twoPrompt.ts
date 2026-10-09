@@ -105,7 +105,7 @@ function who(c: TwoChoices, seed: number): string {
   return `${base}, ${FACES[seed % FACES.length]}${body}${hair}, ${age}`;
 }
 
-export function twoPrompt(garment: Garment, c: TwoChoices): string {
+export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false): string {
   const map = TWO_GARMENTS[c.garment]!;
   const kid = /^(girl|boy)$/i.test(c.gender);
   const base = GARMENT[map.type] ?? GARMENT.kurti!;
@@ -118,7 +118,12 @@ export function twoPrompt(garment: Garment, c: TwoChoices): string {
   if (map.type === "saree") {
     const has = (slot: string) => garment.parts.some((p) => p.slot === slot && p.key);
     const blouse = has("blouse") ? "with a fitted blouse made from the blouse piece in its photo (same colour, print and border)" : "with a plain fitted blouse in a colour taken from the border";
-    worn = `draped in the standard Nivi style: neat pleats at the front centre, the pallu over the left shoulder, the border running along the bottom hem, ${blouse}`;
+    // The seller's drape and pallu style (Drapify-style choices, 9 Oct) win over the house Nivi default.
+    const drapeStyle = c.details["Drape Style"];
+    const palluStyle = c.details["Pallu Style"];
+    const drape = drapeStyle ? `draped in the ${drapeStyle.replace(/\s*\(.*\)\s*$/, "")} style` : "draped in the standard Nivi style";
+    const pallu = palluStyle ? `the pallu worn ${/front|seedha/i.test(palluStyle) ? "in front, seedha style, falling over the right shoulder to the front" : /head/i.test(palluStyle) ? "over the head" : /pinned/i.test(palluStyle) ? "pinned neatly at the left shoulder" : /free/i.test(palluStyle) ? "over the left shoulder, flowing free" : "over the left shoulder"}` : "the pallu over the left shoulder";
+    worn = `${drape}: neat pleats at the front centre, ${pallu}, the border running along the bottom hem, ${blouse}`;
     rules = [
       "Keep the saree's body, border and pallu exactly as in the photos: same motifs, colours, scale and order.",
       "The pallu is the decorated end of the saree (its last 1 to 1.2 metres). Where it shows, it carries its own design exactly as read above and as photographed — every panel and band in the same order, ending in its end strip and tassels — and it is never filled with the body print.",
@@ -145,6 +150,7 @@ export function twoPrompt(garment: Garment, c: TwoChoices): string {
   const n = Number((garment.productCode ?? "").match(/(\d+)$/)?.[1] ?? NaN);
   const seed = Number.isFinite(n) ? n : pick(garment.productCode ?? garment.id);
   const photos = qwenInputs(garment, 6).map((p, i) => `photo ${i + 1} shows ${SLOT_WORDS[p.slot] ?? "the garment"}`);
+  if (anchor) photos.push(`photo ${photos.length + 1} is the approved first photograph of this shoot — this same garment already worn by the model`);
   const spec = garment.words?.garmentSpec;
   const details = Object.entries(c.details).map(([k, v]) => `${k}: ${v}`).join("; ");
   const detailPose = /detail|close|sleeve|hem|print|chest/i.test(c.pose);
@@ -157,6 +163,11 @@ export function twoPrompt(garment: Garment, c: TwoChoices): string {
     `Priority: 1. the garment's fabric, print and colours exactly as in the photos; 2. correct anatomy (one person, two arms, two hands, five fingers each); 3. pose and framing; 4. a natural, original face.`,
     rules,
     `Draw only what the photos show, and only where they show it. A detail seen only on the back of the garment (a bow, a tie, a zip, buttons) is only on the back: it must not appear in a front or side view. Do not invent any detail the photos do not show.`,
+    // 2. Drapify's "inspect the reference up close", 9 Oct.
+    `Print: look at the photos up close before drawing. Keep every motif's exact shape, its size compared with the garment, its spacing and its layout (rows, all-over, panels). Do not simplify, enlarge, shrink, merge or reorder motifs — a four-petal flower stays a four-petal flower, a paisley stays a paisley.`,
+    ...(anchor
+      ? [`Same shoot: the last photo is the approved first picture of this shoot. Keep exactly the same model (face, hair, skin, build), the same garment with every detail${map.type === "saree" ? " — the same blouse, the same border, the same pallu design and the same pleating" : ""}, the same jewellery and accessories, the same background and light. Change only the pose, as described below.`]
+      : []),
     `Colour: keep every colour of the fabric exactly as bright, as saturated and as light or dark as in the photos; do not mute, grey, warm or darken them.`,
     `Pose: ${c.pose}. ${framing}, camera at chest height.`,
     `Scene: ${c.background}${c.backgroundGroup ? ` (${c.backgroundGroup.toLowerCase()} setting)` : ""}, softly blurred behind, bright natural light, neutral white balance that keeps the garment's colours true. Remove the hanger, mannequin, flowers, floor and any shop background from the photos.`,

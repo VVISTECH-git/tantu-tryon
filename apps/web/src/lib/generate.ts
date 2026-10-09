@@ -33,6 +33,8 @@ export interface GenerateInput {
   /** tantu-two (9 Oct): the seller's photo shape and size; Gemini only. */
   aspectRatio?: string;
   size?: ImageSize;
+  /** tantu-two: more photos sent after the product's own (the shoot's first picture, 9 Oct). */
+  extraImages?: { data: string; mime: string }[];
 }
 
 export interface GenerateOutput {
@@ -240,6 +242,7 @@ export async function runGarmentGemini(input: GenerateInput): Promise<GenerateRe
     return { ok: false, status: 502, message: error instanceof Error ? error.message : "Could not read the product photos." };
   }
   if (images.length === 0) return { ok: false, status: 400, message: "The product has no photo yet." };
+  if (input.extraImages?.length) images = [...images, ...input.extraImages];
 
   const reserved = await reserveGeneration({
       free: input.free,
