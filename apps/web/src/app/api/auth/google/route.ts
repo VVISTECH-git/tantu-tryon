@@ -8,12 +8,13 @@ export const runtime = "nodejs";
 /**
  * Sign in with Google (9 Oct, tantu-two; user: "anything that is free"). The page gets an ID token
  * from Google's own button; Google checks it here (signature, expiry, our client ID, a verified
- * email). The first sign-in makes the seller's own shop account and gives the welcome credit.
+ * email). The first sign-in makes the seller's own shop account.
  *
  *   { credential }  → { ok, token, account, created }
  */
 const CLIENT_IDS = (process.env.GOOGLE_CLIENT_ID ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-const WELCOME_PAISE = Number(process.env.WELCOME_CREDIT_PAISE ?? 2000);
+// No welcome gift for now (user, 9 Oct: "there is no welcome gift from us"); WELCOME_CREDIT_PAISE can switch one on later.
+const WELCOME_PAISE = Number(process.env.WELCOME_CREDIT_PAISE ?? 0);
 
 export async function POST(request: Request) {
   if (CLIENT_IDS.length === 0) return Response.json({ error: "Google sign-in is not switched on yet." }, { status: 503 });
