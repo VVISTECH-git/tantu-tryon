@@ -6,7 +6,7 @@ import { attachmentsFor, partPlan, sheetFor, wordsFor } from "@/lib/garments";
 import { chosenImageOption, type ImageSize } from "@/lib/imageModels";
 import { finishGeneration, imageSizeFor, reserveGeneration, type ReserveResult } from "@/lib/spend";
 import { readAsset, renderUrl, saveRender } from "@/lib/storage";
-import { describeGarmentCut } from "@/lib/describe";
+import { describeGarmentCut, describeSaree } from "@/lib/describe";
 import { updateGarment } from "@/lib/garments";
 import { QWEN_MODEL, isQwenOption, qwenInputs, qwenPrompt, qwenSize } from "@/lib/qwenPrompt";
 
@@ -90,6 +90,25 @@ export function toOutput(row: Generation): GenerateOutput {
  * A stitched garment's cut, read from its photo once and kept on the product (words.garmentSpec).
  * A failed read is not fatal: the prompt then asks to copy the photo, as before.
  */
+/**
+ * tantu-two sarees (9 Oct): read once from all its photos (up to 4), and again only when the
+ * photos change; kept on the product as words.garmentSpec like a stitched garment's cut.
+ */
+export async function withSareeSpec(garment: Garment): Promise<Garment> {
+  const inputs = qwenInputs(garment, 4);
+  const sig = inputs.map((p) => p.key).join("|");
+  const words = (garment.words ?? {}) as Record<string, string>;
+  if (!inputs.length || (words.garmentSpec && words.garmentSpecFor === sig)) return garment;
+  try {
+    const images = await Promise.all(inputs.map(async (p) => ({ data: Buffer.from(await readAsset(p.key)).toString("base64"), mime: p.key.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg" })));
+    const read = await describeSaree(images);
+    if (!read.ok) return garment;
+    return await updateGarment(garment.id, { words: { ...words, garmentSpec: read.spec, garmentSpecFor: sig } });
+  } catch {
+    return garment;
+  }
+}
+
 export async function withGarmentSpec(garment: Garment): Promise<Garment> {
   if (garment.garmentType === "saree" || garment.words?.garmentSpec) return garment;
   const first = qwenInputs(garment)[0];

@@ -113,6 +113,20 @@ export function twoPrompt(garment: Garment, c: TwoChoices): string {
   let worn = (kid && base.childWorn) || base.worn;
   // A kurti set (9 Oct): worn with the seller's own bottom and dupatta when they are photographed,
   // not the house default of black leggings.
+  // A saree (9 Oct): its own blouse piece when photographed; the pallu read and kept part by part.
+  let rules = base.rules;
+  if (map.type === "saree") {
+    const has = (slot: string) => garment.parts.some((p) => p.slot === slot && p.key);
+    const blouse = has("blouse") ? "with a fitted blouse made from the blouse piece in its photo (same colour, print and border)" : "with a plain fitted blouse in a colour taken from the border";
+    worn = `draped in the standard Nivi style: neat pleats at the front centre, the pallu over the left shoulder, the border running along the bottom hem, ${blouse}`;
+    rules = [
+      "Keep the saree's body, border and pallu exactly as in the photos: same motifs, colours, scale and order.",
+      "The pallu is the decorated end of the saree (its last 1 to 1.2 metres). Where it shows, it carries its own design exactly as read above and as photographed — every panel and band in the same order, ending in its end strip and tassels — and it is never filled with the body print.",
+      "The border runs along both long edges of the saree, the pallu included.",
+      has("blouse") ? "The blouse is made only from the blouse piece; that fabric never appears on the saree itself." : "The blouse is plain; no blouse fabric appears on the saree.",
+      "The saree reaches the floor.",
+    ].join(" ");
+  }
   // A lehenga (9 Oct): with its own blouse and, when the photos show one, its dupatta.
   if (map.type === "lehenga") {
     const has = (slot: string) => garment.parts.some((p) => p.slot === slot && p.key);
@@ -141,7 +155,7 @@ export function twoPrompt(garment: Garment, c: TwoChoices): string {
     ...(spec ? [`The garment, read closely from the photos — these details are fixed and must be copied exactly: ${spec}`] : []),
     ...(details ? [`The seller's own details for this garment (follow them): ${details}.`] : []),
     `Priority: 1. the garment's fabric, print and colours exactly as in the photos; 2. correct anatomy (one person, two arms, two hands, five fingers each); 3. pose and framing; 4. a natural, original face.`,
-    base.rules,
+    rules,
     `Draw only what the photos show, and only where they show it. A detail seen only on the back of the garment (a bow, a tie, a zip, buttons) is only on the back: it must not appear in a front or side view. Do not invent any detail the photos do not show.`,
     `Colour: keep every colour of the fabric exactly as bright, as saturated and as light or dark as in the photos; do not mute, grey, warm or darken them.`,
     `Pose: ${c.pose}. ${framing}, camera at chest height.`,
