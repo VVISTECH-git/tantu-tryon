@@ -21,7 +21,8 @@ import { assetUrl, getObject, keys, putObject, readAsset, remove, saveUpload, st
  * Labelled parts, in reading order. `saree` is one flat photograph of the
  * whole thing (the older upload path); the rest are the rod shots.
  */
-export const PART_ORDER = ["saree", "body", "pallu", "border", "blouse", "body_motif", "pallu_motif", "whole"] as const;
+// back, detail, bottom and dupatta (9 Oct): tantu-two's photo boxes for stitched garments.
+export const PART_ORDER = ["saree", "body", "pallu", "border", "blouse", "body_motif", "pallu_motif", "whole", "back", "detail", "bottom", "dupatta", "extra1", "extra2", "extra3"] as const;
 export type PartSlot = (typeof PART_ORDER)[number];
 
 export type GarmentResult = { ok: true; garment: Garment } | { ok: false; status: number; message: string };

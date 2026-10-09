@@ -30,6 +30,9 @@ export interface GenerateInput {
   promptOverride?: string;
   /** No Tantu credit taken: the platform admin's own runs. */
   free?: boolean;
+  /** tantu-two (9 Oct): the seller's photo shape and size; Gemini only. */
+  aspectRatio?: string;
+  size?: ImageSize;
 }
 
 export interface GenerateOutput {
@@ -87,7 +90,7 @@ export function toOutput(row: Generation): GenerateOutput {
  * A stitched garment's cut, read from its photo once and kept on the product (words.garmentSpec).
  * A failed read is not fatal: the prompt then asks to copy the photo, as before.
  */
-async function withGarmentSpec(garment: Garment): Promise<Garment> {
+export async function withGarmentSpec(garment: Garment): Promise<Garment> {
   if (garment.garmentType === "saree" || garment.words?.garmentSpec) return garment;
   const first = qwenInputs(garment)[0];
   if (!first) return garment;
@@ -200,13 +203,16 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
 }
 
 /** A frock, kurti, co-ord, lehenga, blouse or dupatta on Gemini: prompt from the garment catalogue, the product photos as references. */
-async function runGarmentGemini(input: GenerateInput): Promise<GenerateResult> {
+export async function runGarmentGemini(input: GenerateInput): Promise<GenerateResult> {
   const prompt = input.promptOverride ?? qwenPrompt(input.garment, input.promptId, input.look);
-  const { model, size } = await modelFor(input.look.quality);
+  // A size asked for outright (tantu-two): 1K on the everyday model, 2K and 4K on Pro.
+  const { model, size } = input.size
+    ? input.size === "1K" ? await modelFor("standard") : { model: process.env.GEMINI_IMAGE_MODEL_HIGH || GEMINI_MODELS.high, size: input.size }
+    : await modelFor(input.look.quality);
   let images: { data: string; mime: string }[];
   try {
     images = await Promise.all(
-      qwenInputs(input.garment).map(async (p) => ({
+      qwenInputs(input.garment, input.size ? 6 : 3).map(async (p) => ({
         data: Buffer.from(await readAsset(p.key)).toString("base64"),
         mime: p.key.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg",
       })),
@@ -234,7 +240,7 @@ async function runGarmentGemini(input: GenerateInput): Promise<GenerateResult> {
     return { ok: true, generation: toOutput(row!) };
   }
   try {
-    const image = await generateImage({ prompt, images, model, aspectRatio: "3:4", imageSize: size, signal: input.signal });
+    const image = await generateImage({ prompt, images, model, aspectRatio: (input.aspectRatio ?? "3:4") as "3:4", imageSize: size, signal: input.signal });
     const stem = input.garment.productCode ?? input.garment.title.replace(/[^A-Za-z0-9]+/g, "-").slice(0, 40);
     const key = await saveRender(input.garment.id, reserved.id, Buffer.from(image.data, "base64"), image.mime, `${stem}-${input.promptId}-${reserved.id.slice(0, 6)}.${image.mime.includes("jpeg") ? "jpg" : "png"}`);
     await finishGeneration(reserved.id, { ok: true, imageKey: key, imageMime: image.mime, ms: image.ms });
