@@ -17,6 +17,7 @@ export function AdminNav({ platform, owner, labels }: { platform: boolean; owner
           { href: "/admin/products", label: "Products" },
           { href: "/admin/generations", label: "Generations" },
           { href: "/admin/review", label: "Review" },
+          { href: "/admin/qwen", label: "Qwen" },
           { href: "/admin/storage", label: "Storage" },
         ]
       : []),
