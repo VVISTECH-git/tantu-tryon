@@ -68,7 +68,7 @@ const GARMENT: Record<string, { name: string; worn: string; rules: string }> = {
 // User (8 Oct): North Indian models, about 20 years old, and pleasant to look at: a
 // professional catalogue model, not a passer-by (the first plain wording was rejected).
 const MODEL: Record<string, string> = {
-  woman: "a beautiful Indian woman, fine natural skin texture, minimal natural makeup, a small round red bindi on her forehead, a fine gold chain necklace, small gold stud earrings and a thin gold bangle",
+  woman: "a beautiful young North Indian woman, slim, with a fresh youthful college-age look, fine natural skin texture, minimal natural makeup, a small round red bindi on her forehead, a fine gold chain necklace, small gold stud earrings and a thin gold bangle",
   man: "a professional North Indian male fashion model, well-groomed, natural North Indian complexion, athletic build, confident calm expression, short neat hair",
   girl: "a real Indian girl, natural medium-brown Indian skin tone, cheerful expression, hair in two plaits",
   boy: "a real Indian boy, natural medium-brown Indian skin tone, cheerful expression, short neat hair",
@@ -80,12 +80,14 @@ const MODEL: Record<string, string> = {
   next product gets another. Natural Indian skin tones, no "fair".
 */
 const FACES = [
-  "an oval face, light wheatish skin, large dark eyes and a soft open smile",
-  "a heart-shaped face, warm medium-brown skin, defined brows and a warm smile",
-  "a round face, wheatish skin, a dimpled cheerful smile",
-  "high cheekbones, deep dusky-brown skin, almond eyes and a confident closed-lip smile",
-  "a soft square jaw, light-brown skin, gentle eyes and a calm smile",
-  "a long face, warm golden-brown skin, a few freckles and a bright smile",
+  // 9 Oct, user: the models looked dark and older ("aunties"); they want young North Indian
+  // women of about 20 with light, wheatish skin.
+  "a youthful oval face, fair wheatish skin, large dark eyes and a soft open smile",
+  "a youthful heart-shaped face, light wheatish skin, defined brows and a warm smile",
+  "a round youthful face, fair skin with a warm undertone and a dimpled cheerful smile",
+  "high cheekbones, light golden-wheatish skin, almond eyes and a confident closed-lip smile",
+  "a soft youthful face, fair wheatish skin, gentle eyes and a calm smile",
+  "a slim youthful face, light honey-wheatish skin and a bright smile",
 ];
 const HAIR = [
   "long dark hair in a loose braid falling forward over one shoulder",
