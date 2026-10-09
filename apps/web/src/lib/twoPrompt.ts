@@ -110,7 +110,15 @@ export function twoPrompt(garment: Garment, c: TwoChoices): string {
   const kid = /^(girl|boy)$/i.test(c.gender);
   const base = GARMENT[map.type] ?? GARMENT.kurti!;
   const name = (kid && base.childName) || map.name || base.name;
-  const worn = (kid && base.childWorn) || base.worn;
+  let worn = (kid && base.childWorn) || base.worn;
+  // A kurti set (9 Oct): worn with the seller's own bottom and dupatta when they are photographed,
+  // not the house default of black leggings.
+  if (map.type === "kurti") {
+    const has = (slot: string) => garment.parts.some((p) => p.slot === slot && p.key);
+    const bottom = has("bottom") ? "with the matching bottom (pants, palazzo or skirt) exactly as in its photo" : c.details["Bottom Colour"] || c.details["Bottom Color"] ? "with plain straight pants in the colour the seller chose" : "with plain straight pants in a colour taken from the kurti";
+    const dupatta = has("dupatta") ? ", the dupatta from its photo draped as the seller chose (or over one shoulder)" : ", no dupatta";
+    worn = `worn as it is cut, ${bottom}${dupatta}, with simple flat sandals`;
+  }
   const n = Number((garment.productCode ?? "").match(/(\d+)$/)?.[1] ?? NaN);
   const seed = Number.isFinite(n) ? n : pick(garment.productCode ?? garment.id);
   const photos = qwenInputs(garment, 6).map((p, i) => `photo ${i + 1} shows ${SLOT_WORDS[p.slot] ?? "the garment"}`);
