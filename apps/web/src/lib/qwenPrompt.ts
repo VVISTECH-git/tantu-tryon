@@ -41,7 +41,7 @@ const GARMENT: Record<string, { name: string; worn: string; rules: string }> = {
   frock: {
     name: "frock (long flared dress)",
     worn: "worn as it is cut, with nude block-heel sandals, holding a small woven straw tote bag",
-    rules: "Keep the print exactly as in the photo: same flowers and leaves, same colours, same scale of the pattern, same neckline, same sleeves, same frills or tiers if the photo shows them. The inside of the neckline is the same fabric as the frock. Do not redraw, simplify, recolour or add any decoration.",
+    rules: "Keep the print exactly as in the photo: same flowers and leaves, same colours, same scale of the pattern, same neckline, same sleeves, same frills or tiers if the photo shows them. The neckline is open and edged in the same printed fabric: a dark or plain patch seen inside the neck in photo 1 is the inside of the frock's back (or the background) showing through the opening, not a panel or yoke, so do not copy it. Do not redraw, simplify, recolour or add any decoration.",
   },
   blouse: {
     name: "saree blouse",
@@ -68,7 +68,7 @@ const GARMENT: Record<string, { name: string; worn: string; rules: string }> = {
 // User (8 Oct): North Indian models, about 20 years old, and pleasant to look at: a
 // professional catalogue model, not a passer-by (the first plain wording was rejected).
 const MODEL: Record<string, string> = {
-  woman: "a beautiful Indian woman, fine natural skin texture, minimal natural makeup, a fine gold chain necklace, small gold stud earrings and a thin gold bangle",
+  woman: "a beautiful Indian woman, fine natural skin texture, minimal natural makeup, a small round red bindi on her forehead, a fine gold chain necklace, small gold stud earrings and a thin gold bangle",
   man: "a professional North Indian male fashion model, well-groomed, natural North Indian complexion, athletic build, confident calm expression, short neat hair",
   girl: "a real Indian girl, natural medium-brown Indian skin tone, cheerful expression, hair in two plaits",
   boy: "a real Indian boy, natural medium-brown Indian skin tone, cheerful expression, short neat hair",
