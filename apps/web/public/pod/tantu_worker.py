@@ -57,8 +57,29 @@ STEPS = int(os.environ.get("QWEN_STEPS", "40"))  # Qwen's own guidance: 40-50 st
 CFG = float(os.environ.get("QWEN_CFG", "4.0"))
 CROPS = os.environ.get("QWEN_CROPS", "0") == "1"  # neckline/sleeve crops as photos 2-3: shortened the dress, off by default
 
+# Our own training per garment type (9 Oct: the frock LoRA made unseen frocks like Gemini does).
+# LORAS = "frock:frock-20261008-2115:<signed link> kurti:...": type, file name, where to fetch it once.
+# A job of a type with a LoRA gets it; every other type runs on plain Qwen.
+LORA_DIR = os.environ.get("LORA_DIR", r"C:\ComfyUI\models\loras" if os.name == "nt" else "/workspace/ComfyUI/models/loras")
+LORA_STRENGTH = float(os.environ.get("LORA_STRENGTH", "1.0"))
+LORAS = {}
 
-def workflow(images, prompt, width, height, seed, upscale, steps=None, cfg=None):
+
+def load_loras():
+    os.makedirs(LORA_DIR, exist_ok=True)
+    for entry in os.environ.get("LORAS", "").split():
+        kind, name, url = entry.split(":", 2)
+        path = os.path.join(LORA_DIR, name + ".safetensors")
+        if not os.path.exists(path):
+            log(f"fetching the {kind} LoRA {name}")
+            fetch(url, path + ".part")
+            os.replace(path + ".part", path)
+        LORAS[kind] = name + ".safetensors"
+    if LORAS:
+        log("LoRAs: " + ", ".join(f"{k}={v}" for k, v in LORAS.items()))
+
+
+def workflow(images, prompt, width, height, seed, upscale, steps=None, cfg=None, lora=None):
     steps = steps or STEPS
     cfg = cfg or CFG
     """Qwen edit with up to three input photos, then the sharpening upscaler to 2K (x2) or 4K (x4)."""
@@ -75,9 +96,11 @@ def workflow(images, prompt, width, height, seed, upscale, steps=None, cfg=None)
     w = {
         **loaders,
         "3": {"class_type": "VAELoader", "inputs": {"vae_name": Q.VAE}},
-        "5": {"class_type": "ModelSamplingAuraFlow", "inputs": {"shift": 3.0, "model": ["1", 0]}},
+        "5": {"class_type": "ModelSamplingAuraFlow", "inputs": {"shift": 3.0, "model": ["15", 0] if lora else ["1", 0]}},
         "8": {"class_type": "EmptySD3LatentImage", "inputs": {"width": width, "height": height, "batch_size": 1}},
     }
+    if lora:
+        w["15"] = {"class_type": "LoraLoaderModelOnly", "inputs": {"model": ["1", 0], "lora_name": lora, "strength_model": LORA_STRENGTH}}
     refs = {}
     for i, name in enumerate(images[:3], 1):
         w[f"4{i}"] = {"class_type": "LoadImage", "inputs": {"image": name}}
@@ -134,7 +157,10 @@ def run_job(job):
         if crops:
             prompt += "\nPhoto 2 is the neckline and photo 3 a sleeve of the same garment, cut from photo 1. Copy their exact shape, cut and trim; do not change them."
     t0 = time.time()
-    wf = workflow(names, prompt, job["width"], job["height"], job["seed"], job.get("upscale"))
+    lora = LORAS.get(job.get("garmentType") or "")
+    if lora:
+        log(f"  with our {job['garmentType']} training ({lora})")
+    wf = workflow(names, prompt, job["width"], job["height"], job["seed"], job.get("upscale"), lora=lora)
     pid = Q.post("/prompt", json.dumps({"prompt": wf}).encode())["prompt_id"]
     while True:
         time.sleep(5)
@@ -166,6 +192,7 @@ def main():
         guard.bind(("127.0.0.1", 9099))
     except OSError:
         sys.exit("tantu_worker is already running")
+    load_loras()
     log(f"worker '{NAME}' up ({Q.LOADER} {Q.UNET}), asking {TANTU} every {POLL}s")
     while True:
         try:
