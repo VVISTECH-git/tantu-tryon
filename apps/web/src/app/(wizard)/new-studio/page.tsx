@@ -1,12 +1,9 @@
-import type { Metadata } from "next";
-import { StudioDemo } from "@/components/studio-app/StudioDemo";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "New Studio",
-  robots: { index: false, follow: false },
-};
-
-/** The new studio's look, open to anyone: splash, then the upload screen. Nothing is wired. */
+/**
+ * /new-studio was the new studio's look with nothing wired (the demo). The working studio is /app;
+ * the user knows it by this name (9 Oct), so this address now opens the real one.
+ */
 export default function NewStudioPage() {
-  return <StudioDemo />;
+  redirect("/app");
 }
