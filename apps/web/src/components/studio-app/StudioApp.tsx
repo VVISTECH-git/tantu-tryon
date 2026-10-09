@@ -64,6 +64,9 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
   const [showCode, setShowCode] = useState(false);
   // Product IDs (7 Oct), as on the phone: typed, given automatically to the photographer, or added later.
   const photographer = account.role === "photographer" && !account.platformAdmin;
+  // The platform admin's runs take no Tantu credit (8 Oct; Google's cost is still recorded), so a zero
+  // balance must not grey out Generate for them (9 Oct: the user was stuck on "₹0 left").
+  const affords = (paise: number) => account.platformAdmin || paise <= balance;
   const [productId, setProductId] = useState("");
   const [lateId, setLateId] = useState("");
   const [nextAutoId, setNextAutoId] = useState<string | null>(null);
@@ -527,7 +530,7 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
     if (!garment || selectedPoses.size === 0) return;
     const poseLook: GenerationLook = { ...look, quality: poseQuality };
     const cost = selectedPoses.size * CREDIT_PAISE[poseQuality];
-    if (cost > balance) {
+    if (!affords(cost)) {
       setModal("limit");
       return;
     }
@@ -1078,8 +1081,8 @@ export function StudioApp({ account, balancePaise: initialBalance, canDescribe }
                   );
                 })}
               </div>
-              <p className="st-support">{balance < CREDIT_PAISE[look.quality] ? T.output.exhausted : T.output.trialHint}</p>
-              <button type="button" className="st-action" disabled={busy || balance < CREDIT_PAISE[look.quality]} onClick={() => void generatePrimary()}>
+              <p className="st-support">{!affords(CREDIT_PAISE[look.quality]) ? T.output.exhausted : T.output.trialHint}</p>
+              <button type="button" className="st-action" disabled={busy || !affords(CREDIT_PAISE[look.quality])} onClick={() => void generatePrimary()}>
                 {T.pose.generate(pose)} · {rupees(CREDIT_PAISE[look.quality])}
               </button>
             </div>
