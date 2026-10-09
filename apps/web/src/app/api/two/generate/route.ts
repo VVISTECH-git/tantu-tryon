@@ -25,7 +25,11 @@ export async function POST(request: Request) {
     }
     const choices = cleanChoices(body.choices);
     if (!choices) return Response.json({ error: "Unknown garment." }, { status: 400 });
-    const size = SIZES.has(body.quality ?? "") ? (body.quality as "1K" | "2K" | "4K") : "2K";
+    // 9 Oct, user: "no matter what I choose, let us have the 6-rupee photo for now" — every tantu-two
+    // photo is the everyday 1K model until the user says otherwise; the page's choice is kept for later.
+    const asked = SIZES.has(body.quality ?? "") ? (body.quality as "1K" | "2K" | "4K") : "2K";
+    void asked;
+    const size = "1K" as const;
 
     const found = await getGarment(body.garmentId, account.id);
     if (!found) return Response.json({ error: "No such product." }, { status: 404 });

@@ -46,20 +46,18 @@ li svg{color:var(--emerald);margin-top:2px}
 </style>
 </head>
 <body>
-<div class="test">Internal test build · sign-in is simulated, no account is created</div>
+<div class="test">Internal test build · sign in with your Tantu username and password (phone sign-up comes before launch)</div>
 <a class="back" href="tantu-landing.html">← Tantu</a>
 <div class="wrapc">
   <div class="gift"><i><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"/><path d="M20 11v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8"/><path d="M7.5 7a1 1 0 0 1 0-5A4.8 8 0 0 1 12 7a4.8 8 0 0 1 4.5-5 1 1 0 0 1 0 5"/><rect x="3" y="7" width="18" height="4" rx="1"/></svg></i><div><small>WELCOME GIFT</small><b>Claim 50 free credits — first photos free</b></div></div>
   <form class="card" id="f" novalidate>
     <h1>Your first photoshoot is on us</h1>
     <p class="sub">Sign up free and we'll drop <b>50 credits</b> in your account — enough for your first 2 HD photos. No card needed.</p>
-    <div class="phone">
-      <select id="cc" aria-label="Country code"><option value="+91" selected>🇮🇳 +91 India</option><option value="+1">🇺🇸 +1 United States</option><option value="+971">🇦🇪 +971 UAE</option><option value="+44">🇬🇧 +44 United Kingdom</option><option value="+61">🇦🇺 +61 Australia</option><option value="+65">🇸🇬 +65 Singapore</option></select>
-      <input id="ph" type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="Mobile number" aria-label="Mobile number">
+    <div class="phone" style="display:grid;gap:10px;grid-template-columns:1fr">
+      <input id="un" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="Username" aria-label="Username">
+      <input id="pw" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password">
     </div>
-    <button class="btn primary" type="submit">Continue with phone</button>
-    <div class="or">OR</div>
-    <button class="btn ghost" type="button" id="g"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Sign in with Google <span aria-hidden="true" style="color:var(--primary)">✦</span></button>
+    <button class="btn primary" type="submit" id="go">Sign in</button>
     <div class="msg" id="msg" role="status" hidden></div>
     <ul><li><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>50 credits added instantly — your first 2 HD photos, free</li><li><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16c5 0 7-8 12-8a4 4 0 0 1 0 8c-5 0-7-8-12-8a4 4 0 1 0 0 8"/></svg>Credits never expire. No subscription. No card required.</li><li><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Full commercial rights from day one</li></ul>
     <p class="fine">By continuing, you agree to our <a href="tantu-landing.html#faq">Terms</a> and <a href="tantu-landing.html#faq">Privacy Policy</a>.</p>
@@ -67,15 +65,24 @@ li svg{color:var(--emerald);margin-top:2px}
 </div>
 <script>
 (function(){
-  const f=document.getElementById('f'),ph=document.getElementById('ph'),cc=document.getElementById('cc'),msg=document.getElementById('msg');
+  // Real sign-in (9 Oct): the Tantu engine checks the username and password and hands back a
+  // token this site keeps; every photo request carries it. The engine lives on its own address.
+  const API=/(^|\.)tantu-tryon\.vercel\.app$/.test(location.hostname)?'':'https://tantu-tryon.vercel.app';
+  const f=document.getElementById('f'),un=document.getElementById('un'),pw=document.getElementById('pw'),msg=document.getElementById('msg'),btn=document.getElementById('go');
   const show=(t,ok)=>{msg.hidden=false;msg.className='msg '+(ok?'ok':'err');msg.textContent=t;};
-  const go=()=>setTimeout(()=>{location.href='tantu-app.html#home';},600);
   const keep=(k,v)=>{try{localStorage.setItem('tantu_'+k,JSON.stringify(v));}catch(e){}};
-  f.addEventListener('submit',e=>{e.preventDefault();const d=ph.value.replace(/\D/g,'');
-    if(cc.value==='+91'&&d.length!==10){show('Enter your 10-digit mobile number.',false);ph.focus();return;}
-    if(d.length<7){show('Enter a valid mobile number.',false);ph.focus();return;}
-    keep('phone',cc.value+' '+d);keep('signed_in',true);show('Signed in (prototype). Opening your studio…',true);go();});
-  document.getElementById('g').addEventListener('click',()=>{keep('signed_in',true);show('Signed in with Google (prototype). Opening your studio…',true);go();});
+  f.addEventListener('submit',async e=>{e.preventDefault();
+    if(!un.value.trim()){show('Enter your username.',false);un.focus();return;}
+    if(!pw.value){show('Enter your password.',false);pw.focus();return;}
+    btn.disabled=true;show('Signing in…',true);
+    try{
+      const r=await fetch(API+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json','x-tantu-client':'mobile'},body:JSON.stringify({username:un.value.trim(),password:pw.value})});
+      const j=await r.json().catch(()=>({}));
+      if(!r.ok||!j.token){show(j.error||'Could not sign in. Try again.',false);btn.disabled=false;return;}
+      keep('token',j.token);keep('signed_in',true);if(j.account&&j.account.name)keep('name',j.account.name);
+      show('Signed in. Opening your studio…',true);setTimeout(()=>{location.href='tantu-app.html#home';},400);
+    }catch(err){show('Could not reach Tantu. Check your connection and try again.',false);btn.disabled=false;}
+  });
 })();
 </script>
 </body>
