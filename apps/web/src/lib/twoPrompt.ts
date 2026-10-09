@@ -12,6 +12,7 @@ import { FACES, GARMENT, HAIR, MODEL, pick, qwenInputs } from "@/lib/qwenPrompt"
 /** tantu-two's garment tiles → our garment types. */
 export const TWO_GARMENTS: Record<string, { type: string; name?: string }> = {
   "Kids Frocks": { type: "frock" },
+  Frocks: { type: "frock" },
   "Kurti Set": { type: "kurti", name: "kurti set" },
   Saree: { type: "saree" },
   Lehenga: { type: "lehenga" },
