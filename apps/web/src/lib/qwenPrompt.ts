@@ -27,7 +27,7 @@ export function qwenSize(quality: GenerationLook["quality"]): { width: number; h
   return quality === "high" ? { width: 1024, height: 1365, upscale: 4, label: "4K" } : { width: 1024, height: 1365, upscale: 2, label: "2K" };
 }
 
-const GARMENT: Record<string, { name: string; worn: string; rules: string; childName?: string; childWorn?: string }> = {
+export const GARMENT: Record<string, { name: string; worn: string; rules: string; childName?: string; childWorn?: string }> = {
   saree: {
     name: "saree",
     worn: "draped in the standard Nivi style: pleats at the front centre, the pallu over the left shoulder falling behind, the border running along the bottom hem, with a plain blouse matching the border colour",
@@ -70,7 +70,7 @@ const GARMENT: Record<string, { name: string; worn: string; rules: string; child
 
 // User (8 Oct): North Indian models, about 20 years old, and pleasant to look at: a
 // professional catalogue model, not a passer-by (the first plain wording was rejected).
-const MODEL: Record<string, string> = {
+export const MODEL: Record<string, string> = {
   woman: "a beautiful young North Indian woman, slim, with a fresh youthful college-age look, fine natural skin texture, minimal natural makeup, a small round red bindi on her forehead, a fine gold chain necklace, small gold stud earrings and a thin gold bangle",
   man: "a professional North Indian male fashion model, well-groomed, natural North Indian complexion, athletic build, confident calm expression, short neat hair",
   // Same look as the women (user, 9 Oct): North Indian, light wheatish skin. No bindi on children ("it doesn't suit").
@@ -83,7 +83,7 @@ const MODEL: Record<string, string> = {
   across — rotate them"). A product keeps one model and one hairstyle in all its poses; the
   next product gets another. Natural Indian skin tones, no "fair".
 */
-const FACES = [
+export const FACES = [
   // 9 Oct, user: the models looked dark and older ("aunties"); they want young North Indian
   // women of about 20 with light, wheatish skin.
   "a youthful oval face, fair wheatish skin, large dark eyes and a soft open smile",
@@ -93,7 +93,7 @@ const FACES = [
   "a soft youthful face, fair wheatish skin, gentle eyes and a calm smile",
   "a slim youthful face, light honey-wheatish skin and a bright smile",
 ];
-const HAIR = [
+export const HAIR = [
   "long dark hair in a loose braid falling forward over one shoulder",
   "dark hair in a neat low bun at the nape",
   "long dark hair worn open in soft waves past the shoulders",
@@ -105,7 +105,7 @@ const HAIR = [
 ];
 
 /** A product's own index into the rotations, the same on every run (FNV-1a of its ID). */
-function pick(seed: string): number {
+export function pick(seed: string): number {
   let h = 0x811c9dc5;
   for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0;
   return h;
@@ -151,11 +151,12 @@ export function qwenPrompt(garment: Garment, promptId: string, look: GenerationL
 }
 
 /** The photos Qwen gets, in order: the garment first, then its parts; at most three (the edit node's limit). */
-export function qwenInputs(garment: Garment): { slot: string; key: string }[] {
-  const order = ["whole", "saree", "body", "pallu", "blouse", "border", "body_motif", "pallu_motif"];
+/** max 3 for Qwen's edit node; Gemini takes more (tantu-two sends up to 6, 9 Oct). */
+export function qwenInputs(garment: Garment, max = 3): { slot: string; key: string }[] {
+  const order = ["whole", "saree", "back", "detail", "bottom", "dupatta", "extra1", "extra2", "extra3", "body", "pallu", "blouse", "border", "body_motif", "pallu_motif"];
   return garment.parts
     .filter((p) => p.key)
     .sort((a, b) => order.indexOf(a.slot) - order.indexOf(b.slot))
-    .slice(0, 3)
+    .slice(0, max)
     .map((p) => ({ slot: p.slot, key: p.key! }));
 }

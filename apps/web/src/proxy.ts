@@ -28,8 +28,36 @@ function twoHost(request: NextRequest): boolean {
   return TWO_HOSTS.includes(host);
 }
 
+/**
+ * tantu-two's own site (9 Oct, user: "I don't want to use tantu-tryon"): its pages live in their
+ * own project and call this API across sites, signed in with a bearer token, so the API answers
+ * those origins (no cookies are sent cross-site, so nothing ambient can be ridden).
+ */
+const TWO_ORIGINS = (process.env.TWO_ORIGINS ?? "https://tantu-two.vercel.app,http://localhost:5500,http://127.0.0.1:5500").split(",").map((o) => o.trim()).filter(Boolean);
+
+function corsHeaders(origin: string): Record<string, string> {
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type, x-tantu-client, x-tantu-device",
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
+  };
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const origin = request.headers.get("origin") ?? "";
+  if (pathname.startsWith("/api/") && TWO_ORIGINS.includes(origin)) {
+    if (request.method === "OPTIONS") return new NextResponse(null, { status: 204, headers: corsHeaders(origin) });
+    const signed = /^bearer /i.test(request.headers.get("authorization") ?? "");
+    if (!signed && !PUBLIC_API.some((p) => p.test(pathname))) {
+      return NextResponse.json({ error: "Sign in to do that." }, { status: 401, headers: corsHeaders(origin) });
+    }
+    const res = NextResponse.next();
+    for (const [k, v] of Object.entries(corsHeaders(origin))) res.headers.set(k, v);
+    return res;
+  }
   if (twoHost(request) && !pathname.startsWith("/api/") && !pathname.startsWith("/_next/") && !pathname.startsWith("/two/")) {
     const url = request.nextUrl.clone();
     url.pathname = pathname === "/" ? "/two/tantu-landing.html" : `/two${pathname}`;
