@@ -1362,7 +1362,7 @@ textarea.custom{width:100%;min-height:76px;margin-top:8px;padding:12px;border-ra
         const r=await window.__api('/api/garments/upload',{method:'POST',body:fd});const j=await r.json().catch(()=>({}));if(!r.ok||!j.garment)throw new Error(j.error||('could not send a photo ('+r.status+')'));gid=j.garment.id;}
       F.gid=gid;F.gsig=sig;return gid;}
     function choicesFor(pose){const det={};const groups=TDATA[TKEY(F.garment)]||[];
-      Object.entries(F.tailor||{}).forEach(([k,v])=>{if(!v||/^fabric_color/.test(k))return;const g=groups.find(x=>x.key===k);det[g?g.label:k]=v;});
+      Object.entries(F.tailor||{}).forEach(([k,v])=>{if(!v||/^fabric_color/.test(k))return;const g=groups.find(x=>x.key===k);if(g&&g.def&&v===g.def)return;det[g?g.label:k]=v;});
       if(F.tailor&&F.tailor.fabric_color_hex)det['Main fabric colour']=((F.tailor.fabric_color_label||'')+' '+F.tailor.fabric_color_hex).trim();
       const custom=(C.custom||'').trim();
       return {garment:F.garment,details:det,gender:C.gender,age:C.age,ethnicity:C.eth,body:isKid()?'':C.body,hair:C.hair,style:C.style,pose,background:custom?C.bg+', '+custom:C.bg,backgroundGroup:C.bgcat,ratio:C.ratio};}
