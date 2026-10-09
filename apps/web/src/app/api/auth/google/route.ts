@@ -21,23 +21,37 @@ export async function POST(request: Request) {
   const ip = clientIp(request);
   if (await throttled(ip)) return Response.json({ error: "Too many tries. Wait 15 minutes, then try again." }, { status: 429 });
 
-  const body = (await request.json().catch(() => ({}))) as { credential?: unknown };
+  const body = (await request.json().catch(() => ({}))) as { credential?: unknown; accessToken?: unknown; phone?: unknown };
   const credential = typeof body.credential === "string" ? body.credential : "";
-  if (!credential || credential.length > 4096) return Response.json({ error: "Malformed request." }, { status: 400 });
+  const accessToken = typeof body.accessToken === "string" ? body.accessToken : "";
+  if ((!credential && !accessToken) || credential.length > 4096 || accessToken.length > 4096) return Response.json({ error: "Malformed request." }, { status: 400 });
 
-  // Google's own check of the token: signature, expiry and the claims come back only if it is genuine.
-  const check = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`).catch(() => null);
+  // Google's own check of the token: the claims come back only if it is genuine and unexpired.
+  // An ID token (Google's button) or an access token (Tantu's own styled buttons, 9 Oct).
+  const check = await fetch(
+    credential ? `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}` : `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`,
+  ).catch(() => null);
   const info = (check?.ok ? await check.json().catch(() => null) : null) as
-    | { aud?: string; iss?: string; email?: string; email_verified?: string | boolean; name?: string; exp?: string }
+    | { aud?: string; azp?: string; iss?: string; email?: string; email_verified?: string | boolean; name?: string; exp?: string; expires_in?: string }
     | null;
-  const issuerOk = info?.iss === "accounts.google.com" || info?.iss === "https://accounts.google.com";
+  const issuerOk = accessToken ? true : info?.iss === "accounts.google.com" || info?.iss === "https://accounts.google.com";
   const verified = info?.email_verified === true || info?.email_verified === "true";
-  if (!info || !issuerOk || !info.aud || !CLIENT_IDS.includes(info.aud) || !verified || !info.email || Number(info.exp ?? 0) * 1000 < Date.now()) {
+  const ours = Boolean(info && ((info.aud && CLIENT_IDS.includes(info.aud)) || (info.azp && CLIENT_IDS.includes(info.azp))));
+  const live = accessToken ? Number(info?.expires_in ?? 0) > 0 : Number(info?.exp ?? 0) * 1000 > Date.now();
+  if (!info || !issuerOk || !ours || !verified || !info.email || !live) {
     await recordFailure(ip);
     return Response.json({ error: "Google could not confirm this sign-in. Try again." }, { status: 401 });
   }
 
   const email = info.email.toLowerCase();
+  // The name for a new account: in the ID token, or from Google's profile for an access token.
+  if (accessToken && !info.name) {
+    const who = await fetch("https://openidconnect.googleapis.com/v1/userinfo", { headers: { Authorization: `Bearer ${accessToken}` } }).catch(() => null);
+    const profile = (who?.ok ? await who.json().catch(() => null) : null) as { name?: string } | null;
+    if (profile?.name) info.name = profile.name;
+  }
+  // The mobile number typed before "Continue with phone" (not verified by SMS yet).
+  const phone = String(body.phone ?? "").replace(/[^\d+ ]/g, "").trim().slice(0, 20);
   let [account] = await db
     .select()
     .from(accounts)
@@ -47,10 +61,13 @@ export async function POST(request: Request) {
   if (!account) {
     [account] = await db
       .insert(accounts)
-      .values({ name: (info.name || email.split("@")[0] || "Seller").slice(0, 80), email, kind: "merchant", role: "owner" })
+      .values({ name: (info.name || email.split("@")[0] || "Seller").slice(0, 80), email, kind: "merchant", role: "owner", ...(phone.replace(/\D/g, "").length >= 7 ? { phone } : {}) })
       .returning();
     if (WELCOME_PAISE > 0) await grantCredits(account!.id, WELCOME_PAISE, "Welcome gift (Google sign-up)");
     created = true;
+  } else if (phone.replace(/\D/g, "").length >= 7 && phone !== account.phone) {
+    await db.update(accounts).set({ phone }).where(eq(accounts.id, account.id));
+    account = { ...account, phone };
   }
   const token = await startSession(account!.id);
   return Response.json({ ok: true, token, created, account: { id: account!.id, name: account!.name, email: account!.email, phone: account!.phone } });
