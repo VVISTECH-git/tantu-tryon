@@ -140,18 +140,76 @@ def detail_crops(path, job_id):
         return []
 
 
+# ── Full Qwen (9 Oct): the full-precision model in DiffSynth on an 80 GB GPU instead of ComfyUI's fp8.
+# Proven against the website's fp8 output: a cleaner print, and faster (about 2.5 min on an A100).
+# Made at Qwen's own size (3:4, ~1.6 MP), then enlarged gently (Lanczos) to the size the job asks for.
+ENGINE = os.environ.get("QWEN_ENGINE", "comfy")
+FULL_W, FULL_H = 1104, 1472
+FULL_STEPS = int(os.environ.get("QWEN_FULL_STEPS", "50"))
+_pipe = None
+_fused = None  # the LoRA file fused into the model now (DiffSynth fuses; it is taken out with alpha -1)
+
+
+def full_pipe():
+    global _pipe
+    if _pipe is None:
+        import torch
+        from diffsynth.pipelines.qwen_image import ModelConfig, QwenImagePipeline
+        _pipe = QwenImagePipeline.from_pretrained(torch_dtype=torch.bfloat16, device="cuda", model_configs=[
+            ModelConfig(model_id="Qwen/Qwen-Image-Edit-2511", origin_file_pattern="transformer/diffusion_pytorch_model*.safetensors"),
+            ModelConfig(model_id="Qwen/Qwen-Image", origin_file_pattern="text_encoder/model*.safetensors"),
+            ModelConfig(model_id="Qwen/Qwen-Image", origin_file_pattern="vae/diffusion_pytorch_model.safetensors"),
+        ], tokenizer_config=None, processor_config=ModelConfig(model_id="Qwen/Qwen-Image-Edit", origin_file_pattern="processor/"))
+        log("full Qwen loaded")
+    return _pipe
+
+
+def full_lora(name):
+    """Fuse this garment type's LoRA (or none), taking the previous one out first."""
+    global _fused
+    pipe = full_pipe()
+    if _fused == name:
+        return
+    if _fused:
+        pipe.load_lora(pipe.dit, os.path.join(LORA_DIR, _fused), alpha=-LORA_STRENGTH, verbose=0)
+    if name:
+        pipe.load_lora(pipe.dit, os.path.join(LORA_DIR, name), alpha=LORA_STRENGTH, verbose=0)
+    _fused = name
+
+
+def run_full(job, files, prompt, lora):
+    from PIL import Image
+    full_lora(lora)
+    images = []
+    for f in files[:3]:
+        im = Image.open(f).convert("RGB")
+        scale = min(1.0, (1024 * 1024 / (im.width * im.height)) ** 0.5)
+        if scale < 1:
+            im = im.resize((int(im.width * scale), int(im.height * scale)), Image.LANCZOS)
+        images.append(im)
+    out = full_pipe()(prompt, edit_image=images, seed=int(job["seed"]) % (2 ** 31), num_inference_steps=FULL_STEPS, cfg_scale=CFG,
+                      height=FULL_H, width=FULL_W, zero_cond_t=True)
+    target_w = int(job["width"]) * int(job.get("upscale") or 1)
+    if target_w > out.width:
+        out = out.resize((target_w, round(target_w * out.height / out.width)), Image.LANCZOS)
+    path = os.path.join(WORK, f"{job['id']}-out.png")
+    out.save(path)
+    return path
+
+
 def run_job(job):
     os.makedirs(WORK, exist_ok=True)
     names, files = [], []
     for i, im in enumerate(job["images"], 1):
         ext = ".png" if im["url"].lower().endswith(".png") else ".jpg"
         files.append(fetch(im["url"], os.path.join(WORK, f"{job['id']}-{i}{ext}")))
-        names.append(Q.upload(files[-1]))
+        if ENGINE != "full":
+            names.append(Q.upload(files[-1]))
     prompt = job["prompt"]
     # One photo of a stitched garment (user, 8 Oct: "read from the input"): the neckline and a
     # sleeve are cut from it and sent as photos 2 and 3, so the model copies them instead of
     # taking our word for their shape.
-    if CROPS and len(files) == 1 and job.get("garmentType") != "saree":
+    if CROPS and ENGINE != "full" and len(files) == 1 and job.get("garmentType") != "saree":
         crops = detail_crops(files[0], job["id"])
         names += [Q.upload(c) for c in crops]
         if crops:
@@ -160,6 +218,22 @@ def run_job(job):
     lora = LORAS.get(job.get("garmentType") or "")
     if lora:
         log(f"  with our {job['garmentType']} training ({lora})")
+    if ENGINE == "full":
+        path = run_full(job, files, prompt, lora)
+    else:
+        path = run_comfy(names, prompt, job, lora)
+    ms = int((time.time() - t0) * 1000)
+    # Up to storage on a signed URL, then the row closes.
+    target = tantu("/api/worker/done", {"id": job["id"], "contentType": "image/png"})
+    data = open(path, "rb").read()
+    put = urllib.request.Request(target["url"], data=data, method="PUT", headers={"Content-Type": target["mime"]})
+    with urllib.request.urlopen(put, timeout=600):
+        pass
+    tantu("/api/worker/done", {"id": job["id"], "key": target["key"], "mime": target["mime"], "ms": ms})
+    return ms, len(data)
+
+
+def run_comfy(names, prompt, job, lora):
     wf = workflow(names, prompt, job["width"], job["height"], job["seed"], job.get("upscale"), lora=lora)
     pid = Q.post("/prompt", json.dumps({"prompt": wf}).encode())["prompt_id"]
     while True:
@@ -173,17 +247,7 @@ def run_job(job):
             msgs = [m for m in status.get("messages", []) if m[0] == "execution_error"]
             raise RuntimeError("ComfyUI: " + json.dumps(msgs[-1][1] if msgs else status)[:600])
         img = next(i for o in hist[pid]["outputs"].values() for i in o.get("images", []))
-        path = os.path.join(Q.COMFY_OUT, img.get("subfolder", ""), img["filename"])
-        break
-    ms = int((time.time() - t0) * 1000)
-    # Up to storage on a signed URL, then the row closes.
-    target = tantu("/api/worker/done", {"id": job["id"], "contentType": "image/png"})
-    data = open(path, "rb").read()
-    put = urllib.request.Request(target["url"], data=data, method="PUT", headers={"Content-Type": target["mime"]})
-    with urllib.request.urlopen(put, timeout=600):
-        pass
-    tantu("/api/worker/done", {"id": job["id"], "key": target["key"], "mime": target["mime"], "ms": ms})
-    return ms, len(data)
+        return os.path.join(Q.COMFY_OUT, img.get("subfolder", ""), img["filename"])
 
 
 def main():
@@ -193,7 +257,9 @@ def main():
     except OSError:
         sys.exit("tantu_worker is already running")
     load_loras()
-    log(f"worker '{NAME}' up ({Q.LOADER} {Q.UNET}), asking {TANTU} every {POLL}s")
+    if ENGINE == "full":
+        full_pipe()
+    log(f"worker '{NAME}' up ({'full Qwen, DiffSynth bf16' if ENGINE == 'full' else Q.LOADER + ' ' + Q.UNET}), asking {TANTU} every {POLL}s")
     while True:
         try:
             job = tantu("/api/worker/claim", {}).get("job")
