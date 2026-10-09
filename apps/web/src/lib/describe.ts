@@ -260,7 +260,7 @@ const SAREE_INSTRUCTIONS = `You are looking at photos of ONE saree, laid flat, h
 - "body": the body (main field): ground colour, motif, how the motifs are arranged (rows, all-over, stripes), their colours and size.
 - "border": the border: width (narrow / medium / wide, compared with the saree's width), colour, weave or print (zari, woven motifs, printed), and whether it runs along both long edges.
 - "pallu": the pallu, in order from where it starts to the very end: every band or panel (e.g. "a cream panel of standing women figures"), what lies between them, the end strip, tassels or fringe. If the pallu has the same design as the body, say exactly "same as the body".
-- "blouse": the blouse piece if one is visible (colour, print, border); "not visible" if none.
+- "blouse": the blouse piece if one is visible (colour, print, border); "not visible" if none. In many sarees the blouse piece is woven or printed onto the same length, AFTER the pallu at the very end; in a photo it is often folded behind the pallu with only a corner showing (a section with a different ground and small motifs). Describe that section here as the blouse piece, not as part of the pallu.
 - "other": anything else that makes this saree recognisable (contrast edges, buttas, a distinct inner section); "none" if nothing.`;
 
 /**
