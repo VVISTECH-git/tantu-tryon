@@ -157,7 +157,8 @@ export async function reserveGeneration(input: ReserveInput): Promise<ReserveRes
       return { ok: false, status: 503, message: "Generation is paused. Try again later." };
     }
 
-    const [totals] = await tx.select({ day: spentSince("day"), month: spentSince("month") }).from(sql`(select 1) as one`);
+    // The caps guard Google's bill; our own Qwen costs Google nothing, so it is never stopped by them (9 Oct).
+    const [totals] = local ? [{ day: 0, month: 0 }] : await tx.select({ day: spentSince("day"), month: spentSince("month") }).from(sql`(select 1) as one`);
     if ((totals?.day ?? 0) + costPaise > lim.dailyCapPaise) {
       return { ok: false, status: 503, message: "Today's generation budget is used up. It resets at midnight." };
     }
