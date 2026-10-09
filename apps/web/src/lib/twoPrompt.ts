@@ -115,8 +115,10 @@ export function twoPrompt(garment: Garment, c: TwoChoices): string {
   // not the house default of black leggings.
   if (map.type === "kurti") {
     const has = (slot: string) => garment.parts.some((p) => p.slot === slot && p.key);
-    const bottom = has("bottom") ? "with the matching bottom (pants, palazzo or skirt) exactly as in its photo" : c.details["Bottom Colour"] || c.details["Bottom Color"] ? "with plain straight pants in the colour the seller chose" : "with plain straight pants in a colour taken from the kurti";
-    const dupatta = has("dupatta") ? ", the dupatta from its photo draped as the seller chose (or over one shoulder)" : ", no dupatta";
+    // One photo often shows the whole set laid together (9 Oct, MA-03054: kurti, folded pants and
+    // the dupatta in one shot), so what is in the photos counts even without its own box.
+    const bottom = has("bottom") ? "with the matching bottom (pants, palazzo or skirt) exactly as in its photo" : c.details["Bottom Colour"] || c.details["Bottom Color"] ? "with plain straight pants in the colour the seller chose" : "with the matching bottom if one is in the photos (copy its colour and fabric), otherwise plain straight pants in a colour taken from the kurti";
+    const dupatta = has("dupatta") ? ", the dupatta from its photo draped as the seller chose (or over one shoulder)" : ", and if a dupatta is part of the set in the photos, that exact dupatta draped over one shoulder with its own print and border; otherwise no dupatta";
     worn = `worn as it is cut, ${bottom}${dupatta}, with simple flat sandals`;
   }
   const n = Number((garment.productCode ?? "").match(/(\d+)$/)?.[1] ?? NaN);
