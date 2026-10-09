@@ -1,4 +1,4 @@
-import { getGarment } from "@/lib/garments";
+import { getGarment, updateGarment } from "@/lib/garments";
 import { runGarmentGemini, withGarmentSpec } from "@/lib/generate";
 import { requireAccount, unauthorised } from "@/lib/session";
 import { cleanChoices, twoPrompt, twoRatio } from "@/lib/twoPrompt";
@@ -31,8 +31,12 @@ export async function POST(request: Request) {
     void asked;
     const size = "1K" as const;
 
-    const found = await getGarment(body.garmentId, account.id);
+    let found = await getGarment(body.garmentId, account.id);
     if (!found) return Response.json({ error: "No such product." }, { status: 404 });
+    // Which tantu-two tile it was shot as, for "My photos" and "More poses" (9 Oct).
+    if ((found.words as Record<string, string> | null)?.twoGarment !== choices.garment) {
+      found = await updateGarment(found.id, { words: { ...((found.words ?? {}) as Record<string, string>), twoGarment: choices.garment } });
+    }
     const garment = await withGarmentSpec(found);
 
     const result = await runGarmentGemini({
