@@ -1095,7 +1095,7 @@ textarea.custom{width:100%;min-height:76px;margin-top:8px;padding:12px;border-ra
   // ================= PHOTOSHOOT FLOW =================
   (function(){
     const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-    const SLOTS={'Saree':[['Saree Fabric',true,'🥻','saree-main'],['Blouse',false,'👚','saree-blouse']],
+    const SLOTS={'Saree':[['Full saree',true,'🥻','saree-main','The whole saree, spread or on a rod'],['Pallu',false,'🎀',null,'The decorated end — the last metre, spread flat'],['Border',false,'〰️',null,'A close-up of the border'],['Blouse',false,'👚','saree-blouse','The blouse piece, if it has one']],
       'Kurti Set':[['Kurti / Top',true,'👚','kurti-top'],['Back',false,'🔄','kurti-back','Only if back has a design or pattern'],['Bottom',false,'👖','kurti-bottom'],['Dupatta',false,'🧣','kurti-dupatta']],
       'Lehenga':[['Lehenga',true,'👗'],['Blouse',false,'👚'],['Dupatta',false,'🧣']],
       'Men Ethnic':[['Kurta',true,'🤵'],['Pajama',false,'👖'],['Jacket',false,'🧥']],
@@ -1349,7 +1349,7 @@ textarea.custom{width:100%;min-height:76px;margin-top:8px;padding:12px;border-ra
         if(errs.length)say(errs.length+' photo'+(errs.length>1?'s':'')+' failed: '+errs[0]);
         bar.style.width='100%';pc.textContent='100%';setTimeout(()=>{g.remove();go('result');},400);
       }catch(e){stop();g.remove();say('Something went wrong: '+(e.message||e));}})();}
-    const SLOTMAP={'Front':'whole','Kurti / Top':'whole','Saree Fabric':'saree','Lehenga':'whole','Kurta':'whole','Main Garment':'whole','Design PNG':'whole','Top Fabric Swatch':'whole',
+    const SLOTMAP={'Full saree':'saree','Pallu':'pallu','Border':'border','Front':'whole','Kurti / Top':'whole','Saree Fabric':'saree','Lehenga':'whole','Kurta':'whole','Main Garment':'whole','Design PNG':'whole','Top Fabric Swatch':'whole',
       'Back':'back','Print close-up':'detail','Bottom':'bottom','Bottom (pant / swatch)':'bottom','Bottom Fabric Swatch':'bottom','Pajama':'bottom','Dupatta':'dupatta','Layer / Dupatta':'dupatta',
       'Blouse':'blouse','Jacket':'detail','Accessories':'detail','More photo 1':'extra1','More photo 2':'extra2','More photo 3':'extra3'};
     const TYPEMAP={'Frocks':'frock','Kids Frocks':'frock','Kurti Set':'kurti','Saree':'saree','Lehenga':'lehenga','Western':'frock','Men Ethnic':'kurti','Shirt / T-Shirt / Pair':'kurti','Trouser':'kurti'};

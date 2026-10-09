@@ -255,3 +255,38 @@ export async function describeGarmentCut(data: string, mime: string): Promise<{ 
     return { ok: false, message: error instanceof Error ? error.message : String(error) };
   }
 }
+
+const SAREE_INSTRUCTIONS = `You are looking at photos of ONE saree, laid flat, hung on a rod or folded. They may show the whole saree, its pallu (the decorated end, the last 1 to 1.2 metres), its border and its blouse piece. Describe the saree so that someone who cannot see the photos could reproduce it exactly. Answer ONLY with JSON, these keys, plain English, specific, no guessing beyond what is visible:
+- "body": the body (main field): ground colour, motif, how the motifs are arranged (rows, all-over, stripes), their colours and size.
+- "border": the border: width (narrow / medium / wide, compared with the saree's width), colour, weave or print (zari, woven motifs, printed), and whether it runs along both long edges.
+- "pallu": the pallu, in order from where it starts to the very end: every band or panel (e.g. "a cream panel of standing women figures"), what lies between them, the end strip, tassels or fringe. If the pallu has the same design as the body, say exactly "same as the body".
+- "blouse": the blouse piece if one is visible (colour, print, border); "not visible" if none.
+- "other": anything else that makes this saree recognisable (contrast edges, buttas, a distinct inner section); "none" if nothing.`;
+
+/**
+ * A saree read part by part from its photos (9 Oct, tantu-two: with one photo Gemini sometimes
+ * filled the pallu with the body print). The words go into the prompt as fixed facts.
+ */
+export async function describeSaree(images: { data: string; mime: string }[]): Promise<{ ok: true; spec: string; model: string } | { ok: false; message: string }> {
+  if (!process.env.GEMINI_API_KEY) return { ok: false, message: "No Gemini key to read the photo with." };
+  const model = process.env.GEMINI_TEXT_MODEL || "gemini-3.6-flash";
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: SAREE_INSTRUCTIONS }, ...images.map((im) => ({ inline_data: { mime_type: im.mime, data: im.data } }))] }],
+        generationConfig: { responseMimeType: "application/json", temperature: 0.1 },
+      }),
+    });
+    if (!res.ok) return { ok: false, message: `Gemini refused the read: ${res.status} ${(await res.text()).slice(0, 200)}` };
+    const json = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    const f = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, "")) as Record<string, string>;
+    const part = (k: string, label: string) => (f[k] && !/^(none|not visible)$/i.test(String(f[k]).trim()) ? `${label}: ${String(f[k]).trim()}` : null);
+    const spec = [part("body", "Body"), part("border", "Border"), part("pallu", "Pallu"), part("blouse", "Blouse piece"), part("other", "Other details")].filter(Boolean).join(". ");
+    return spec ? { ok: true, spec: `${spec}.`, model } : { ok: false, message: "The read came back empty." };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : String(error) };
+  }
+}
