@@ -71,7 +71,7 @@ export const GARMENT: Record<string, { name: string; worn: string; rules: string
 // User (8 Oct): North Indian models, about 20 years old, and pleasant to look at: a
 // professional catalogue model, not a passer-by (the first plain wording was rejected).
 export const MODEL: Record<string, string> = {
-  woman: "a beautiful young North Indian woman, slim, with a fresh youthful college-age look, fine natural skin texture, minimal natural makeup, a small round red bindi on her forehead, a fine gold chain necklace, small gold stud earrings and a thin gold bangle",
+  woman: "a beautiful young North Indian woman, slim, with a fresh youthful college-age look, fine natural skin texture, minimal natural makeup, a fine gold chain necklace, small gold stud earrings and a thin gold bangle",
   man: "a professional North Indian male fashion model, well-groomed, natural North Indian complexion, athletic build, confident calm expression, short neat hair",
   // Same look as the women (user, 9 Oct): North Indian, light wheatish skin. No bindi on children ("it doesn't suit").
   girl: "a cute young North Indian girl, light wheatish skin, a cheerful natural smile, no bindi, hair in two neat plaits",
@@ -93,6 +93,12 @@ export const FACES = [
   "a soft youthful face, fair wheatish skin, gentle eyes and a calm smile",
   "a slim youthful face, light honey-wheatish skin and a bright smile",
 ];
+/** 10 Oct, user: "I like women's hair in a braid, the braid above the chest" — the house default. */
+export const BRAID = "long dark hair in a single neat braid brought forward over one shoulder, the braid resting on the upper chest";
+/** Traditional wear gets a small red bindi; western-style dresses (frocks) do not (10 Oct, user). */
+export const BINDI_TYPES = new Set(["saree", "kurti", "coord_set", "lehenga", "blouse", "dupatta"]);
+export const BINDI = "a small round red bindi on her forehead";
+
 export const HAIR = [
   "long dark hair in a loose braid falling forward over one shoulder",
   "dark hair in a neat low bun at the nape",
@@ -129,7 +135,7 @@ export function qwenPrompt(garment: Garment, promptId: string, look: GenerationL
   // share a model; anything else is spread by a hash of its ID.
   const n = Number((garment.productCode ?? "").match(/(\d+)$/)?.[1] ?? NaN);
   const seed = Number.isFinite(n) ? n : pick(garment.productCode ?? garment.id ?? "");
-  const looks = look.modelType === "woman" ? `, ${FACES[seed % FACES.length]}, ${HAIR[(seed * 3 + 1) % HAIR.length]}` : "";
+  const looks = look.modelType === "woman" ? `, ${FACES[seed % FACES.length]}, ${BRAID}${BINDI_TYPES.has(garment.garmentType) ? `, ${BINDI}` : ""}` : "";
   const model = `${MODEL[look.modelType] ?? MODEL.woman}${looks}, ${age}`;
   const scene = SCENE[look.background] ?? SCENE.studio!;
   const framing = p.framing === "full" ? "full-length photo from head to feet" : p.framing === "waist" ? "photo from the waist up" : "close photo of the garment detail";
