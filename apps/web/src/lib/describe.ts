@@ -293,7 +293,7 @@ export async function describeSaree(images: { data: string; mime: string }[]): P
 
 const DUPATTA_INSTRUCTIONS = `You are looking at photos of ONE dupatta (a long rectangular stole), spread, hung or folded. Describe it so that someone who cannot see the photos could reproduce it exactly. Answer ONLY with JSON, these keys, plain English, specific, no guessing beyond what is visible:
 - "body": the main field: ground colour, every kind of motif (figures, paisleys, birds, geometric shapes), their colours, size and how they are arranged.
-- "long_borders": the borders along the two LONG edges: width (compared with the dupatta's width), colour and the exact sequence of bands from the edge inwards (e.g. "a thin black zig-zag, then a blue-and-white diamond band"). "none" if the long edges are plain.
+- "long_borders": the borders along the two LONG edges (the sides that run the full length): width (compared with the dupatta's width), colour and the exact sequence of bands from the edge inwards. Say exactly "plain" if the main field runs right to the long edges with no border. Do not mistake the end panels for long borders: end panels run ACROSS the width at the two short ends.
 - "end_panels": the decorated panels at the two SHORT ends: how deep they are, what they show (e.g. "a large blue peacock among black-and-white foliage") and the sequence of bands around them.
 - "edges": what finishes the short ends — tassels, fringe, lace, or a plain hem.
 - "other": anything else that makes this dupatta recognisable; "none" if nothing.`;
@@ -316,7 +316,9 @@ export async function describeDupatta(images: { data: string; mime: string }[]):
     const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
     const f = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, "")) as Record<string, string>;
     const part = (k: string, label: string) => (f[k] && !/^(none|not visible)$/i.test(String(f[k]).trim()) ? `${label}: ${String(f[k]).trim()}` : null);
-    const spec = [part("body", "Body"), part("long_borders", "Long borders"), part("end_panels", "End panels"), part("edges", "Ends finished with"), part("other", "Other details")].filter(Boolean).join(". ");
+    // Plain long edges are said outright (10 Oct: dropped as "none", Gemini then ran the end panel down the long side).
+    const plainSides = !f.long_borders || /^(none|plain|no border)/i.test(String(f.long_borders).trim());
+    const spec = [part("body", "Body"), plainSides ? "Long edges: plain — the main field runs right to the long edges, with no border along them" : part("long_borders", "Long borders"), part("end_panels", "End panels (across the full width at the two short ends only)"), part("edges", "Ends finished with"), part("other", "Other details")].filter(Boolean).join(". ");
     return spec ? { ok: true, spec: `${spec}.`, model } : { ok: false, message: "The read came back empty." };
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : String(error) };
