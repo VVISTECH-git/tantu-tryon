@@ -292,7 +292,7 @@ export async function describeSaree(images: { data: string; mime: string }[]): P
 }
 
 const DUPATTA_INSTRUCTIONS = `You are looking at photos of ONE dupatta (a long rectangular stole), spread, hung or folded. Describe it so that someone who cannot see the photos could reproduce it exactly. Answer ONLY with JSON, these keys, plain English, specific, no guessing beyond what is visible:
-- "body": the main field: ground colour, every kind of motif (figures, paisleys, birds, geometric shapes), their colours, size and how they are arranged.
+- "body": the main field: ground colour; every kind of motif (figures, animals, flowers, paisleys, geometric shapes) with its colours; the SIZE of each kind of motif measured against the dupatta's width (e.g. "each lotus about one-fifth of the width", "cows about a quarter of the width"); how densely they sit (e.g. "large motifs with plenty of black ground between them" or "small and tightly packed") and how they are arranged.
 - "long_borders": the borders along the two LONG edges (the sides that run the full length): width (compared with the dupatta's width), colour and the exact sequence of bands from the edge inwards. Say exactly "plain" if the main field runs right to the long edges with no border. Do not mistake the end panels for long borders: end panels run ACROSS the width at the two short ends.
 - "end_panels": the decorated panels at the two SHORT ends: how deep they are, what they show (e.g. "a large blue peacock among black-and-white foliage") and the sequence of bands around them.
 - "edges": what finishes the short ends — tassels, fringe, lace, or a plain hem.
