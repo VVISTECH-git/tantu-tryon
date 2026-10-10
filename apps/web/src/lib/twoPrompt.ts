@@ -1,5 +1,5 @@
 import type { Garment } from "@/db";
-import { FACES, GARMENT, HAIR, MODEL, pick, qwenInputs } from "@/lib/qwenPrompt";
+import { BINDI, BINDI_TYPES, BRAID, FACES, GARMENT, MODEL, pick, qwenInputs } from "@/lib/qwenPrompt";
 
 /**
  * The prompt for a tantu-two shoot (9 Oct): the seller's own choices on tantu-two's screens —
@@ -92,7 +92,7 @@ const SLOT_WORDS: Record<string, string> = {
   border: "the border",
 };
 
-function who(c: TwoChoices, seed: number): string {
+function who(c: TwoChoices, seed: number, type: string): string {
   const g = c.gender.toLowerCase();
   const kid = g === "girl" || g === "boy";
   const north = !c.ethnicity || /north/i.test(c.ethnicity);
@@ -102,8 +102,10 @@ function who(c: TwoChoices, seed: number): string {
   if (g === "male") return `${north ? MODEL.man : `a professional ${c.ethnicity} male fashion model, well-groomed, athletic build, confident calm expression, short neat hair`}, ${age}`;
   const base = north ? MODEL.woman : MODEL.woman.replace("North Indian", c.ethnicity!);
   const body = c.body && !/slim/i.test(c.body) ? `, ${c.body.toLowerCase()} body` : "";
-  const hair = c.hair && !/vibe|match/i.test(c.hair) ? `, ${c.hair.toLowerCase()} hair` : `, ${HAIR[(seed * 3 + 1) % HAIR.length]}`;
-  return `${base}, ${FACES[seed % FACES.length]}${body}${hair}, ${age}`;
+  // A braid over one shoulder unless the seller picked a hairstyle; a bindi with traditional wear only.
+  const hair = c.hair && !/vibe|match/i.test(c.hair) ? `, ${c.hair.toLowerCase()} hair` : `, ${BRAID}`;
+  const bindi = BINDI_TYPES.has(type) ? `, ${BINDI}` : ", no bindi";
+  return `${base}, ${FACES[seed % FACES.length]}${body}${hair}${bindi}, ${age}`;
 }
 
 /**
@@ -216,7 +218,7 @@ export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false): stri
   const details = Object.entries(c.details).map(([k, v]) => `${k}: ${v}`).join("; ");
   return [
     `INPUT: ${photos.join("; ")}. All photos are of one ${name}.`,
-    `Make one catalogue photograph of this exact ${name} ${worn}, on ${who(c, seed)}.`,
+    `Make one catalogue photograph of this exact ${name} ${worn}, on ${who(c, seed, map.type)}.`,
     ...(spec ? [`The garment, read closely from the photos — these details are fixed and must be copied exactly: ${spec}`] : []),
     ...(details ? [`The seller's own details for this garment (follow them): ${details}.`] : []),
     `Priority: 1. the garment's fabric, print and colours exactly as in the photos; 2. correct anatomy (one person, two arms, two hands, five fingers each); 3. pose and framing; 4. a natural, original face.`,
