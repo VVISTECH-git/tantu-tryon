@@ -105,6 +105,45 @@ function who(c: TwoChoices, seed: number): string {
   return `${base}, ${FACES[seed % FACES.length]}${body}${hair}, ${age}`;
 }
 
+/**
+ * What each tantu-two pose means, said exactly (10 Oct, from Drapify's playbook: the image model
+ * gets the body angle, the hands, the framing and what part of the garment must show — not just a
+ * name). Sarees get their own wording where the pallu or pleats matter.
+ */
+const POSE_TEXT: Record<string, string> = {
+  "frontal hero": "standing straight and facing the camera squarely (0°), weight even, arms relaxed at the sides with a soft natural hand; the whole garment visible from neckline to hem. Full-length photo, head to feet.",
+  "3/4 profile": "body turned exactly 45° to her left, face turned back towards the camera, one foot slightly ahead; shoulders, waist and hem all show the turn. Full-length photo, head to feet.",
+  "full side profile": "body turned 90° so the camera sees her right side, face in profile looking ahead, arms relaxed; the garment's side silhouette clear from shoulder to hem. Full-length photo, head to feet.",
+  "back view": "standing with her back to the camera (180°), head turned slightly over one shoulder so a little of the face shows, arms relaxed; the back of the garment fully visible. Full-length photo, head to feet.",
+  "walking motion": "walking towards the camera mid-step, one foot forward, arms swinging naturally, the fabric moving with the step. Full-length photo, head to feet.",
+  "natural walk": "walking towards the camera mid-step, one foot forward, arms swinging naturally, the dress moving with the step. Full-length photo, head to feet.",
+  "walking grace": "walking slowly towards the camera at a slight angle, one foot ahead, one hand lightly holding the pallu at the shoulder, the pleats swinging with the step. Full-length photo, head to feet.",
+  "seated drape": "seated upright on a simple low stool, knees together and angled slightly to one side, hands resting in the lap; the garment falls naturally and its print stays visible. Full-length photo including the feet.",
+  "sitting casual": "sitting on a low step, knees together, hands resting on the knees, relaxed happy expression; the dress spread naturally. Full-length photo including the feet.",
+  "dynamic twirl": "caught mid-twirl, turning on one foot, the skirt flaring out in a full circle, arms slightly out for balance, smiling. Full-length photo, head to feet.",
+  "spin / twirl": "caught mid-spin, the skirt flaring out, arms out for balance, laughing. Full-length photo, head to feet.",
+  "playful jump": "a small happy jump with both feet just off the ground, arms up, the dress lifting with the movement. Full-length photo, head to feet.",
+  "lifestyle candid": "a natural candid moment — looking slightly away from the camera, laughing, one hand touching the hair — standing relaxed. Full-length photo, head to feet.",
+  "styling moment": "standing at a slight angle, one hand adjusting the neckline or the dupatta, looking down at it with a soft smile. Full-length photo, head to feet.",
+  "editorial silhouette": "standing tall at a slight angle, one hand resting on the hip, chin up, a clean strong silhouette. Full-length photo, head to feet.",
+  "neckline detail": "framed from the waist up, facing the camera, shoulders relaxed, so the neckline, its trim and the upper print are seen sharp and close.",
+  "neckline / bodice detail": "framed from the waist up, facing the camera, so the neckline and the whole bodice — trims, buttons, gathers — are seen sharp and close.",
+  "chest / print detail": "framed from the shoulders to the waist, facing the camera, so the print and any buttons or trims on the chest are seen sharp and close.",
+  "sleeve detail": "framed on one arm and shoulder, the arm slightly bent and turned to the camera, so the sleeve's length, cuff, frill or embroidery is seen sharp and close.",
+  "hem detail": "framed from the knees down to the feet, standing still, so the hem, its border and the drape of the bottom are seen sharp and close.",
+  "close-up portrait": "framed from just above the head to the chest, facing the camera with a warm smile, so the face, the neckline and the jewellery are seen close.",
+  "front drape": "standing facing the camera, the saree in a seedha (front) drape: the pallu brought over the right shoulder and spread across the front of the body so its full design faces the camera. Full-length photo, head to feet.",
+  "pallu showcase": "standing at 45°, the left arm lifted out to the side holding the end of the pallu so the whole pallu opens out flat towards the camera and its full design is visible. Full-length photo, head to feet.",
+  "pallu toss": "turning slightly, the pallu caught mid-air as she tosses it back over the left shoulder, the fabric flying out so its design shows, smiling. Full-length photo, head to feet.",
+  "pleat display": "standing facing the camera, one hand lightly spreading the front pleats so each pleat and the border along the hem are clearly visible. Full-length photo, head to feet.",
+  "pallu border detail": "framed close on the shoulder and the falling pallu, so the pallu's border and its edge are seen sharp, with the zari or print detail visible.",
+  "blouse back detail": "standing with her back to the camera, hair moved to one side, framed from the head to the waist, so the back of the blouse — its neck shape, ties or hooks — is seen sharp and close.",
+};
+
+function poseText(pose: string): string {
+  return POSE_TEXT[pose.trim().toLowerCase()] ?? `${pose}, a natural catalogue pose. Full-length photo, head to feet.`;
+}
+
 export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false): string {
   const map = TWO_GARMENTS[c.garment]!;
   const kid = /^(girl|boy)$/i.test(c.gender);
@@ -162,8 +201,6 @@ export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false): stri
   if (anchor) photos.push(`photo ${photos.length + 1} is the approved first photograph of this shoot — this same garment already worn by the model`);
   const spec = garment.words?.garmentSpec;
   const details = Object.entries(c.details).map(([k, v]) => `${k}: ${v}`).join("; ");
-  const detailPose = /detail|close|sleeve|hem|print|chest/i.test(c.pose);
-  const framing = detailPose ? "a close photo of that part of the garment, worn" : "a full-length photo from head to feet";
   return [
     `INPUT: ${photos.join("; ")}. All photos are of one ${name}.`,
     `Make one catalogue photograph of this exact ${name} ${worn}, on ${who(c, seed)}.`,
@@ -178,7 +215,7 @@ export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false): stri
       ? [`Same shoot: the last photo is the approved first picture of this shoot. Keep exactly the same model (face, hair, skin, build), the same garment with every detail${map.type === "saree" ? " — the same blouse, the same border, the same pallu design and the same pleating" : ""}, the same jewellery and accessories, the same background and light. Change only the pose, as described below.`]
       : []),
     `Colour: keep every colour of the fabric exactly as bright, as saturated and as light or dark as in the photos; do not mute, grey, warm or darken them.`,
-    `Pose: ${c.pose}. ${framing}, camera at chest height.`,
+    `Pose — ${c.pose}: ${poseText(c.pose)} Camera at chest height.`,
     `Scene: ${c.background}${c.backgroundGroup ? ` (${c.backgroundGroup.toLowerCase()} setting)` : ""}, softly blurred behind, bright natural light, neutral white balance that keeps the garment's colours true. Remove the hanger, mannequin, flowers, floor and any shop background from the photos.`,
     ...(c.style ? [`Style: ${c.style.toLowerCase()} catalogue photography.`] : []),
     `The result is a sharp, well-lit, high-end catalogue photograph of a real person, not an illustration. Natural skin texture, no waxy or plastic look. No text, no watermark, no extra people.`,
