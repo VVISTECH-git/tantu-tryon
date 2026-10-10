@@ -10,6 +10,7 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     await requirePlatform();
+    if (process.env.AUTO_MARK !== "on") return Response.json({ error: "Auto-marking is switched off." }, { status: 409 });
     const u = (await request.json().catch(() => null)) as AutoMarks | null;
     if (!u?.garmentId || !u.slot || !u.key || !u.preview || !(u.width > 0) || !(u.height > 0) || !Array.isArray(u.regions)) {
       return Response.json({ error: "Send garmentId, slot, key, width, height, regions and preview." }, { status: 400 });
