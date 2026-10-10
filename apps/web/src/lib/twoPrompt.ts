@@ -13,6 +13,7 @@ import { FACES, GARMENT, HAIR, MODEL, pick, qwenInputs } from "@/lib/qwenPrompt"
 export const TWO_GARMENTS: Record<string, { type: string; name?: string }> = {
   "Kids Frocks": { type: "frock" },
   Frocks: { type: "frock" },
+  Dupatta: { type: "dupatta" },
   "Kurti Set": { type: "kurti", name: "kurti set" },
   Saree: { type: "saree" },
   Lehenga: { type: "lehenga", name: "lehenga choli (a lehenga skirt with its blouse)" },
@@ -179,6 +180,16 @@ export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false): stri
         : "The blouse is plain; no blouse fabric appears on the saree.",
       "The saree reaches the floor.",
     ].join(" ");
+  }
+  // A dupatta on its own (10 Oct, user: "standalone dupatta is a product that I sell"): it is the
+  // product, so the outfit under it stays plain and the whole dupatta shows.
+  if (map.type === "dupatta") {
+    const how = c.details["How it is worn"] || "Over One Shoulder";
+    const drape = /both/i.test(how) ? "over both shoulders, both ends falling in front" : /front|v\)/i.test(how) ? "across the front in a V, its ends falling over both shoulders behind" : /neck/i.test(how) ? "loosely around the neck, both ends falling in front" : /head/i.test(how) ? "over the head and one shoulder" : "over the left shoulder, falling long in front and behind";
+    const under = c.details["Outfit underneath"] || "Plain Kurti (matching colour)";
+    const outfit = /white/i.test(under) ? "a plain white kurti with plain white pants" : /black/i.test(under) ? "a plain black kurti with plain black pants" : /blouse|skirt/i.test(under) ? "a plain fitted blouse with a plain long skirt in a colour taken from the dupatta" : "a plain solid kurti with matching plain pants in a colour taken from the dupatta";
+    worn = `draped ${drape}, worn over ${outfit}, so the dupatta's full width, print, border and tassels are clearly visible`;
+    rules = "The dupatta is the product: keep its print, border, edges and tassels exactly as in the photos and show as much of it as the pose allows. Everything under it is plain and unprinted so it never competes with the dupatta.";
   }
   // A lehenga (9 Oct): with its own blouse and, when the photos show one, its dupatta.
   if (map.type === "lehenga") {
