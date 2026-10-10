@@ -185,11 +185,13 @@ export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false): stri
   // product, so the outfit under it stays plain and the whole dupatta shows.
   if (map.type === "dupatta") {
     const how = c.details["How it is worn"] || "Over One Shoulder";
-    const drape = /both/i.test(how) ? "over both shoulders, both ends falling in front" : /front|v\)/i.test(how) ? "across the front in a V, its ends falling over both shoulders behind" : /neck/i.test(how) ? "loosely around the neck, both ends falling in front" : /head/i.test(how) ? "over the head and one shoulder" : "over the left shoulder, falling long in front and behind";
+    // 10 Oct, user: "it should be over the hand" — a dupatta falls over the shoulder AND the upper
+    // arm in soft folds, never hanging flat and stiff in front of the body with the arm outside it.
+    const drape = /both/i.test(how) ? "over both shoulders, covering both upper arms, the two ends falling softly in front in loose folds" : /front|v\)/i.test(how) ? "across the front in a soft V, over both shoulders and upper arms, the ends falling behind" : /neck/i.test(how) ? "loosely around the neck, both ends falling softly in front over the chest" : /head/i.test(how) ? "over the head, covering the hair loosely, one end over the left shoulder and arm" : "over the left shoulder, falling over the left upper arm and down along the arm in soft natural folds, the long end hanging in front past the knee and the other end falling behind";
     const under = c.details["Outfit underneath"] || "Plain Kurti (matching colour)";
     const outfit = /white/i.test(under) ? "a plain white kurti with plain white pants" : /black/i.test(under) ? "a plain black kurti with plain black pants" : /blouse|skirt/i.test(under) ? "a plain fitted blouse with a plain long skirt in a colour taken from the dupatta" : "a plain solid kurti with matching plain pants in a colour taken from the dupatta";
     worn = `draped ${drape}, worn over ${outfit}, so the dupatta's full width, print, border and tassels are clearly visible`;
-    rules = "The dupatta is the product: keep its print, its end panels, its borders and its edges exactly as in the photos, and show as much of it as the pose allows. Add tassels, fringe or lace only if the photos show them; a plain hemmed edge stays plain. Everything under it is plain and unprinted so it never competes with the dupatta.";
+    rules = "The dupatta is the product: keep its print, its end panels, its borders and its edges exactly as in the photos, and show as much of it as the pose allows. Add tassels, fringe or lace only if the photos show them; a plain hemmed edge stays plain. It is soft cloth: it drapes over the body and arms in natural folds, never hangs flat or stiff like a board, and never floats away from the body. Everything under it is plain and unprinted so it never competes with the dupatta.";
   }
   // A lehenga (9 Oct): with its own blouse and, when the photos show one, its dupatta.
   if (map.type === "lehenga") {
