@@ -892,9 +892,9 @@ textarea.custom{width:100%;min-height:76px;margin-top:8px;padding:12px;border-ra
           <div class="pic"><img src="img/wall/saree-quartet-stepwell-800.webp" alt="Four models in matching sarees at a stepwell"><span class="tag a">With any pack</span></div>
           <div class="body"><div><h3>🎬 Campaign shoot</h3><p>2–4 looks together, like a big brand photoshoot.</p></div><span class="go" aria-hidden="true">→</span></div>
         </a>
-        <button type="button" class="mode" data-toast="Swap onto my photos opens here. The upload flow isn't built in this prototype yet.">
+        <button type="button" class="mode" id="home-tryon">
           <div class="pic"><img src="img/app/swap-saree-after.webp" alt="Model in a magenta saree"><span class="tag d">Same model</span></div>
-          <div class="body"><div><h3>🔄 Swap onto my photos</h3><p>Put a new garment on a photo you already have.</p></div><span class="go" aria-hidden="true">→</span></div>
+          <div class="body"><div><h3>🔄 Try it on my photo</h3><p>See a garment on yourself — or anyone who agrees — from one photo.</p></div><span class="go" aria-hidden="true">→</span></div>
         </button>
       </div>
 
@@ -933,7 +933,7 @@ textarea.custom{width:100%;min-height:76px;margin-top:8px;padding:12px;border-ra
       <div class="sdesign" id="sdesign" hidden></div>
       <div class="howto" id="howto" hidden></div>
       <div class="slots" id="slots"></div>
-      <div class="ffoot"><span class="st" id="up-status">Add at least 1 photo to continue</span><button type="button" class="alt" id="up-swap" data-toast="Swap onto my own photos isn't built in this prototype yet." hidden>Or put this garment on my own photos →</button><button type="button" class="go" id="up-next" disabled>Next: Details</button></div>
+      <div class="ffoot"><span class="st" id="up-status">Add at least 1 photo to continue</span><button type="button" class="alt" id="up-swap">Or try it on my own photo →</button><button type="button" class="go" id="up-next" disabled>Next: Details</button></div>
     </div>
 
     <!-- tailoring -->
@@ -1426,6 +1426,7 @@ textarea.custom{width:100%;min-height:76px;margin-top:8px;padding:12px;border-ra
     function redoDialog(){const c=qcost();const d=document.createElement('div');d.className='rdlg';d.setAttribute('role','dialog');d.setAttribute('aria-modal','true');d.innerHTML='<div class="card"><div class="hd"><h3>Regenerate Image</h3><button type="button" class="x" aria-label="Close dialog">'+RI.x+'</button></div><p class="p">Cost: <b>'+c+' credits</b></p><label>What\'s off? <span>(optional)</span></label><textarea rows="3" maxlength="500" placeholder="e.g. lighting too dark, fabric color looks off…"></textarea><div class="btns"><button type="button" class="cn">Cancel</button><button type="button" class="ok">'+RI.redo+' Regenerate · '+c+' cr</button></div></div>';
       document.body.appendChild(d);const close=()=>d.remove();d.querySelector('.x').addEventListener('click',close);d.querySelector('.cn').addEventListener('click',close);d.addEventListener('click',e=>{if(e.target===d)close();});
       d.querySelector('.ok').addEventListener('click',()=>{const note=d.querySelector('textarea').value.trim();const at=F.cur,m=(F.meta||[])[at];close();if(!m)return;rRegen=true;renderResult();
+        if(m.tryon&&F.person){tryOnOnce().then(one=>{F.results[at]=one.url;F.meta[at]={pose:'tryon',id:one.id,tryon:true};say('✅ Image regenerated');}).catch(e=>say('Could not regenerate: '+e.message)).finally(()=>{rRegen=false;renderResult();window.__refreshBal();});return;}
         const ch=choicesFor(poseLabel(m.pose));if(note)ch.details['Fix from the last try']=note;
         window.__api('/api/two/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({garmentId:F.gid,clientKey:'two-'+crypto.randomUUID().replace(/-/g,'').slice(0,20),quality:C.quality,choices:ch,anchorId:(at>0&&F.meta[0]?F.meta[0].id:F.anchorId)||undefined})})
           .then(async r=>{const j=await r.json().catch(()=>({}));const gen=j.generation;if(!r.ok||!gen||gen.status!=='done')throw new Error(j.error||(gen&&gen.error)||('error '+r.status));
@@ -1441,6 +1442,32 @@ textarea.custom{width:100%;min-height:76px;margin-top:8px;padding:12px;border-ra
     const VIEWS={upload:openUpload,tailoring:openTailoring,configure:openConfigure,result:openResult};
     function go(v,arg){location.hash='#'+v;}
     window.__flowOpen=function(v){if(v==='upload')openUpload(F.garment);else if(v==='result'&&!F.results.length){location.hash='#home';return false;}else if(VIEWS[v])VIEWS[v]();return true;};
+
+    // Try-on (10 Oct): the customer's own photo dressed in this garment. Their photo goes with the
+    // request and is not stored; they confirm it is them or that they have permission.
+    const shrinkData=src=>new Promise((res,rej)=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1600/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.88).split(',')[1]);};im.onerror=()=>rej(new Error('Could not read that photo'));im.src=src;});
+    function tryOnChoices(){cfDefaults();const ch=choicesFor('Your own pose');ch.gender=/kid/i.test(F.garment)?'Girl':'Female';return ch;}
+    async function tryOnOnce(){const r=await window.__api('/api/two/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({garmentId:F.gid,clientKey:'two-'+crypto.randomUUID().replace(/-/g,'').slice(0,20),quality:'1K',choices:tryOnChoices(),person:{data:F.person,mime:'image/jpeg'},consent:true,keepBackground:!!F.personKeepBg})});
+      const j=await r.json().catch(()=>({}));const gen=j.generation;if(!r.ok||!gen||gen.status!=='done')throw new Error(j.error||(gen&&gen.error)||('error '+r.status));
+      const b=await (await window.__api('/api/two/image/'+gen.id)).blob();return{url:URL.createObjectURL(b),id:gen.id};}
+    function tryOnDialog(){let photo=null,keepBg=false,agree=false,busy=false;const d=document.createElement('div');d.className='rdlg';d.setAttribute('role','dialog');d.setAttribute('aria-modal','true');
+      const paint=()=>{d.innerHTML='<div class="card"><div class="hd"><h3>Try it on your photo</h3><button type="button" class="x" aria-label="Close dialog">✕</button></div>'
+        +'<p class="p">Add one clear photo of the person, standing, facing the camera, full length if you can. We dress them in this '+esc(gname(F.garment))+'.</p>'
+        +'<label style="display:grid;place-items:center;gap:8px;border:1.5px dashed var(--line,#ddd);border-radius:14px;padding:14px;cursor:pointer;min-height:140px">'+(photo?'<img alt="Your photo" src="'+photo+'" style="max-height:220px;border-radius:10px">':'<span>📷 Tap to add your photo</span>')+'<input type="file" accept="image/*" hidden></label>'
+        +'<div class="tgls"><button type="button" class="tgl'+(keepBg?' on':'')+'" data-k="bg"><span class="l"><i>🏞️</i><span><b>Keep my background</b><span>Off = a clean white studio</span></span></span><span class="k"></span></button></div>'
+        +'<label style="display:flex;gap:10px;align-items:flex-start;font-size:14px;margin-top:10px"><input type="checkbox" '+(agree?'checked':'')+' style="margin-top:3px"><span>This is my photo, or I have the person\'s permission (a parent\'s permission for a child). The photo is used only to make this picture and is not kept.</span></label>'
+        +'<div class="btns"><button type="button" class="cn">Cancel</button><button type="button" class="ok"'+(photo&&agree&&!busy?'':' disabled')+'>'+(busy?'Making your photo… about 30 seconds':'✨ Create my photo')+'</button></div></div>';
+        d.querySelector('.x').addEventListener('click',close);d.querySelector('.cn').addEventListener('click',close);
+        const inp=d.querySelector('input[type=file]');inp.addEventListener('change',()=>{const f=inp.files[0];if(!f||!f.type.startsWith('image/'))return;const r=new FileReader();r.onload=()=>{photo=r.result;paint();};r.readAsDataURL(f);});
+        d.querySelector('[data-k=bg]').addEventListener('click',()=>{keepBg=!keepBg;paint();});
+        d.querySelector('input[type=checkbox]').addEventListener('change',e=>{agree=e.target.checked;paint();});
+        d.querySelector('.ok').addEventListener('click',async()=>{if(!photo||!agree||busy)return;busy=true;paint();
+          try{F.person=await shrinkData(photo);F.personKeepBg=keepBg;F.gid=await realUpload();const one=await tryOnOnce();
+            F.results=[one.url];F.meta=[{pose:'tryon',id:one.id,tryon:true}];F.downloaded=new Set();F.cur=0;window.__refreshBal();close();go('result');}
+          catch(err){busy=false;paint();say('Could not make the photo: '+(err.message||err));}});};
+      const close=()=>d.remove();paint();document.body.appendChild(d);}
+    $('#up-swap').addEventListener('click',tryOnDialog);
+    $('#home-tryon').addEventListener('click',()=>{say('Pick a garment, add its photos, then tap “Or try it on my own photo”.');const g=document.getElementById('garments');if(g)g.scrollIntoView({behavior:'smooth',block:'center'});});
     window.__startFlow=function(garment){F.garment=garment;F.cfg.poses=[];F.shirtMode='stitched';F.shirtConfirmed=false;F.photos={};F.extra=0;F.gid=null;F.reuse=false;F.anchorId=null;F.haveSlots=[];go('upload');};
     // My photos (9 Oct): the seller's shoots from the engine, each with its own photos and pictures.
     let galPage=1;

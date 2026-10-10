@@ -22,7 +22,7 @@ const MODEL_TYPE: Record<string, string> = { female: "woman", male: "man", girl:
 export async function POST(request: Request) {
   try {
     const account = await requireAccount();
-    const body = (await request.json().catch(() => ({}))) as { garmentId?: string; clientKey?: string; quality?: string; choices?: unknown; anchorId?: string };
+    const body = (await request.json().catch(() => ({}))) as { garmentId?: string; clientKey?: string; quality?: string; choices?: unknown; anchorId?: string; person?: { data?: string; mime?: string }; consent?: boolean; keepBackground?: boolean };
     if (!body.garmentId || !body.clientKey || !/^[A-Za-z0-9:_-]{8,80}$/.test(body.clientKey)) {
       return Response.json({ error: "garmentId and clientKey are required." }, { status: 400 });
     }
@@ -42,9 +42,20 @@ export async function POST(request: Request) {
     }
     const garment = found.garmentType === "saree" || found.garmentType === "dupatta" ? await withSareeSpec(found) : await withGarmentSpec(found);
 
+    // Try-on (10 Oct): the customer's own photo, sent with the request and never stored. They must
+    // confirm it is them, or that they have the person's (a parent's, for a child) permission.
+    let person: { data: string; mime: string } | null = null;
+    if (body.person) {
+      if (body.consent !== true) return Response.json({ error: "Please confirm this is your photo, or that you have the person's permission." }, { status: 400 });
+      const mime = body.person.mime === "image/png" ? "image/png" : "image/jpeg";
+      const data = String(body.person.data ?? "");
+      if (!/^[A-Za-z0-9+/=]+$/.test(data) || data.length < 1000 || data.length > 4_000_000) return Response.json({ error: "That photo could not be read. Try a smaller JPG." }, { status: 400 });
+      person = { data, mime };
+    }
+
     // The shoot's first picture (9 Oct, Drapify's anchor): every later pose keeps its model and outfit.
     let anchor: { data: string; mime: string } | null = null;
-    if (body.anchorId) {
+    if (body.anchorId && !person) {
       const [a] = await db
         .select({ key: generations.imageKey, mime: generations.imageMime })
         .from(generations)
@@ -56,12 +67,12 @@ export async function POST(request: Request) {
     const result = await runGarmentGemini({
       accountId: account.id,
       garment,
-      promptId: choices.pose.slice(0, 40),
+      promptId: person ? "tryon" : choices.pose.slice(0, 40),
       look: { modelType: MODEL_TYPE[choices.gender.toLowerCase()] ?? "woman", age: choices.age || "20s", background: choices.background.slice(0, 40), quality: size === "1K" ? "standard" : "high" },
       clientKey: body.clientKey,
       signal: request.signal,
-      promptOverride: twoPrompt(garment, choices, Boolean(anchor)),
-      extraImages: anchor ? [anchor] : undefined,
+      promptOverride: twoPrompt(garment, choices, Boolean(anchor), person ? { keepBackground: body.keepBackground === true } : undefined),
+      extraImages: person ? [person] : anchor ? [anchor] : undefined,
       free: account.platformAdmin,
       aspectRatio: twoRatio(choices),
       size,
