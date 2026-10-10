@@ -224,6 +224,8 @@ export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false): stri
     `Priority: 1. the garment's fabric, print and colours exactly as in the photos; 2. correct anatomy (one person, two arms, two hands, five fingers each); 3. pose and framing; 4. a natural, original face.`,
     rules,
     `Draw only what the photos show, and only where they show it. A detail seen only on the back of the garment (a bow, a tie, a zip, buttons) is only on the back: it must not appear in a front or side view. Do not invent any detail the photos do not show.`,
+    // 10 Oct (the user's reviewer): the same physical product, not a similar design.
+    `Identity: the ${name} in the picture must be the exact same physical product as in the photos, not a similar-looking design — the same print, the same motif placement and scale, the same border width and sequence of bands, the same end panels and the same colours. Only the folds and the drape change to fit the body.`,
     // 2. Drapify's "inspect the reference up close", 9 Oct.
     `Print: look at the photos up close before drawing. Keep every motif's exact shape, its size compared with the garment, its spacing and its layout (rows, all-over, panels). Do not simplify, enlarge, shrink, merge or reorder motifs — a four-petal flower stays a four-petal flower, a paisley stays a paisley.`,
     ...(anchor
