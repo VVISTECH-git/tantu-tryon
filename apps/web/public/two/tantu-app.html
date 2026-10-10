@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Tantu Studio Home</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#c84e0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Tantu">
+<link rel="apple-touch-icon" href="img/icons/apple-touch-icon.png">
+<script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));</script>
+
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
 <style>
 /* Replica of the reference signed-in app (Studio Home + Credits) in Tantu orange: narrow left rail, centred content column. */
@@ -1007,6 +1016,7 @@ textarea.custom{width:100%;min-height:76px;margin-top:8px;padding:12px;border-ra
       <div class="row"><label for="s-name">Your name</label><input id="s-name" autocomplete="name"></div>
       <div class="row"><label for="s-phone">Mobile number</label><input id="s-phone" type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="+91"></div>
       <div class="row"><label>Credit balance</label><span class="bal" id="s-bal">50</span><a href="#credits" style="color:var(--primary);font-weight:700;font-size:13px">Buy more credits →</a></div>
+      <div class="row" id="s-install-row"><label>Phone app</label><button type="button" id="s-install" style="padding:10px 16px;border-radius:999px;border:0;background:#c84e0f;color:#fff;font:inherit;font-weight:700;cursor:pointer">📲 Install Tantu on this phone</button></div>
       <div class="row"><label>Support</label><span>WhatsApp <b style="user-select:all">+91 93769 33769</b></span></div>
       <div class="row"><label>Prototype controls</label><span style="font-size:13px;color:var(--fg2)">Set credits to 0 to see the "trial complete" paywall.</span><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="signout" style="margin:0" data-bal="0">Credits → 0</button><button type="button" class="signout" style="margin:0" data-bal="50">Credits → 50</button></div></div>
       <button type="button" class="signout" data-signout>Sign out</button>
@@ -1050,6 +1060,13 @@ textarea.custom{width:100%;min-height:76px;margin-top:8px;padding:12px;border-ra
   sPhone.addEventListener('change',()=>{store.set('phone',sPhone.value.trim());say('Mobile number saved');});
   function setBal(n){store.set('credits',n);document.getElementById('bal-dot').textContent=n;document.getElementById('bal-dot').hidden=false;document.getElementById('s-bal').textContent=n;
     document.getElementById('cr-h').textContent=n>0?'Top up and keep shooting':'Your free trial is complete';}
+  // Install as a phone app (10 Oct): the browser's own prompt where it exists; on iPhone, Share → Add to Home Screen.
+  let installEvt=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;});
+  const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+  if(standalone){const r=document.getElementById('s-install-row');if(r)r.hidden=true;}
+  document.getElementById('s-install').addEventListener('click',async()=>{if(installEvt){installEvt.prompt();await installEvt.userChoice.catch(()=>{});installEvt=null;return;}
+    if(/iphone|ipad|ipod/i.test(navigator.userAgent))say('On iPhone: tap the Share button in Safari, then “Add to Home Screen”.');
+    else say('Open the browser menu (⋮) and choose “Install app” or “Add to Home screen”.');});
   setBal(store.get('credits',0));
   // The balance is the server's (rupees of Tantu credit); the platform admin's own shoots are free.
   window.__refreshBal=()=>window.__api('/api/account').then(r=>r.json()).then(j=>{window.__admin=!!(j.account&&j.account.platformAdmin);
