@@ -147,7 +147,12 @@ function poseText(pose: string): string {
   return POSE_TEXT[pose.trim().toLowerCase()] ?? `${pose}, a natural catalogue pose. Full-length photo, head to feet.`;
 }
 
-export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false): string {
+/** Try-on (10 Oct, user: "people load their photo to see how it looks on them"). */
+export interface TryOn {
+  keepBackground: boolean;
+}
+
+export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false, tryOn?: TryOn): string {
   const map = TWO_GARMENTS[c.garment]!;
   const kid = /^(girl|boy)$/i.test(c.gender);
   const base = GARMENT[map.type] ?? GARMENT.kurti!;
@@ -215,9 +220,11 @@ export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false): stri
   const n = Number((garment.productCode ?? "").match(/(\d+)$/)?.[1] ?? NaN);
   const seed = Number.isFinite(n) ? n : pick(garment.productCode ?? garment.id);
   const photos = qwenInputs(garment, 6).map((p, i) => `photo ${i + 1} shows ${SLOT_WORDS[p.slot] ?? "the garment"}`);
-  if (anchor) photos.push(`photo ${photos.length + 1} is the approved first photograph of this shoot — this same garment already worn by the model`);
+  if (anchor && !tryOn) photos.push(`photo ${photos.length + 1} is the approved first photograph of this shoot — this same garment already worn by the model`);
+  if (tryOn) photos.push(`photo ${photos.length + 1} is the customer — the real person who will wear the ${name}`);
   const spec = garment.words?.garmentSpec;
   const details = Object.entries(c.details).map(([k, v]) => `${k}: ${v}`).join("; ");
+  if (tryOn) return tryOnPrompt(name, worn, rules, photos, spec, details, map.type, tryOn);
   return [
     `INPUT: ${photos.join("; ")}. All photos are of one ${name}.`,
     `Make one catalogue photograph of this exact ${name} ${worn}, on ${who(c, seed, map.type)}.`,
@@ -238,5 +245,30 @@ export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false): stri
     `Scene: ${c.background}${c.backgroundGroup ? ` (${c.backgroundGroup.toLowerCase()} setting)` : ""}, softly blurred behind, bright natural light, neutral white balance that keeps the garment's colours true. Remove the hanger, mannequin, flowers, floor and any shop background from the photos.`,
     ...(c.style ? [`Style: ${c.style.toLowerCase()} catalogue photography.`] : []),
     `The result is a sharp, well-lit, high-end catalogue photograph of a real person, not an illustration. Natural skin texture, no waxy or plastic look. No text, no watermark, no extra people.`,
+  ].join("\n");
+}
+
+/**
+ * The customer's own photo dressed in the garment (10 Oct): the person stays exactly who they are —
+ * face, skin, hair, body, age, pose — and only their clothes change to the garment, copied as faithfully
+ * as a catalogue shot. Nothing about the person is beautified, slimmed, lightened or styled.
+ */
+function tryOnPrompt(name: string, worn: string, rules: string, photos: string[], spec: string | undefined, details: string, _type: string, t: TryOn): string {
+  const last = photos.length;
+  return [
+    `INPUT: ${photos.join("; ")}. Photos 1 to ${last - 1} are all of one ${name}.`,
+    `TASK: dress the person in photo ${last} in this exact ${name}, ${worn.replace(/\bher\b/g, "their")}.`,
+    `THE PERSON (photo ${last}) stays exactly who they are: the same face and expression, the same skin tone, the same hair and hairstyle, the same body shape, height and build, the same age. Do not beautify, slim, smooth, lighten the skin or change any feature. Do not add a bindi, make-up or jewellery they are not wearing. Only their clothes change: the ${name} replaces what they wear where it goes; keep their own shoes and accessories if they show.`,
+    `POSE: keep their own pose and camera angle from photo ${last}; move the arms and hands only as much as the garment needs (for example to hold a dupatta). The whole ${name} is visible as far as their photo's framing allows.`,
+    ...(spec ? [`The garment, read closely from its photos — these details are fixed and must be copied exactly: ${spec}`] : []),
+    ...(details ? [`The seller's details for this garment (follow them): ${details}.`] : []),
+    `Priority: 1. the garment's fabric, print and colours exactly as in its photos; 2. the person exactly as in their photo; 3. correct anatomy (one person, two arms, two hands, five fingers each).`,
+    rules.replace(/the model's face and outfit stay secondary/g, "the person stays recognisably themselves"),
+    `Identity of the garment: the exact same physical product as in its photos, not a similar design — the same print, motif placement and scale, border width and sequence of bands, end panels and colours. Only the folds and the drape change to fit this person's body. Do not invent any detail its photos do not show.`,
+    `Colour: keep every colour of the fabric exactly as bright, as saturated and as light or dark as in its photos.`,
+    t.keepBackground
+      ? `Scene: keep the background, the light and the camera of photo ${last} exactly as they are.`
+      : `Scene: a clean, bright white studio, soft even light, neutral white balance that keeps the garment's colours true.`,
+    `The result is a natural, realistic photograph of this same person wearing the ${name}, not an illustration. Natural skin texture. No text, no watermark, no extra people.`,
   ].join("\n");
 }
