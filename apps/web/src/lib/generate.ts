@@ -6,7 +6,7 @@ import { attachmentsFor, partPlan, sheetFor, wordsFor } from "@/lib/garments";
 import { chosenImageOption, type ImageSize } from "@/lib/imageModels";
 import { finishGeneration, imageSizeFor, reserveGeneration, type ReserveResult } from "@/lib/spend";
 import { readAsset, renderUrl, saveRender } from "@/lib/storage";
-import { describeGarmentCut, describeSaree } from "@/lib/describe";
+import { describeDupatta, describeGarmentCut, describeSaree } from "@/lib/describe";
 import { updateGarment } from "@/lib/garments";
 import { QWEN_MODEL, isQwenOption, qwenInputs, qwenPrompt, qwenSize } from "@/lib/qwenPrompt";
 
@@ -93,7 +93,7 @@ export function toOutput(row: Generation): GenerateOutput {
  * A failed read is not fatal: the prompt then asks to copy the photo, as before.
  */
 /**
- * tantu-two sarees (9 Oct): read once from all its photos (up to 4), and again only when the
+ * tantu-two sarees (9 Oct) and dupattas (10 Oct): read once from all its photos (up to 4), and again only when the
  * photos change; kept on the product as words.garmentSpec like a stitched garment's cut.
  */
 export async function withSareeSpec(garment: Garment): Promise<Garment> {
@@ -103,7 +103,7 @@ export async function withSareeSpec(garment: Garment): Promise<Garment> {
   if (!inputs.length || (words.garmentSpec && words.garmentSpecFor === sig)) return garment;
   try {
     const images = await Promise.all(inputs.map(async (p) => ({ data: Buffer.from(await readAsset(p.key)).toString("base64"), mime: p.key.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg" })));
-    const read = await describeSaree(images);
+    const read = garment.garmentType === "dupatta" ? await describeDupatta(images) : await describeSaree(images);
     if (!read.ok) return garment;
     return await updateGarment(garment.id, { words: { ...words, garmentSpec: read.spec, garmentSpecFor: sig } });
   } catch {

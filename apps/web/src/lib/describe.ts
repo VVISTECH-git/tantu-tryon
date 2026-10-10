@@ -290,3 +290,35 @@ export async function describeSaree(images: { data: string; mime: string }[]): P
     return { ok: false, message: error instanceof Error ? error.message : String(error) };
   }
 }
+
+const DUPATTA_INSTRUCTIONS = `You are looking at photos of ONE dupatta (a long rectangular stole), spread, hung or folded. Describe it so that someone who cannot see the photos could reproduce it exactly. Answer ONLY with JSON, these keys, plain English, specific, no guessing beyond what is visible:
+- "body": the main field: ground colour, every kind of motif (figures, paisleys, birds, geometric shapes), their colours, size and how they are arranged.
+- "long_borders": the borders along the two LONG edges: width (compared with the dupatta's width), colour and the exact sequence of bands from the edge inwards (e.g. "a thin black zig-zag, then a blue-and-white diamond band"). "none" if the long edges are plain.
+- "end_panels": the decorated panels at the two SHORT ends: how deep they are, what they show (e.g. "a large blue peacock among black-and-white foliage") and the sequence of bands around them.
+- "edges": what finishes the short ends — tassels, fringe, lace, or a plain hem.
+- "other": anything else that makes this dupatta recognisable; "none" if nothing.`;
+
+/** A dupatta read part by part (10 Oct): borders, end panels and edges as fixed facts for the prompt. */
+export async function describeDupatta(images: { data: string; mime: string }[]): Promise<{ ok: true; spec: string; model: string } | { ok: false; message: string }> {
+  if (!process.env.GEMINI_API_KEY) return { ok: false, message: "No Gemini key to read the photo with." };
+  const model = process.env.GEMINI_TEXT_MODEL || "gemini-3.6-flash";
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: DUPATTA_INSTRUCTIONS }, ...images.map((im) => ({ inline_data: { mime_type: im.mime, data: im.data } }))] }],
+        generationConfig: { responseMimeType: "application/json", temperature: 0.1 },
+      }),
+    });
+    if (!res.ok) return { ok: false, message: `Gemini refused the read: ${res.status} ${(await res.text()).slice(0, 200)}` };
+    const json = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    const f = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, "")) as Record<string, string>;
+    const part = (k: string, label: string) => (f[k] && !/^(none|not visible)$/i.test(String(f[k]).trim()) ? `${label}: ${String(f[k]).trim()}` : null);
+    const spec = [part("body", "Body"), part("long_borders", "Long borders"), part("end_panels", "End panels"), part("edges", "Ends finished with"), part("other", "Other details")].filter(Boolean).join(". ");
+    return spec ? { ok: true, spec: `${spec}.`, model } : { ok: false, message: "The read came back empty." };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : String(error) };
+  }
+}

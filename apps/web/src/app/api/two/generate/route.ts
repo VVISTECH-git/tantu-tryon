@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     if ((found.words as Record<string, string> | null)?.twoGarment !== choices.garment) {
       found = await updateGarment(found.id, { words: { ...((found.words ?? {}) as Record<string, string>), twoGarment: choices.garment } });
     }
-    const garment = found.garmentType === "saree" ? await withSareeSpec(found) : await withGarmentSpec(found);
+    const garment = found.garmentType === "saree" || found.garmentType === "dupatta" ? await withSareeSpec(found) : await withGarmentSpec(found);
 
     // The shoot's first picture (9 Oct, Drapify's anchor): every later pose keeps its model and outfit.
     let anchor: { data: string; mime: string } | null = null;
