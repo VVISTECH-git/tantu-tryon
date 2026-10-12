@@ -177,7 +177,7 @@ export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false, tryOn
     const palluStyle = c.details["Pallu Style"];
     const drape = drapeStyle ? `draped in the ${drapeStyle.replace(/\s*\(.*\)\s*$/, "")} style` : "draped in the standard Nivi style";
     const pallu = palluStyle ? `the pallu worn ${/front|seedha/i.test(palluStyle) ? "in front, seedha style, falling over the right shoulder to the front" : /head/i.test(palluStyle) ? "over the head" : /pinned/i.test(palluStyle) ? "pinned neatly at the left shoulder" : /free/i.test(palluStyle) ? "over the left shoulder, flowing free" : "over the left shoulder"}` : "the pallu over the left shoulder";
-    worn = `${drape}: 6 to 8 crisp, even pleats at the front centre, clearly visible and fanning slightly as they fall to the floor, ${pallu}, the border running along the bottom hem, ${blouse}`;
+    worn = `${drape}: a fan of 7 narrow, crisp, knife-edged pleats tucked in at the waist just below the navel, each about a hand's width, with a clear shadow line between every pleat, falling straight to the floor and only a little wider at the hem than at the waist (never flared like a skirt), so each pleat's border shows as a separate stripe at the bottom, ${pallu}, the border running along the bottom hem, ${blouse}`;
     rules = [
       "Keep the saree's body, border and pallu exactly as in the photos: same motifs, colours, scale and order.",
       "The pallu is the decorated end of the saree (its last 1 to 1.2 metres). Where it shows, it carries its own design exactly as read above and as photographed — every panel and band in the same order, ending in its end strip and tassels — and it is never filled with the body print.",
