@@ -68,6 +68,7 @@ pre{margin:0;padding:12px;white-space:pre-wrap;word-break:break-word;font:13px/1
 .res img{width:100%;height:100%;object-fit:cover;display:block}
 .res .v{font-weight:700}
 .res .v.good{color:var(--good)}.res .v.fix{color:var(--fix)}
+.link{padding:0;border:0;background:none;color:var(--fix);font:600 12px var(--body);cursor:pointer;text-decoration:underline}
 .empty{font-size:13px;color:var(--fg3)}
 .lb{position:fixed;inset:0;z-index:50;background:rgba(14,10,8,.94);display:grid;place-items:center;padding:16px}
 .lb img{max-width:100%;max-height:88vh;border-radius:10px}
@@ -205,7 +206,7 @@ The result is a sharp, high-end catalogue photograph of a real person, not an il
             <div class="verdict" role="group" aria-label="Verdict"><button type="button" data-v="good" aria-pressed="false">✓ Good</button><button type="button" data-v="fix" aria-pressed="false">✗ Needs fix</button></div>
             <label class="file" for="n-${p.id}">What's wrong, or what's good?</label><textarea id="n-${p.id}" placeholder="e.g. two pallus, pleats flat, peacocks missing"></textarea>
             <div class="row"><button type="submit" class="btn primary">Upload result</button><span class="msg umsg" role="status"></span></div></form>`:''}
-          <div class="results">${mine.length?mine.map(r=>`<figure class="res"><button type="button" data-u="${esc(r.url)}" data-c="${esc((r.tester||'')+' · '+(r.verdict==='approved'?'Good':r.verdict==='rejected'?'Needs fix':'')+(r.note?' · '+r.note:''))}"><img src="${esc(r.url)}" alt="Result by ${esc(r.tester)}" loading="lazy"></button><span class="v ${r.verdict==='approved'?'good':r.verdict==='rejected'?'fix':''}">${r.verdict==='approved'?'✓ Good':r.verdict==='rejected'?'✗ Needs fix':'—'}</span><span>${esc(r.tester||'')}${r.note?' · '+esc(r.note):''}</span></figure>`).join(''):'<p class="empty">No results yet.</p>'}</div>
+          <div class="results">${mine.length?mine.map(r=>`<figure class="res"><button type="button" data-u="${esc(r.url)}" data-c="${esc((r.tester||'')+' · '+(r.verdict==='approved'?'Good':r.verdict==='rejected'?'Needs fix':'')+(r.note?' · '+r.note:''))}"><img src="${esc(r.url)}" alt="Result by ${esc(r.tester)}" loading="lazy"></button><span class="v ${r.verdict==='approved'?'good':r.verdict==='rejected'?'fix':''}">${r.verdict==='approved'?'✓ Good':r.verdict==='rejected'?'✗ Needs fix':'—'}</span><span>${esc(r.tester||'')}${r.note?' · '+esc(r.note):''}</span>${r.canRemove?`<span class="rm" data-id="${esc(r.id)}"><button type="button" class="link">Remove</button></span>`:''}</figure>`).join(''):'<p class="empty">No results yet.</p>'}</div>
         </div>`;
       // One thing fits on the clipboard at a time (12 Oct, user wanted all three): saree → pose → prompt.
       const m=el.querySelector('.cmsg');
@@ -233,7 +234,11 @@ The result is a sharp, high-end catalogue photograph of a real person, not an il
             if(!r.ok)throw new Error(j.error||('error '+r.status));
             m.className='msg umsg ok';m.textContent='Uploaded. Thank you!';await load();}
           catch(err){m.className='msg umsg err';m.textContent='Could not upload: '+err.message;btn.disabled=false;}});}
-      el.querySelectorAll('.res button').forEach(b=>b.addEventListener('click',()=>{const d=document.createElement('div');d.className='lb';d.setAttribute('role','dialog');d.innerHTML=`<div><img src="${b.dataset.u}" alt=""><p>${b.dataset.c}</p></div>`;d.addEventListener('click',()=>d.remove());document.body.appendChild(d);}));
+      el.querySelectorAll('.rm').forEach(w=>{const b=w.querySelector('button');b.addEventListener('click',async()=>{
+        if(!w.dataset.sure){w.dataset.sure='1';b.textContent='Tap again to remove';setTimeout(()=>{delete w.dataset.sure;b.textContent='Remove';},4000);return;}
+        b.disabled=true;b.textContent='Removing…';const r=await api('/api/two/tests?id='+encodeURIComponent(w.dataset.id),{method:'DELETE'}).catch(()=>null);
+        if(r&&r.ok)await load();else{b.disabled=false;b.textContent='Could not remove';}});});
+      el.querySelectorAll('.res > button').forEach(b=>b.addEventListener('click',()=>{const d=document.createElement('div');d.className='lb';d.setAttribute('role','dialog');d.innerHTML=`<div><img src="${b.dataset.u}" alt=""><p>${b.dataset.c}</p></div>`;d.addEventListener('click',()=>d.remove());document.body.appendChild(d);}));
       box.appendChild(el);});
   }
   // A picture on the clipboard must be PNG; the promise keeps the click's permission while it loads.

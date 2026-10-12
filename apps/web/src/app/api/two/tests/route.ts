@@ -27,18 +27,18 @@ async function productId(code: string): Promise<string | null> {
 
 export async function GET(request: Request) {
   try {
-    await requireAccount();
+    const viewer = await requireAccount();
     const code = (new URL(request.url).searchParams.get("product") ?? "").trim().slice(0, 40);
     const gid = code ? await productId(code) : null;
     if (!gid) return Response.json({ results: [] }, { headers: { "Cache-Control": "no-store" } });
     const rows = await db
-      .select({ id: generations.id, pose: generations.promptId, imageKey: generations.imageKey, verdict: generations.verdict, note: generations.note, at: generations.startedAt, tester: accounts.name })
+      .select({ id: generations.id, accountId: generations.accountId, pose: generations.promptId, imageKey: generations.imageKey, verdict: generations.verdict, note: generations.note, at: generations.startedAt, tester: accounts.name })
       .from(generations)
       .innerJoin(accounts, eq(accounts.id, generations.accountId))
       .where(and(eq(generations.garmentId, gid), eq(generations.provider, PROVIDER)))
       .orderBy(desc(generations.startedAt));
     return Response.json(
-      { results: rows.filter((r) => r.imageKey).map((r) => ({ id: r.id, pose: r.pose, url: assetUrl(r.imageKey!), verdict: r.verdict, note: r.note, at: r.at, tester: r.tester })) },
+      { results: rows.filter((r) => r.imageKey).map((r) => ({ id: r.id, pose: r.pose, url: assetUrl(r.imageKey!), verdict: r.verdict, note: r.note, at: r.at, tester: r.tester, canRemove: viewer.platformAdmin || r.accountId === viewer.id })) },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
@@ -88,5 +88,21 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, id: row!.id });
   } catch (error) {
     return unauthorised(error) ?? Response.json({ error: error instanceof Error ? error.message : "Could not save the result." }, { status: 500 });
+  }
+}
+
+/** Remove one result (12 Oct): the tester who uploaded it, or the platform admin. ?id=… */
+export async function DELETE(request: Request) {
+  try {
+    const viewer = await requireAccount();
+    const id = new URL(request.url).searchParams.get("id") ?? "";
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return Response.json({ error: "Which result?" }, { status: 400 });
+    const [row] = await db.select({ accountId: generations.accountId, provider: generations.provider }).from(generations).where(eq(generations.id, id)).limit(1);
+    if (!row || row.provider !== PROVIDER) return Response.json({ error: "No such result." }, { status: 404 });
+    if (!viewer.platformAdmin && row.accountId !== viewer.id) return Response.json({ error: "You can remove only your own results." }, { status: 403 });
+    await db.delete(generations).where(eq(generations.id, id));
+    return Response.json({ ok: true });
+  } catch (error) {
+    return unauthorised(error) ?? Response.json({ error: "Could not remove the result." }, { status: 500 });
   }
 }
