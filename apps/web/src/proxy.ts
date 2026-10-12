@@ -12,7 +12,7 @@ import { COOKIE } from "@/lib/session";
  * trace for API calls made without signing in.
  */
 
-const PUBLIC_API = [/^\/api\/auth\//, /^\/api\/poses\//, /^\/api\/products\/\d+$/, /^\/api\/products\/\d+\/(sheet|image)/, /^\/api\/assets\//];
+const PUBLIC_API = [/^\/api\/two\/tests$/, /^\/api\/auth\//, /^\/api\/poses\//, /^\/api\/products\/\d+$/, /^\/api\/products\/\d+\/(sheet|image)/, /^\/api\/assets\//];
 
 /**
  * tantu-two (8 Oct): the new catalogue-shoot screens, served from public/two
