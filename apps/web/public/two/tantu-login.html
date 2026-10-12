@@ -97,7 +97,7 @@ li svg{color:var(--emerald);margin-top:2px}
   const f=$('f'),ph=$('ph'),cc=$('cc'),msg=$('msg');
   const show=(t,ok)=>{msg.hidden=false;msg.className='msg '+(ok?'ok':'err');msg.textContent=t;};
   const keep=(k,v)=>{try{localStorage.setItem('tantu_'+k,JSON.stringify(v));}catch(e){}};
-  const open=()=>setTimeout(()=>{location.href='tantu-app.html#home';},400);
+  const open=()=>setTimeout(()=>{let next=null;try{next=JSON.parse(localStorage.getItem('tantu_next'));localStorage.removeItem('tantu_next');}catch(e){}location.href=next==='test-kit.html'?'test-kit.html':'tantu-app.html#home';},400);
   let pendingPhone='',client=null;
   const done=async resp=>{if(!resp||!resp.access_token){show('Google sign-in was cancelled.',false);return;}
     show('Signing in…',true);
