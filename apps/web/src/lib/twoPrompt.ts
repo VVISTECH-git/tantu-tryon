@@ -186,6 +186,8 @@ export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false, tryOn
         ? "The blouse is made only from the blouse piece. A blouse piece attached at the end of the saree, after the pallu, is cut off and worn as the blouse: it never appears in the draped saree, the pleats or the pallu."
         : "The blouse is plain; no blouse fabric appears on the saree.",
       "The saree reaches the floor.",
+      // 12 Oct (KW-0015 test): Gemini drew two pallus and ran the pallu's frame bands along the edge.
+      "Geometry: there is only ONE pallu, hanging from the left shoulder; the other end of the saree is tucked into the pleats at the waist and never shows as a second pallu. Bands that frame the pallu's panel run ACROSS the saree's width (above and below the panel as it hangs), never along the long edges and never across the chest. The edge over the shoulder and across the chest carries only the saree's own edge border as photographed.",
     ].join(" ");
   }
   // A dupatta on its own (10 Oct, user: "standalone dupatta is a product that I sell"): it is the
