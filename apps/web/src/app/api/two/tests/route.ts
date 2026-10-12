@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { accounts, db, garments, generations } from "@/db";
-import { requireAccount, unauthorised } from "@/lib/session";
+import { currentAccount, requireAccount, unauthorised } from "@/lib/session";
 import { assetUrl, saveRender } from "@/lib/storage";
 
 export const runtime = "nodejs";
@@ -27,7 +27,8 @@ async function productId(code: string): Promise<string | null> {
 
 export async function GET(request: Request) {
   try {
-    const viewer = await requireAccount();
+    // Anyone with the test-kit link can see the results (12 Oct); names only for signed-in viewers.
+    const viewer = await currentAccount();
     const code = (new URL(request.url).searchParams.get("product") ?? "").trim().slice(0, 40);
     const gid = code ? await productId(code) : null;
     if (!gid) return Response.json({ results: [] }, { headers: { "Cache-Control": "no-store" } });
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
       .where(and(eq(generations.garmentId, gid), eq(generations.provider, PROVIDER)))
       .orderBy(desc(generations.startedAt));
     return Response.json(
-      { results: rows.filter((r) => r.imageKey).map((r) => ({ id: r.id, pose: r.pose, url: assetUrl(r.imageKey!), verdict: r.verdict, note: r.note, at: r.at, tester: r.tester, canRemove: viewer.platformAdmin || r.accountId === viewer.id })) },
+      { results: rows.filter((r) => r.imageKey).map((r) => ({ id: r.id, pose: r.pose, url: assetUrl(r.imageKey!), verdict: r.verdict, note: r.note, at: r.at, tester: viewer ? r.tester : "Tester", canRemove: Boolean(viewer && (viewer.platformAdmin || r.accountId === viewer.id)) })) },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
