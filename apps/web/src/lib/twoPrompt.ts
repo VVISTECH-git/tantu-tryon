@@ -177,7 +177,7 @@ export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false, tryOn
     const palluStyle = c.details["Pallu Style"];
     const drape = drapeStyle ? `draped in the ${drapeStyle.replace(/\s*\(.*\)\s*$/, "")} style` : "draped in the standard Nivi style";
     const pallu = palluStyle ? `the pallu worn ${/front|seedha/i.test(palluStyle) ? "in front, seedha style, falling over the right shoulder to the front" : /head/i.test(palluStyle) ? "over the head" : /pinned/i.test(palluStyle) ? "pinned neatly at the left shoulder" : /free/i.test(palluStyle) ? "over the left shoulder, flowing free" : "over the left shoulder"}` : "the pallu over the left shoulder";
-    worn = `${drape}: neat pleats at the front centre, ${pallu}, the border running along the bottom hem, ${blouse}`;
+    worn = `${drape}: 6 to 8 crisp, even pleats at the front centre, clearly visible and fanning slightly as they fall to the floor, ${pallu}, the border running along the bottom hem, ${blouse}`;
     rules = [
       "Keep the saree's body, border and pallu exactly as in the photos: same motifs, colours, scale and order.",
       "The pallu is the decorated end of the saree (its last 1 to 1.2 metres). Where it shows, it carries its own design exactly as read above and as photographed — every panel and band in the same order, ending in its end strip and tassels — and it is never filled with the body print.",
@@ -187,7 +187,7 @@ export function twoPrompt(garment: Garment, c: TwoChoices, anchor = false, tryOn
         : "The blouse is plain; no blouse fabric appears on the saree.",
       "The saree reaches the floor.",
       // 12 Oct (KW-0015 test): Gemini drew two pallus and ran the pallu's frame bands along the edge.
-      "Geometry: there is only ONE pallu, hanging from the left shoulder; the other end of the saree is tucked into the pleats at the waist and never shows as a second pallu. Bands that frame the pallu's panel run ACROSS the saree's width (above and below the panel as it hangs), never along the long edges and never across the chest. The edge over the shoulder and across the chest carries only the saree's own edge border as photographed.",
+      "Geometry: there is only ONE pallu, hanging from the left shoulder; the other end of the saree is tucked into the pleats at the waist and never shows as a second pallu. Bands that frame the pallu's panel run ACROSS the saree's width (above and below the panel as it hangs), never along the long edges and never across the chest. In a Nivi drape the hem border also travels diagonally across the front of the body from the waist up to the left shoulder and into the pallu — that is correct and expected.",
     ].join(" ");
   }
   // A dupatta on its own (10 Oct, user: "standalone dupatta is a product that I sell"): it is the
