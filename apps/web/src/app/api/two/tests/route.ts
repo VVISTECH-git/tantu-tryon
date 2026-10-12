@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { accounts, db, garments, generations } from "@/db";
 import { currentAccount, requireAccount, unauthorised } from "@/lib/session";
 import { assetUrl, saveRender } from "@/lib/storage";
@@ -38,8 +38,14 @@ export async function GET(request: Request) {
       .innerJoin(accounts, eq(accounts.id, generations.accountId))
       .where(and(eq(generations.garmentId, gid), eq(generations.provider, PROVIDER)))
       .orderBy(desc(generations.startedAt));
+    const pending = await db
+      .select({ pose: generations.promptId, status: generations.status, error: generations.error, at: generations.startedAt })
+      .from(generations)
+      .where(and(eq(generations.garmentId, gid), eq(generations.provider, PROVIDER), inArray(generations.status, ["queued", "running", "failed"])))
+      .orderBy(desc(generations.startedAt))
+      .limit(40);
     return Response.json(
-      { results: rows.filter((r) => r.imageKey).map((r) => ({ id: r.id, pose: r.pose, url: assetUrl(r.imageKey!), verdict: r.verdict, note: r.note, at: r.at, tester: viewer ? r.tester : "Tester", canRemove: Boolean(viewer && (viewer.platformAdmin || r.accountId === viewer.id)) })) },
+      { results: rows.filter((r) => r.imageKey).map((r) => ({ id: r.id, pose: r.pose, url: assetUrl(r.imageKey!), verdict: r.verdict, note: r.note, at: r.at, tester: viewer ? r.tester : "Tester", canRemove: Boolean(viewer && (viewer.platformAdmin || r.accountId === viewer.id)) })), pending },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
@@ -47,9 +53,49 @@ export async function GET(request: Request) {
   }
 }
 
+async function jsonAction(request: Request, account: Awaited<ReturnType<typeof requireAccount>>): Promise<Response> {
+  const body = (await request.json().catch(() => ({}))) as { action?: string; product?: string; pose?: string; poseId?: string; prompt?: string; id?: string; error?: string };
+  if (body.action === "queue") {
+    const code = String(body.product ?? "").trim().slice(0, 40);
+    const pose = String(body.pose ?? "").trim().slice(0, 60);
+    const poseId = String(body.poseId ?? "").replace(/[^a-z0-9_]/gi, "").slice(0, 40);
+    const prompt = String(body.prompt ?? "").slice(0, 12000);
+    const gid = code ? await productId(code) : null;
+    if (!gid || !pose || !poseId || !prompt) return Response.json({ error: "Send product, pose, poseId and prompt." }, { status: 400 });
+    const waiting = await db.select({ id: generations.id }).from(generations).where(and(eq(generations.provider, PROVIDER), eq(generations.status, "queued")));
+    if (waiting.length >= 20) return Response.json({ error: "The queue is full — wait for the pictures already asked for." }, { status: 429 });
+    const [row] = await db
+      .insert(generations)
+      .values({ clientKey: `test-${crypto.randomUUID()}`, accountId: account.id, garmentId: gid, promptId: pose, promptVersion: `pose-test · queue · ${poseId}`, promptText: prompt, look: { modelType: "woman", age: "", background: "", quality: "standard" }, provider: PROVIDER, model: "Nano Banana (Gemini app)", status: "queued", costPaise: 0, ratePaisePerUsd: 0, creditsPaise: 0, note: "" })
+      .returning({ id: generations.id });
+    return Response.json({ ok: true, id: row!.id });
+  }
+  // The helper (the platform admin's token) takes the oldest waiting job.
+  if (body.action === "claim") {
+    if (!account.platformAdmin) return Response.json({ error: "Only the helper can take jobs." }, { status: 403 });
+    const [job] = await db
+      .select({ id: generations.id, pose: generations.promptId, version: generations.promptVersion, prompt: generations.promptText, product: garments.productCode })
+      .from(generations)
+      .innerJoin(garments, eq(garments.id, generations.garmentId))
+      .where(and(eq(generations.provider, PROVIDER), eq(generations.status, "queued")))
+      .orderBy(asc(generations.startedAt))
+      .limit(1);
+    if (!job) return Response.json({ job: null });
+    await db.update(generations).set({ status: "running" }).where(eq(generations.id, job.id));
+    return Response.json({ job: { id: job.id, pose: job.pose, poseId: job.version.split(" · ").pop(), prompt: job.prompt, product: job.product } });
+  }
+  if (body.action === "fail") {
+    if (!account.platformAdmin) return Response.json({ error: "Only the helper can do that." }, { status: 403 });
+    await db.update(generations).set({ status: "failed", error: String(body.error ?? "").slice(0, 500), finishedAt: new Date() }).where(and(eq(generations.id, String(body.id ?? "")), eq(generations.provider, PROVIDER)));
+    return Response.json({ ok: true });
+  }
+  return Response.json({ error: "Unknown action." }, { status: 400 });
+}
+
 export async function POST(request: Request) {
   try {
     const account = await requireAccount();
+    if ((request.headers.get("content-type") ?? "").includes("application/json")) return await jsonAction(request, account);
     const form = await request.formData();
     const file = form.get("file");
     const code = String(form.get("product") ?? "").trim().slice(0, 40);
@@ -63,6 +109,13 @@ export async function POST(request: Request) {
     const gid = code ? await productId(code) : null;
     if (!gid) return Response.json({ error: "Unknown product." }, { status: 404 });
     const mime = file.type === "image/png" ? "image/png" : file.type === "image/webp" ? "image/webp" : "image/jpeg";
+    const jobId = String(form.get("jobId") ?? "");
+    if (jobId) {
+      if (!account.platformAdmin) return Response.json({ error: "Only the helper can finish jobs." }, { status: 403 });
+      const key = await saveRender(gid, jobId, new Uint8Array(await file.arrayBuffer()), mime, `${code}-${pose.replace(/[^A-Za-z0-9]+/g, "-")}.${mime.split("/")[1] === "jpeg" ? "jpg" : mime.split("/")[1]}`);
+      await db.update(generations).set({ status: "done", imageKey: key, imageMime: mime, finishedAt: new Date(), ...(note ? { note } : {}) }).where(and(eq(generations.id, jobId), eq(generations.provider, PROVIDER)));
+      return Response.json({ ok: true, id: jobId });
+    }
 
     const [row] = await db
       .insert(generations)
