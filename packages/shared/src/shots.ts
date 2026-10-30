@@ -202,6 +202,14 @@ const BODY = take("body", "Body", "Flat and straight, the main print", "Spread i
 const BORDER = take("border", "Border", "Flat, the edge design running through the frame", "Close enough that the border design fills about a third of the frame, flat and straight.");
 const END = take("end", "End", "Flat, the decorated end panel", "Spread the decorated end panel flat and straight so the whole panel is in the frame.");
 
+const KURTI_SAMPLES: Shot[] = [
+  { ...FRONT, sample: "/shots/kurti/front.jpg" },
+  { ...BACK, sample: "/shots/kurti/back.jpg" },
+  { ...PRINT, sample: "/shots/kurti/print.jpg" },
+  { ...NECK, sample: "/shots/kurti/neck.jpg" },
+  { ...SLEEVE, sample: "/shots/kurti/sleeve.jpg" },
+];
+
 export const CAPTURE_SHOTS: Record<string, Shot[]> = {
   saree: [
     { ...SAREE_SHOTS[0]!, required: true },
@@ -228,8 +236,10 @@ export const CAPTURE_SHOTS: Record<string, Shot[]> = {
     { ...MANNEQUIN, where: "Tied around the mannequin's neck", sample: "/shots/scarf/mannequin.jpg" },
     take("hanging", "Hanging", "Hung from one corner on a string or rod", "Hang the scarf from one corner so the print and border fall open, and get the whole of it in the frame.", "/shots/scarf/hanging.jpg"),
   ],
-  kurti: [FRONT, BACK, PRINT, NECK, SLEEVE],
-  frock: [FRONT, BACK, PRINT, NECK, SLEEVE],
+  // Samples (30 Oct): Durga Rao's Kalamkari cotton kurti; back, neck and sleeve made in Gemini from its
+  // photo. The frock shows the same kurti until it has its own.
+  kurti: KURTI_SAMPLES,
+  frock: KURTI_SAMPLES,
   blouse: [FRONT, BACK, FASTENING, PRINT, NECK, SLEEVE],
   coord_set: [FRONT, BACK, WAIST, PRINT, NECK, SLEEVE],
   lehenga: [FRONT, BACK, WAIST, PRINT, NECK, SLEEVE],
