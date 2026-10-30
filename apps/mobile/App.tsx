@@ -596,11 +596,35 @@ function Studio() {
     };
   }, [screen, photographer, garment?.id, takenHere > 0, queue.items.length]);
 
+  /**
+   * 30 Oct: a product opened again with another type takes the new type only while it has no
+   * photos. Photos still waiting to send are on this phone, not yet on the server, so they are
+   * checked here first; afterwards the server's answer says whether the type was kept.
+   */
+  function stillSendingAs(code: string | null | undefined): string | null {
+    if (!code) return null;
+    const waiting = queue.items.find((it) => it.productCode === code && it.slot !== "tag" && it.type !== garmentType);
+    return waiting?.type ?? null;
+  }
+  function blockTypeChange(code: string, type: string) {
+    Alert.alert(`${code} stays a ${typeOf(type).label}`, `Its ${typeOf(type).label.toLowerCase()} photos are still sending. Let them finish, then remove them if this is not a ${typeOf(type).label.toLowerCase()}.`);
+  }
+  function sayIfTypeKept(g: GarmentView) {
+    if (g.garmentType === garmentType) return;
+    Alert.alert(
+      `${g.productCode ?? "This product"} stays a ${typeOf(g.garmentType).label}`,
+      `It already has ${typeOf(g.garmentType).label.toLowerCase()} photos. To make it a ${typeOf(garmentType).label.toLowerCase()}, remove those photos first, then choose the type again.`,
+    );
+  }
+
   async function openAutoProduct() {
+    // No waiting-photo check here: the server is told which products still have photos on
+    // their way (pendingGarmentIds) and gives a fresh number instead of reusing one of them.
     setBusy(true);
     setError(null);
     try {
       const g = await api.openAutoProduct(garmentType, uploadQueue.pendingGarmentIds());
+      sayIfTypeKept(g);
       setGarment(g);
       setGarmentType(g.garmentType);
       setProductId(g.productCode ?? "");
@@ -619,10 +643,13 @@ function Studio() {
   async function openProduct(scanned?: string) {
     const id = (scanned ?? productId).trim();
     if (!id) return;
+    const sending = stillSendingAs(id);
+    if (sending) return blockTypeChange(id, sending);
     setBusy(true);
     setError(null);
     try {
       const g = await api.openProduct(id, garmentType);
+      sayIfTypeKept(g);
       setGarment(g);
       setGarmentType(g.garmentType);
       // The tag's photo goes with the product it opened, once, and sends in the background.

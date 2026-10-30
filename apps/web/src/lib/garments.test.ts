@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Garment, GarmentPartRow, PartQuality } from "@/db";
-import { isReady, missingSlots, sheetSlots } from "./garments";
+import { isReady, missingSlots, retype, sheetSlots } from "./garments";
 import { captureShotsWith } from "@/content/shots";
 
 /**
@@ -78,6 +78,33 @@ describe("readiness", () => {
     expect(tiles.find((t) => t.slot === "body_motif")?.required).toBe(false);
     expect(captureShotsWith("saree", () => false)).toHaveLength(10);
     expect(captureShotsWith("saree", () => false).every((t) => t.required)).toBe(true);
+  });
+  // 30 Oct, user: scanned, chose Saree, went to photos, came back, chose Scarf — still Saree.
+  describe("opening a product again with another type", () => {
+    const coded = (parts: GarmentPartRow[]) => ({ ...garment(parts), productCode: "SW-B678-LMW-CM-014-0038" });
+    it("an empty product takes the new type", () => {
+      expect(retype(coded([]), "scarf")).toEqual({ garmentType: "scarf", family: "unstitched", title: "Scarf SW-B678-LMW-CM-014-0038" });
+    });
+    it("a tag photo alone does not hold the old type", () => {
+      expect(retype(coded([part("tag")]), "scarf")?.garmentType).toBe("scarf");
+    });
+    it("a product with garment photos keeps its type", () => {
+      expect(retype(coded([part("body")]), "scarf")).toBeNull();
+      expect(retype(coded([part("tag"), part("pallu")]), "kurti")).toBeNull();
+    });
+    it("the same type changes nothing", () => {
+      expect(retype(coded([]), "saree")).toBeNull();
+    });
+    it("works between every pair of types", () => {
+      const types = ["saree", "kurti", "frock", "blouse", "coord_set", "lehenga", "dupatta", "stole", "scarf"];
+      for (const from of types) for (const to of types) {
+        const g = { ...coded([]), garmentType: from };
+        expect(retype(g, to)?.garmentType ?? from).toBe(to);
+      }
+    });
+    it("an automatic number without a code gets a tidy title", () => {
+      expect(retype(garment([]), "stole")?.title).toBe("Stole");
+    });
   });
   it("makes a stole or scarf from its body photo", () => {
     expect(isReady(typed("stole", [part("body")]))).toBe(true);
