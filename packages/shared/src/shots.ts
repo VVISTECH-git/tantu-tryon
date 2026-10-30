@@ -258,7 +258,15 @@ export const CAPTURE_SHOTS: Record<string, Shot[]> = {
     { ...NECK, sample: "/shots/coord/neck.jpg" },
     { ...SLEEVE, sample: "/shots/coord/sleeve.jpg" },
   ],
-  lehenga: [FRONT, BACK, WAIST, PRINT, NECK, SLEEVE],
+  // Samples (30 Oct): Durga Rao's Kalamkari top and pleated skirt, cleaned and views made in Gemini from his photo.
+  lehenga: [
+    { ...FRONT, sample: "/shots/topskirt/front.jpg" },
+    { ...BACK, sample: "/shots/topskirt/back.jpg" },
+    { ...WAIST, sample: "/shots/topskirt/waist.jpg" },
+    { ...PRINT, sample: "/shots/topskirt/print.jpg" },
+    { ...NECK, sample: "/shots/topskirt/neck.jpg" },
+    { ...SLEEVE, sample: "/shots/topskirt/sleeve.jpg" },
+  ],
 };
 
 /** The photographer's list for a garment type: every shot required. */
