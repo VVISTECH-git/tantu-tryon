@@ -21,6 +21,7 @@ import {
   DEFAULT_GARMENT_TYPE,
   garmentType as typeOf,
   captureShotsFor,
+  captureShotsWith,
   garmentTypeGroups,
   missingForGenerate,
   shotFor,
@@ -625,9 +626,11 @@ function Studio() {
       setGarment(g);
       setGarmentType(g.garmentType);
       // The tag's photo goes with the product it opened, once, and sends in the background.
-      if (tag?.photo && tag.code.toUpperCase() === (g.productCode ?? id).toUpperCase()) {
+      // A HEIC from the gallery is skipped: the server takes only JPEG or PNG, and the tag is a keepsake, not a required shot.
+      const tagMime = tag?.photo?.mimeType ?? "image/jpeg";
+      if (tag?.photo && /jpe?g|png/i.test(tagMime) && tag.code.toUpperCase() === (g.productCode ?? id).toUpperCase()) {
         uploadQueue.enqueue(
-          { ...tag.photo, mimeType: "image/jpeg" },
+          { ...tag.photo, mimeType: tagMime },
           { garmentId: g.id, productCode: g.productCode ?? null, slot: "tag", label: "Tag", type: g.garmentType, edit: null, shownUri: null },
         );
         setTag({ code: tag.code });
@@ -1054,10 +1057,17 @@ function Studio() {
                       {item.photos} photo{item.photos === 1 ? "" : "s"}
                       {item.slots.length ? ` · ${item.slots.map((slot) => shotFor(item.garmentType, slot)?.label ?? slot).join(", ")}` : ""}
                     </Text>
-                    <Text style={[s.shotWhere, { color: item.missing.length ? C.warn : C.good }]}>
-                      {item.missing.length ? `Missing: ${item.missing.map((slot) => shotFor(item.garmentType, slot)?.label ?? slot).join(", ")}` : "Required photos in"}
+                    {(() => {
+                      // 30 Oct: missing means the photographer's whole list, plus any the server blocked.
+                      const need = [...new Set([...captureShotsFor(item.garmentType).map((sh) => sh.slot).filter((sl) => !item.slots.includes(sl)), ...item.missing])];
+                      const names = need.map((slot) => shotFor(item.garmentType, slot)?.label ?? slot);
+                      return (
+                    <Text style={[s.shotWhere, { color: need.length ? C.warn : C.good }]}>
+                      {need.length ? `Missing ${need.length}: ${names.slice(0, 3).join(", ")}${names.length > 3 ? ", …" : ""}` : "All photos in"}
                       {item.images ? <Text style={{ color: C.textSoft }}>{`  ·  ${item.images} image${item.images === 1 ? "" : "s"} made`}</Text> : null}
                     </Text>
+                      );
+                    })()}
                   </View>
                   <Text style={s.selectChevron}>›</Text>
                 </Pressable>
@@ -1192,7 +1202,7 @@ function Studio() {
               {parts.length === 1 ? "1 photo" : `${parts.length} photos`} of a {typeOf(garment.garmentType).label.toLowerCase()}. Tap a photo to see it full size; Add more or Back to change them.
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.strip}>
-              {captureShotsFor(garment.garmentType)
+              {captureShotsWith(garment.garmentType, (slot) => parts.some((p) => p.slot === slot))
                 .filter((shot) => parts.some((p) => p.slot === shot.slot))
                 .map((shot) => {
                   const part = parts.find((p) => p.slot === shot.slot)!;
@@ -1676,9 +1686,9 @@ function ShotList({
   onView: (uri: string, label: string, full?: string) => void;
   shown: (part: { slot: string; url: string; previewUrl?: string }) => string;
 }) {
-  let shots = captureShotsFor(type);
-  if (optionalOnly) shots = shots.filter((sh) => !sh.required);
   const part = (slot: string) => garment?.parts.find((p) => p.slot === slot) ?? null;
+  let shots = captureShotsWith(type, (slot) => part(slot) !== null || slot in pending);
+  if (optionalOnly) shots = shots.filter((sh) => !sh.required);
   const visible = shots.filter((sh) => sh.required || part(sh.slot) || sh.slot in pending || opened.has(sh.slot));
   const folded = shots.filter((sh) => !visible.includes(sh));
   return (

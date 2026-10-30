@@ -225,6 +225,20 @@ export function captureShotsFor(type: string): Shot[] {
   return CAPTURE_SHOTS[garmentType(type).value] ?? shotsFor(type);
 }
 
+/**
+ * The phone's tiles for a product: the photographer's list, then any photo
+ * already taken under the studio's older list (a saree's body motif or whole
+ * hang from before 30 Oct), so it stays visible and removable. Those are optional.
+ */
+export function captureShotsWith(type: string, has: (slot: string) => boolean): Shot[] {
+  const list = captureShotsFor(type);
+  const older = shotsFor(type).filter((s) => !list.some((c) => c.slot === s.slot) && has(s.slot));
+  return [...list, ...older.map((s) => ({ ...s, required: false }))];
+}
+
+/** The tag photo kept when a tag is scanned (30 Oct); never one of the tiles. */
+const TAG_SHOT: Shot = { slot: "tag", label: "Tag", required: false, orientation: "upright", where: "", how: "", sample: "" };
+
 /** The least a model image needs: the old required shots (saree: body; stitched: the front; dupatta, stole, scarf: body). */
 export function generateSlots(type: string): string[] {
   const v = garmentType(type).value;
@@ -238,7 +252,8 @@ export function generateSlots(type: string): string[] {
  */
 export function missingForGenerate(type: string, has: (slot: string) => boolean): string[] {
   const lists = [requiredSlots(type), generateSlots(type)].map((l) => l.filter((slot) => !has(slot)));
-  return lists.reduce((a, b) => (b.length < a.length ? b : a));
+  // On a tie the photographer's minimum wins, so the message names a shot on the phone's list ("Body", not "The garment").
+  return lists.reduce((a, b) => (b.length <= a.length ? b : a));
 }
 
 /** The shots for a garment type: the saree's own list, or the plain one for everything stitched. */
@@ -248,6 +263,7 @@ export function shotsFor(type: string): Shot[] {
 
 /** A slot's shot, for its label: the photographer's list first, then the studio's. */
 export function shotFor(type: string, slot: string): Shot | undefined {
+  if (slot === TAG_SHOT.slot) return TAG_SHOT;
   return captureShotsFor(type).find((s) => s.slot === slot) ?? shotsFor(type).find((s) => s.slot === slot);
 }
 
