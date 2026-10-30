@@ -23,7 +23,7 @@ import { assetUrl, getObject, keys, putObject, readAsset, remove, saveUpload, st
  */
 // back, detail, bottom and dupatta (9 Oct): tantu-two's photo boxes for stitched garments.
 // neck … ends (30 Oct): the phone photographer's close-ups and shop photos (CAPTURE_SHOTS in shots.ts).
-export const PART_ORDER = ["saree", "body", "pallu", "border", "blouse", "body_motif", "pallu_motif", "whole", "back", "detail", "bottom", "dupatta", "extra1", "extra2", "extra3", "neck", "sleeve", "fastening", "waist", "end", "ends", "fabric", "zari", "tassels", "mannequin", "floor", "folded", "hanging"] as const;
+export const PART_ORDER = ["saree", "body", "pallu", "border", "blouse", "body_motif", "pallu_motif", "whole", "back", "detail", "bottom", "dupatta", "extra1", "extra2", "extra3", "neck", "sleeve", "fastening", "waist", "end", "ends", "fabric", "zari", "tassels", "mannequin", "floor", "folded", "hanging", "tag"] as const;
 export type PartSlot = (typeof PART_ORDER)[number];
 
 export type GarmentResult = { ok: true; garment: Garment } | { ok: false; status: number; message: string };
