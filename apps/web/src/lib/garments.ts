@@ -3,7 +3,7 @@ import sharp from "sharp";
 import { db, garments, generations, type Garment, type GarmentPartRow, type PartQuality } from "@/db";
 import { garmentWordsFrom, type DescribedGarment, type GarmentWords } from "@/content/garmentWords";
 import type { Attachment, PartPlan } from "@/content/promptTemplates";
-import { SHEET_CELLS, SHEET_FILL, SHEET_LEAD, garmentType, requiredSlots } from "@/content/shots";
+import { SHEET_CELLS, SHEET_FILL, SHEET_LEAD, garmentType, missingForGenerate } from "@/content/shots";
 import { buildContactSheet } from "@/lib/contactSheet";
 import { fetchBase64, fetchProduct, partsBySlot } from "@/lib/slk";
 import { assetUrl, getObject, keys, putObject, readAsset, remove, saveUpload, storageConfigured } from "@/lib/storage";
@@ -22,7 +22,8 @@ import { assetUrl, getObject, keys, putObject, readAsset, remove, saveUpload, st
  * whole thing (the older upload path); the rest are the rod shots.
  */
 // back, detail, bottom and dupatta (9 Oct): tantu-two's photo boxes for stitched garments.
-export const PART_ORDER = ["saree", "body", "pallu", "border", "blouse", "body_motif", "pallu_motif", "whole", "back", "detail", "bottom", "dupatta", "extra1", "extra2", "extra3"] as const;
+// neck … ends (30 Oct): the phone photographer's close-ups and shop photos (CAPTURE_SHOTS in shots.ts).
+export const PART_ORDER = ["saree", "body", "pallu", "border", "blouse", "body_motif", "pallu_motif", "whole", "back", "detail", "bottom", "dupatta", "extra1", "extra2", "extra3", "neck", "sleeve", "fastening", "waist", "end", "ends", "fabric", "zari", "tassels", "mannequin", "floor", "folded", "hanging"] as const;
 export type PartSlot = (typeof PART_ORDER)[number];
 
 export type GarmentResult = { ok: true; garment: Garment } | { ok: false; status: number; message: string };
@@ -39,9 +40,9 @@ export function isReady(garment: Garment): boolean {
 /** The required shots still missing or blocked, for the message that says why Continue is off. */
 export function missingSlots(garment: Garment): string[] {
   if (garment.parts.some((p) => p.slot === "saree")) return [];
-  return requiredSlots(garment.garmentType).filter((slot) => {
+  return missingForGenerate(garment.garmentType, (slot) => {
     const part = garment.parts.find((p) => p.slot === slot);
-    return part === undefined || part.quality?.status === "block";
+    return part !== undefined && part.quality?.status !== "block";
   });
 }
 

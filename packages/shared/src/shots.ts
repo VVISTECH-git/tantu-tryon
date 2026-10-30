@@ -53,6 +53,9 @@ export const GARMENT_TYPES: GarmentTypeOption[] = [
   { value: "coord_set", label: "Co-ord set (kurti + pant)", group: "Women", family: "set", enabled: true },
   { value: "lehenga", label: "Lehenga / Top & skirt", group: "Women", family: "set", enabled: true },
   { value: "dupatta", label: "Dupatta", group: "Women", family: "unstitched", enabled: true },
+  // 30 Oct, user: aartisanz sells these too; the photographer shoots them like a dupatta.
+  { value: "stole", label: "Stole", group: "Women", family: "unstitched", enabled: true },
+  { value: "scarf", label: "Scarf", group: "Women", family: "unstitched", enabled: true },
 ];
 
 export const DEFAULT_GARMENT_TYPE = "saree";
@@ -169,13 +172,83 @@ export const GARMENT_SHOTS: Shot[] = [
   },
 ];
 
+/**
+ * The photographer's lists (30 Oct, agreed with the user product by product).
+ *
+ * Every shot here must be taken: the phone's photographer login cannot finish
+ * a product without all of them. They cover the AI's inputs and the photos the
+ * shop shows customers (close-ups, mannequin, floor, folded). The web studio
+ * keeps its shorter lists above; making a model image still needs only
+ * `generateSlots`.
+ */
+const take = (slot: string, label: string, where: string, how: string, sample = "", orientation: Orientation = "upright"): Shot => ({
+  slot, label, required: true, orientation, where, how, sample,
+});
+
+const FRONT = take("whole", "Front", "On a mannequin, front on, the whole piece in frame", "Dress the mannequin and stand back so the whole garment, neck to hem, fills the frame, straight on, in even light. Nothing cut off.", "/shots/garment/whole.jpg");
+const BACK = take("back", "Back", "On a mannequin, from behind, the whole piece in frame", "Turn the mannequin round. The whole back, neck to hem, straight on, so the back neck, ties, zip or buttons show.");
+const PRINT = take("body_motif", "Print close-up", "Close, one motif or a few repeats sharp", "Step in close so one motif, or three or four repeats of a small print, fill the frame, sharp.", "/shots/garment/motif.jpg");
+const NECK = take("neck", "Neck close-up", "Close, the neckline filling the frame", "On the mannequin, step in close so the whole neckline and its edging fill the frame, front on.");
+const SLEEVE = take("sleeve", "Sleeve close-up", "Close, one sleeve from shoulder to cuff", "On the mannequin, one sleeve from the shoulder seam to the cuff or hem, so its length and finish show.");
+const FASTENING = take("fastening", "Fastening", "Close, where it buttons, hooks or zips", "Close up on where the garment opens and closes: buttons, hooks, zip or ties, front or back, whichever side has them.");
+const WAIST = take("waist", "Waist close-up", "Close, the waistband of the skirt or pants", "Close up on the waistband so it shows how it closes: button, elastic, drawstring or zip.");
+const FABRIC = take("fabric", "Fabric close-up", "Very close, the weave and texture", "Get very close to a flat part of the fabric so the weave and texture are sharp.");
+const ZARI = take("zari", "Zari close-up", "Close, the zari or thread work", "Close up on the zari or thread work of the border, sharp, in even light so the shine shows.");
+const TASSELS = take("tassels", "Tassels", "The finished end with its tassels", "Lay the end flat or let it hang, and get the tassels and the end finish in the frame.");
+const MANNEQUIN = take("mannequin", "Mannequin", "Draped on a mannequin, the whole drape in frame", "Drape it on the mannequin the way it is worn and stand back so the whole drape is in the frame.");
+const FLOOR = take("floor", "Floor", "Laid out on the floor or a mat, seen from above", "Spread it on a clean floor or mat and shoot from above so the whole piece shows.");
+const FOLDED = take("folded", "Folded", "Folded the way it ships", "Fold it neatly the way it goes to the customer and shoot it from above.");
+const BODY = take("body", "Body", "Flat and straight, the main print", "Spread it flat and straight, phone square to the cloth, so the main print shows with no folds.");
+const BORDER = take("border", "Border", "Flat, the edge design running through the frame", "Close enough that the border design fills about a third of the frame, flat and straight.");
+const END = take("end", "End", "Flat, the decorated end panel", "Spread the decorated end panel flat and straight so the whole panel is in the frame.");
+
+export const CAPTURE_SHOTS: Record<string, Shot[]> = {
+  saree: [
+    { ...SAREE_SHOTS[0]!, required: true },
+    { ...SAREE_SHOTS[1]!, required: true },
+    { ...SAREE_SHOTS[2]!, required: true, where: "Half a metre, at the side, the border through the middle" },
+    { ...SAREE_SHOTS[3]!, required: true, where: "Knee height, the blouse piece filling the frame" },
+    FABRIC, ZARI, TASSELS, MANNEQUIN, FLOOR, FOLDED,
+  ],
+  dupatta: [BODY, BORDER, END, FABRIC, ZARI, TASSELS, MANNEQUIN, FLOOR, FOLDED],
+  stole: [BODY, BORDER, END, FABRIC, { ...MANNEQUIN, where: "Around the mannequin's neck, both ends hanging" }, take("ends", "Ends close-up", "The two ends hanging side by side", "With the stole on the mannequin, get both decorated ends side by side in the frame.")],
+  scarf: [{ ...BODY, where: "Flat, the whole square" }, BORDER, FABRIC, { ...MANNEQUIN, where: "Tied around the mannequin's neck" }, take("hanging", "Hanging", "Hung from one corner on a string or rod", "Hang the scarf from one corner so the print and border fall open, and get the whole of it in the frame.")],
+  kurti: [FRONT, BACK, PRINT, NECK, SLEEVE],
+  frock: [FRONT, BACK, PRINT, NECK, SLEEVE],
+  blouse: [FRONT, BACK, FASTENING, PRINT, NECK, SLEEVE],
+  coord_set: [FRONT, BACK, WAIST, PRINT, NECK, SLEEVE],
+  lehenga: [FRONT, BACK, WAIST, PRINT, NECK, SLEEVE],
+};
+
+/** The photographer's list for a garment type: every shot required. */
+export function captureShotsFor(type: string): Shot[] {
+  return CAPTURE_SHOTS[garmentType(type).value] ?? shotsFor(type);
+}
+
+/** The least a model image needs: the old required shots (saree: body; stitched: the front; dupatta, stole, scarf: body). */
+export function generateSlots(type: string): string[] {
+  const v = garmentType(type).value;
+  return v === "dupatta" || v === "stole" || v === "scarf" ? ["body"] : requiredSlots(v);
+}
+
+/**
+ * The shots still missing before a model image can be made, given what is
+ * there. A product is ready when either list is complete: the studio's (a
+ * dupatta photographed whole on the web) or the photographer's minimum (its body).
+ */
+export function missingForGenerate(type: string, has: (slot: string) => boolean): string[] {
+  const lists = [requiredSlots(type), generateSlots(type)].map((l) => l.filter((slot) => !has(slot)));
+  return lists.reduce((a, b) => (b.length < a.length ? b : a));
+}
+
 /** The shots for a garment type: the saree's own list, or the plain one for everything stitched. */
 export function shotsFor(type: string): Shot[] {
   return garmentType(type).value === "saree" ? SAREE_SHOTS : GARMENT_SHOTS;
 }
 
+/** A slot's shot, for its label: the photographer's list first, then the studio's. */
 export function shotFor(type: string, slot: string): Shot | undefined {
-  return shotsFor(type).find((s) => s.slot === slot);
+  return captureShotsFor(type).find((s) => s.slot === slot) ?? shotsFor(type).find((s) => s.slot === slot);
 }
 
 export function requiredSlots(type: string): string[] {

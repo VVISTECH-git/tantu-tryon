@@ -66,6 +66,17 @@ export const GARMENT: Record<string, { name: string; worn: string; rules: string
     worn: "draped over a plain solid-colour kurti in a colour taken from the dupatta, the dupatta over one shoulder and falling in front",
     rules: "Keep the dupatta's print, border and tassels exactly as in the photo. The kurti is plain and unprinted.",
   },
+  // 30 Oct: new types; without these an unknown type falls back to kurti and the stole would be drawn as one.
+  stole: {
+    name: "stole",
+    worn: "worn around the neck over a plain solid-colour kurti in a colour taken from the stole, both decorated ends hanging down the front",
+    rules: "Keep the stole's print, borders and end panels exactly as in the photo. The kurti is plain and unprinted.",
+  },
+  scarf: {
+    name: "square scarf",
+    worn: "folded into a triangle and tied loosely around the neck over a plain solid-colour top in a colour taken from the scarf, the point hanging in front",
+    rules: "Keep the scarf's print and border exactly as in the photo. The top is plain and unprinted.",
+  },
 };
 
 // User (8 Oct): North Indian models, about 20 years old, and pleasant to look at: a
@@ -159,9 +170,12 @@ export function qwenPrompt(garment: Garment, promptId: string, look: GenerationL
 /** The photos Qwen gets, in order: the garment first, then its parts; at most three (the edit node's limit). */
 /** max 3 for Qwen's edit node; Gemini takes more (tantu-two sends up to 6, 9 Oct). */
 export function qwenInputs(garment: Garment, max = 3): { slot: string; key: string }[] {
-  const order = ["whole", "saree", "back", "detail", "bottom", "dupatta", "extra1", "extra2", "extra3", "body", "pallu", "blouse", "border", "body_motif", "pallu_motif"];
+  // 30 Oct: the photographer's new close-ups go after the main photos. Shop-only photos (floor,
+  // folded, hanging) never go to the model, and a slot not listed here is left out rather than
+  // sorted first (indexOf -1 used to put an unknown slot ahead of the front photo).
+  const order = ["whole", "saree", "back", "detail", "bottom", "dupatta", "extra1", "extra2", "extra3", "body", "pallu", "blouse", "border", "end", "body_motif", "neck", "sleeve", "fastening", "waist", "pallu_motif", "zari", "tassels", "ends", "fabric", "mannequin"];
   return garment.parts
-    .filter((p) => p.key)
+    .filter((p) => p.key && order.includes(p.slot))
     .sort((a, b) => order.indexOf(a.slot) - order.indexOf(b.slot))
     .slice(0, max)
     .map((p) => ({ slot: p.slot, key: p.key! }));
