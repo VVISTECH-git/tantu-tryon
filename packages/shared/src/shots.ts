@@ -216,7 +216,14 @@ export const CAPTURE_SHOTS: Record<string, Shot[]> = {
     { ...SAREE_SHOTS[1]!, required: true },
     { ...SAREE_SHOTS[2]!, required: true, where: "Half a metre, at the side, the border through the middle" },
     { ...SAREE_SHOTS[3]!, required: true, where: "Knee height, the blouse piece filling the frame" },
-    FABRIC, ZARI, TASSELS, MANNEQUIN, FLOOR, FOLDED,
+    // Samples (30 Oct): fabric, zari, tassels and mannequin from Mangalagiri sarees on iTokri;
+    // floor and folded made in Gemini from Durga Rao's pen Kalamkari pattu saree.
+    { ...FABRIC, sample: "/shots/saree/fabric.jpg" },
+    { ...ZARI, sample: "/shots/saree/zari.jpg" },
+    { ...TASSELS, sample: "/shots/saree/tassels.jpg" },
+    { ...MANNEQUIN, sample: "/shots/saree/mannequin.jpg" },
+    { ...FLOOR, sample: "/shots/saree/floor.jpg" },
+    { ...FOLDED, sample: "/shots/saree/folded.jpg" },
   ],
   // Samples (30 Oct): Durga Rao's elephant dupatta made flat and the other views in Gemini from his photo;
   // zari and tassels from a Mangalagiri dupatta on iTokri (his has neither).
