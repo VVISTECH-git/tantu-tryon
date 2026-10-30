@@ -14,7 +14,7 @@ import { ShotCamera, type CapturedPhoto } from "./src/ShotCamera";
 import { PhotoReview } from "./src/PhotoReview";
 import type { PhotoEdit } from "@tantu/shared/photoEdit";
 import { DetailImage, ZoomImage } from "./src/ZoomImage";
-import { QrScan } from "./src/QrScan";
+import { QrScan, type TagPhoto } from "./src/QrScan";
 import { SwipeRow } from "./src/SwipeRow";
 import * as uploadQueue from "./src/uploadQueue";
 import {
@@ -80,6 +80,8 @@ function Studio() {
   const [platformNote, setPlatformNote] = useState<string | null>(null);
   const [accountBack, setAccountBack] = useState<Screen>("type");
   const [scanning, setScanning] = useState(false);
+  // The tag just scanned (30 Oct): its code opens the product, and its photo is kept with it.
+  const [tag, setTag] = useState<{ code: string; photo?: TagPhoto } | null>(null);
   const [pose, setPose] = useState<string>(PRIMARY_PROMPT);
   // The newest finished image per pose, for the Generated sign on each pose.
   const [madeByPose, setMadeByPose] = useState<Record<string, string>>({});
@@ -578,7 +580,8 @@ function Studio() {
     if (screen !== "shots" || !photographer || !garment) return;
     if (takenHere === 0) {
       // Nothing taken: this number is still this phone's, and Back shows it at once.
-      setNextAutoId(garment.productCode ?? null);
+      // A product opened from a scanned tag is not an automatic number: leave the next one as it is.
+      if (!tag) setNextAutoId(garment.productCode ?? null);
       return;
     }
     // Photos taken: fetch the next number now, so "Done · next product" shows it at once.
@@ -621,6 +624,14 @@ function Studio() {
       const g = await api.openProduct(id, garmentType);
       setGarment(g);
       setGarmentType(g.garmentType);
+      // The tag's photo goes with the product it opened, once, and sends in the background.
+      if (tag?.photo && tag.code.toUpperCase() === (g.productCode ?? id).toUpperCase()) {
+        uploadQueue.enqueue(
+          { ...tag.photo, mimeType: "image/jpeg" },
+          { garmentId: g.id, productCode: g.productCode ?? null, slot: "tag", label: "Tag", type: g.garmentType, edit: null, shownUri: null },
+        );
+        setTag({ code: tag.code });
+      }
       setPrimary(null);
       setWarnings([]);
       batch.current = api.newKey();
@@ -800,6 +811,7 @@ function Studio() {
   function startOver() {
     setPose(PRIMARY_PROMPT);
     setProductId("");
+    setTag(null);
     setGarment(null);
     setPrimary(null);
     setWarnings([]);
@@ -945,12 +957,27 @@ function Studio() {
             <Text style={s.title}>Which product?</Text>
             {queue.items.length > 0 && <QueueNote queue={queue} />}
             {photographer ? (
+            // 30 Oct: the photographer scans the tag when the piece has one; otherwise a number is given.
             <View style={s.field}>
               <Text style={s.fieldLabel}>Product ID</Text>
-              <View style={[s.input, { justifyContent: "center" }]}>
-                <Text allowFontScaling={false} style={{ color: C.text, fontSize: 18, fontWeight: "700" }}>{nextAutoId ?? "…"}</Text>
+              <View style={[s.row, { gap: 8 }]}>
+                <View style={[s.input, { flex: 1, justifyContent: "center", paddingHorizontal: 12 }]}>
+                  <Text allowFontScaling={false} numberOfLines={1} style={{ color: C.text, fontSize: tag ? 14 : 18, fontWeight: "700", letterSpacing: tag ? -0.2 : 0 }}>
+                    {tag ? tag.code : (nextAutoId ?? "…")}
+                  </Text>
+                </View>
+                <Chip label="Scan" accent disabled={busy} onPress={() => setScanning(true)} />
               </View>
-              <Text style={s.support}>Given automatically.</Text>
+              {tag ? (
+                <View style={[s.row, { gap: 10 }]}>
+                  <Text style={s.support}>From the tag{tag.photo ? "; its photo is kept." : "."}</Text>
+                  <Pressable onPress={() => setTag(null)} hitSlop={8}>
+                    <Text style={s.link}>Clear</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Text style={s.support}>Scan the tag, or use this number if the piece has none.</Text>
+              )}
             </View>
             ) : (
             <View style={s.field}>
@@ -983,7 +1010,7 @@ function Studio() {
             </Pressable>
             <Text style={s.support}>More garment types coming soon.</Text>
             {photographer ? (
-              <Action label={busy ? "Opening…" : "Continue to photos"} disabled={busy} onPress={() => void openAutoProduct()} />
+              <Action label={busy ? "Opening…" : "Continue to photos"} disabled={busy} onPress={() => void (tag ? openProduct(tag.code) : openAutoProduct())} />
             ) : (
               <>
                 <Action label={busy ? "Opening…" : "Continue to photos"} disabled={busy || !productId.trim()} onPress={() => void openProduct()} />
@@ -1510,9 +1537,10 @@ function Studio() {
         {scanning && (
           <QrScan
             onCancel={() => setScanning(false)}
-            onCode={(code) => {
+            onCode={(code, photo) => {
               setScanning(false);
               setProductId(code);
+              setTag({ code, photo });
             }}
           />
         )}

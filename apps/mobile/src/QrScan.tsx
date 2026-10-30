@@ -36,7 +36,14 @@ function codeFrom(raw: string | undefined): string {
   return (/^https?:\/\//i.test(text) ? text.replace(/[/?#]+$/, "").split(/[/?#=]/).pop() : text) ?? "";
 }
 
-export function QrScan({ onCode, onCancel }: { onCode: (code: string) => void; onCancel: () => void }) {
+/** A photo of the tag, kept with the product (30 Oct, user: "keep the tag photo"). */
+export interface TagPhoto {
+  uri: string;
+  width: number;
+  height: number;
+}
+
+export function QrScan({ onCode, onCancel }: { onCode: (code: string, photo?: TagPhoto) => void; onCancel: () => void }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [zoom, setZoom] = useState(0.02);
   const [reading, setReading] = useState(false);
@@ -60,7 +67,7 @@ export function QrScan({ onCode, onCancel }: { onCode: (code: string) => void; o
           const shot = await camera.current?.takePictureAsync({ quality: 0.7, shutterSound: false });
           if (!shot || done.current) return;
           const printed = codeFromTagText(await readTextIn(shot.uri));
-          if (printed) found(printed);
+          if (printed) found(printed, shot);
         } catch {
           // A still could not be taken this time; the next tick tries again.
         } finally {
@@ -72,12 +79,27 @@ export function QrScan({ onCode, onCancel }: { onCode: (code: string) => void; o
     return () => clearInterval(timer);
   }, [permission?.granted]);
 
-  function found(raw: string | undefined): boolean {
+  function found(raw: string | undefined, photo?: TagPhoto): boolean {
     if (done.current) return true;
     const code = codeFrom(raw);
     if (!code) return false;
     done.current = true;
-    onCode(code);
+    if (photo) {
+      onCode(code, photo);
+      return true;
+    }
+    // Read live from the QR: take one still of the tag to keep, then hand both back.
+    void (async () => {
+      let still: TagPhoto | undefined;
+      try {
+        // Wait for the 2.5 s print reader if it holds the camera, so the two stills do not collide.
+        for (let i = 0; i < 20 && snapping.current; i++) await new Promise((r) => setTimeout(r, 100));
+        still = (await camera.current?.takePictureAsync({ quality: 0.85, shutterSound: false })) ?? undefined;
+      } catch {
+        // No still this time: the code alone is enough to go on.
+      }
+      onCode(code, still);
+    })();
     return true;
   }
 
@@ -89,13 +111,15 @@ export function QrScan({ onCode, onCancel }: { onCode: (code: string) => void; o
           ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 1 })
           : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 1 });
       if (pick.canceled || !pick.assets[0]) return;
-      const uri = pick.assets[0].uri;
+      const asset = pick.assets[0];
+      const uri = asset.uri;
+      const photo: TagPhoto = { uri, width: asset.width, height: asset.height };
       const results = await scanFromURLAsync(uri, ["qr"]).catch(() => []);
-      if (results.some((r) => found(r.data))) return;
+      if (results.some((r) => found(r.data, photo))) return;
       // The QR could not be read: read the code printed on the tag instead.
       const lines = await readTextIn(uri);
       const printed = codeFromTagText(lines);
-      if (printed && found(printed)) return;
+      if (printed && found(printed, photo)) return;
       Alert.alert("No product code found", "Take the photo closer, so the tag's printed code is sharp and fills more of the picture.");
     } catch (problem) {
       Alert.alert("Could not read the photo", problem instanceof Error ? problem.message : "Try again.");
