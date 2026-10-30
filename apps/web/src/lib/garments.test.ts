@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Garment, GarmentPartRow, PartQuality } from "@/db";
 import { isReady, missingSlots, sheetSlots } from "./garments";
+import { captureShotsWith } from "@/content/shots";
 
 /**
  * The rod-shot rules, without a database: which shots make a garment ready,
@@ -67,6 +68,16 @@ describe("readiness", () => {
     expect(isReady(typed("dupatta", [part("whole")]))).toBe(true);
     expect(isReady(typed("dupatta", [part("body")]))).toBe(true);
     expect(isReady(typed("dupatta", [part("floor")]))).toBe(false);
+  });
+  it("names the phone's shot when a dupatta has nothing yet", () => {
+    expect(missingSlots(typed("dupatta", []))).toEqual(["body"]);
+  });
+  it("keeps an older studio photo visible on the phone, as optional", () => {
+    const tiles = captureShotsWith("saree", (slot) => slot === "body_motif");
+    expect(tiles.map((t) => t.slot)).toContain("body_motif");
+    expect(tiles.find((t) => t.slot === "body_motif")?.required).toBe(false);
+    expect(captureShotsWith("saree", () => false)).toHaveLength(10);
+    expect(captureShotsWith("saree", () => false).every((t) => t.required)).toBe(true);
   });
   it("makes a stole or scarf from its body photo", () => {
     expect(isReady(typed("stole", [part("body")]))).toBe(true);

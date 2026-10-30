@@ -41,6 +41,8 @@ export interface TagPhoto {
   uri: string;
   width: number;
   height: number;
+  /** The camera's stills are JPEG; a gallery photo may be PNG or HEIC. */
+  mimeType?: string;
 }
 
 export function QrScan({ onCode, onCancel }: { onCode: (code: string, photo?: TagPhoto) => void; onCancel: () => void }) {
@@ -113,7 +115,7 @@ export function QrScan({ onCode, onCancel }: { onCode: (code: string, photo?: Ta
       if (pick.canceled || !pick.assets[0]) return;
       const asset = pick.assets[0];
       const uri = asset.uri;
-      const photo: TagPhoto = { uri, width: asset.width, height: asset.height };
+      const photo: TagPhoto = { uri, width: asset.width, height: asset.height, mimeType: asset.mimeType ?? undefined };
       const results = await scanFromURLAsync(uri, ["qr"]).catch(() => []);
       if (results.some((r) => found(r.data, photo))) return;
       // The QR could not be read: read the code printed on the tag instead.
