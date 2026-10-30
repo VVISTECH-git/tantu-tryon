@@ -218,7 +218,19 @@ export const CAPTURE_SHOTS: Record<string, Shot[]> = {
     { ...SAREE_SHOTS[3]!, required: true, where: "Knee height, the blouse piece filling the frame" },
     FABRIC, ZARI, TASSELS, MANNEQUIN, FLOOR, FOLDED,
   ],
-  dupatta: [BODY, BORDER, END, FABRIC, ZARI, TASSELS, MANNEQUIN, FLOOR, FOLDED],
+  // Samples (30 Oct): Durga Rao's elephant dupatta made flat and the other views in Gemini from his photo;
+  // zari and tassels from a Mangalagiri dupatta on iTokri (his has neither).
+  dupatta: [
+    { ...BODY, sample: "/shots/dupatta/body.jpg" },
+    { ...BORDER, sample: "/shots/dupatta/border.jpg" },
+    { ...END, sample: "/shots/dupatta/end.jpg" },
+    { ...FABRIC, sample: "/shots/dupatta/fabric.jpg" },
+    { ...ZARI, sample: "/shots/dupatta/zari.jpg" },
+    { ...TASSELS, sample: "/shots/dupatta/tassels.jpg" },
+    { ...MANNEQUIN, sample: "/shots/dupatta/mannequin.jpg" },
+    { ...FLOOR, sample: "/shots/dupatta/floor.jpg" },
+    { ...FOLDED, sample: "/shots/dupatta/folded.jpg" },
+  ],
   // 30 Oct: no Border for a stole (its side border is a thin line; the End shows the decoration).
   // Samples: one Pedana block-print stole; body and end made in Gemini from its photos.
   stole: [
