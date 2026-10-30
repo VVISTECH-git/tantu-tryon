@@ -201,16 +201,34 @@ export const PRODUCT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 _\-/.]{0,39}$/;
  * optional, lives here. Opening an ID that already has a record reopens it,
  * so photographs taken on another day land in the same place.
  */
+/**
+ * The new type for a record opened again with a different type chosen, or null to keep it
+ * (30 Oct: a tag was scanned as Saree, then opened again as Scarf, and stayed a Saree).
+ * Only a record with no garment photos changes type: the tag photo does not count, and
+ * photos already taken stay with the type they were taken for.
+ */
+export function retype(garment: Garment, type: string): Pick<Garment, "garmentType" | "family" | "title"> | null {
+  const chosen = garmentType(type);
+  if (chosen.value === garment.garmentType) return null;
+  if (garment.parts.some((p) => p.slot !== "tag")) return null;
+  return { garmentType: chosen.value, family: chosen.family, title: `${chosen.label} ${garment.productCode ?? ""}`.trim() };
+}
+
 export async function openProductGarment(accountId: string, productId: string, type: string): Promise<Garment> {
   const rows = await db.select().from(garments).where(and(eq(garments.accountId, accountId), eq(garments.productCode, productId), isNull(garments.deletedAt)));
   const existing = rows.sort((a, b) => +b.updatedAt - +a.updatedAt)[0];
   if (existing?.autoIssued && existing.parts.length === 0) {
     // An automatic number no photo was taken under: the ID typed here wins,
     // and the phone that held it gets a new number (28 Sep).
-    const [taken] = await db.update(garments).set({ autoIssued: false, updatedAt: new Date() }).where(eq(garments.id, existing.id)).returning();
+    const [taken] = await db.update(garments).set({ autoIssued: false, ...retype(existing, type), updatedAt: new Date() }).where(eq(garments.id, existing.id)).returning();
     return taken!;
   }
-  if (existing) return existing;
+  if (existing) {
+    const change = retype(existing, type);
+    if (!change) return existing;
+    const [changed] = await db.update(garments).set({ ...change, updatedAt: new Date() }).where(eq(garments.id, existing.id)).returning();
+    return changed!;
+  }
   const chosen = garmentType(type);
   const [garment] = await db
     .insert(garments)

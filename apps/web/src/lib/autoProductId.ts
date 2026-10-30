@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, garments, settings, type Garment } from "@/db";
 import { garmentType } from "@/content/shots";
+import { retype } from "@/lib/garments";
 
 /**
  * Product IDs given out automatically for the photographer login (28 Sep):
@@ -98,8 +99,9 @@ export async function openAutoProduct(accountId: string, type: string, device: s
         // The phone that walked away no longer holds it: it gets a fresh number when it comes back.
         await tx.delete(settings).where(and(sql`${settings.key} like ${`autoProductHeld:${accountId}:%`}`, eq(settings.value, p.garment.id)));
       }
-      // Touched, so it counts as fresh again and no other phone reclaims it.
-      [garment] = (await tx.update(garments).set({ updatedAt: new Date() }).where(eq(garments.id, p.garment.id)).returning()) as [Garment];
+      // Touched, so it counts as fresh again and no other phone reclaims it. Still empty,
+      // so it takes the type chosen this time (30 Oct: Back, Scarf, Continue stayed a Saree).
+      [garment] = (await tx.update(garments).set({ ...retype(p.garment, type), updatedAt: new Date() }).where(eq(garments.id, p.garment.id)).returning()) as [Garment];
     }
     if (device) {
       await tx
