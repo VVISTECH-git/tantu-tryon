@@ -257,10 +257,16 @@ export const CAPTURE_SHOTS: Record<string, Shot[]> = {
     { ...MANNEQUIN, where: "Tied around the mannequin's neck", sample: "/shots/scarf/mannequin.jpg" },
     take("hanging", "Hanging", "Hung from one corner on a string or rod", "Hang the scarf from one corner so the print and border fall open, and get the whole of it in the frame.", "/shots/scarf/hanging.jpg"),
   ],
-  // Samples (30 Oct): Durga Rao's Kalamkari cotton kurti; back, neck and sleeve made in Gemini from its
-  // photo. The frock shows the same kurti until it has its own.
+  // Samples (30 Oct): Durga Rao's Kalamkari cotton kurti; back, neck and sleeve made in Gemini from its photo.
   kurti: KURTI_SAMPLES,
-  frock: KURTI_SAMPLES,
+  // Samples (30 Oct): Durga Rao's purple elephant umbrella frock, cleaned and views made in Gemini from his photo.
+  frock: [
+    { ...FRONT, sample: "/shots/frock/front.jpg" },
+    { ...BACK, sample: "/shots/frock/back.jpg" },
+    { ...PRINT, sample: "/shots/frock/print.jpg" },
+    { ...NECK, sample: "/shots/frock/neck.jpg" },
+    { ...SLEEVE, sample: "/shots/frock/sleeve.jpg" },
+  ],
   // Samples (30 Oct): Durga Rao's block-print blouse, cleaned and put on a mannequin in Gemini from his photo.
   blouse: [
     { ...FRONT, sample: "/shots/blouse/front.jpg" },
