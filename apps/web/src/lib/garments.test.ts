@@ -56,6 +56,22 @@ describe("readiness", () => {
   it("does not need quality on SLK photographs", () => {
     expect(isReady(garment([part("body", undefined), part("pallu", undefined)]))).toBe(true);
   });
+
+  // 30 Oct: the photographer's full lists must not stop a model image; the old minimum still does.
+  const typed = (type: string, parts: GarmentPartRow[]) => ({ ...garment(parts), garmentType: type });
+  it("makes a kurti from its front alone, as before", () => {
+    expect(isReady(typed("kurti", [part("whole")]))).toBe(true);
+    expect(missingSlots(typed("kurti", [part("neck")]))).toEqual(["whole"]);
+  });
+  it("makes a dupatta from a web 'whole' photo or a phone 'body' photo", () => {
+    expect(isReady(typed("dupatta", [part("whole")]))).toBe(true);
+    expect(isReady(typed("dupatta", [part("body")]))).toBe(true);
+    expect(isReady(typed("dupatta", [part("floor")]))).toBe(false);
+  });
+  it("makes a stole or scarf from its body photo", () => {
+    expect(isReady(typed("stole", [part("body")]))).toBe(true);
+    expect(isReady(typed("scarf", [part("body")]))).toBe(true);
+  });
 });
 
 describe("sheet cells", () => {

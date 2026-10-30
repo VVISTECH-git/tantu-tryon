@@ -20,10 +20,10 @@ import * as uploadQueue from "./src/uploadQueue";
 import {
   DEFAULT_GARMENT_TYPE,
   garmentType as typeOf,
+  captureShotsFor,
   garmentTypeGroups,
-  requiredSlots,
+  missingForGenerate,
   shotFor,
-  shotsFor,
   type Shot,
 } from "@tantu/shared/shots";
 import { DEFAULT_LOOK, PRIMARY_PROMPT, type GarmentView, type RunView } from "@tantu/shared/views";
@@ -813,11 +813,15 @@ function Studio() {
   const parts = garment?.parts ?? [];
   const has = (slot: string) => parts.some((p) => p.slot === slot) || slot in pending;
   const sendingHere = Object.keys(pending).length;
-  const required = requiredSlots(garmentType);
+  // 30 Oct: every shot on the photographer's list is required; a model image still needs only the minimum.
+  const required = captureShotsFor(garmentType).map((sh) => sh.slot);
   const missing = required.filter((slot) => !has(slot));
   const blocked = required.filter((slot) => parts.find((p) => p.slot === slot)?.quality?.status === "block");
   const label = (slot: string) => shotFor(garmentType, slot)?.label ?? slot;
-  const ready = garment !== null && missing.length === 0 && blocked.length === 0 && busySlot === null && sendingHere === 0;
+  const okFor = (slot: string) => has(slot) && parts.find((p) => p.slot === slot)?.quality?.status !== "block";
+  const missingToMake = missingForGenerate(garmentType, okFor);
+  const ready = garment !== null && missingToMake.length === 0 && busySlot === null && sendingHere === 0;
+  const list = (slots: string[]) => (slots.length <= 2 ? slots.map(label).join(" and ") : `${slots.slice(0, -1).map(label).join(", ")} and ${label(slots[slots.length - 1]!)}`);
   const price = PRICE_1K;
   const groups = useMemo(() => garmentTypeGroups(), []);
   const { width: deviceW } = useWindowDimensions();
@@ -1104,23 +1108,37 @@ function Studio() {
               <>
                 <Text style={s.support}>
                   {missing.length > 0
-                    ? `Still needed: ${missing.map(label).join(" and ")}.`
+                    ? `Still needed: ${list(missing)}.`
                     : blocked.length > 0
-                      ? `Retake ${blocked.map(label).join(" and ")}.`
+                      ? `Retake ${list(blocked)}.`
                       : sendingHere > 0
                         ? "All photos taken. They finish sending by themselves; go on to the next product."
                         : `All photos are saved under ${garment?.productCode ?? "this product"}.`}
                 </Text>
-                <Action label={nextAutoId && nextAutoId !== garment?.productCode ? `Done · next product ${nextAutoId}` : "Done · next product"} disabled={busySlot !== null} onPress={startOver} />
+                {/* 30 Oct: every photo is needed; leaving early asks first, so a piece with no zari or tassels does not trap the photographer. */}
+                <Action
+                  label={missing.length > 0 ? `Done · ${missing.length} still needed` : nextAutoId && nextAutoId !== garment?.productCode ? `Done · next product ${nextAutoId}` : "Done · next product"}
+                  disabled={busySlot !== null}
+                  onPress={() =>
+                    missing.length > 0 || blocked.length > 0
+                      ? Alert.alert(
+                          "Photos still needed",
+                          `${list([...missing, ...blocked])} ${missing.length + blocked.length === 1 ? "is" : "are"} not done. Leave this product anyway?`,
+                          [
+                            { text: "Keep shooting", style: "cancel" },
+                            { text: "Leave", style: "destructive", onPress: startOver },
+                          ],
+                        )
+                      : startOver()
+                  }
+                />
               </>
             ) : (
             <Action
               label={
-                missing.length > 0
-                  ? `Continue · add ${missing.map(label).join(" and ")} first`
-                  : blocked.length > 0
-                    ? `Continue · retake ${blocked.map(label).join(" and ")} first`
-                    : busySlot
+                missingToMake.length > 0
+                  ? `Continue · add ${list(missingToMake)} first`
+                  : busySlot
                       ? "Checking the photo…"
                       : sendingHere > 0
                         ? "Sending photos…"
@@ -1147,7 +1165,7 @@ function Studio() {
               {parts.length === 1 ? "1 photo" : `${parts.length} photos`} of a {typeOf(garment.garmentType).label.toLowerCase()}. Tap a photo to see it full size; Add more or Back to change them.
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.strip}>
-              {shotsFor(garment.garmentType)
+              {captureShotsFor(garment.garmentType)
                 .filter((shot) => parts.some((p) => p.slot === shot.slot))
                 .map((shot) => {
                   const part = parts.find((p) => p.slot === shot.slot)!;
@@ -1514,7 +1532,7 @@ function Studio() {
                     <Text style={s.support}>On the rod, phone straight ahead. Frame it like this.</Text>
                   </>
                 )}
-                <Image source={{ uri: `${api.API_BASE}${howShot.sample}` }} style={howShot.orientation === "upright" ? s.howPhotoUpright : s.howPhotoSideways} resizeMode="cover" />
+                {howShot.sample ? <Image source={{ uri: `${api.API_BASE}${howShot.sample}` }} style={howShot.orientation === "upright" ? s.howPhotoUpright : s.howPhotoSideways} resizeMode="cover" /> : null}
                 <Orientation orientation={howShot.orientation} large />
                 <Text style={s.howWhere}>{howShot.where}</Text>
                 <Text style={s.howCopy}>{howShot.how}</Text>
@@ -1630,7 +1648,7 @@ function ShotList({
   onView: (uri: string, label: string, full?: string) => void;
   shown: (part: { slot: string; url: string; previewUrl?: string }) => string;
 }) {
-  let shots = shotsFor(type);
+  let shots = captureShotsFor(type);
   if (optionalOnly) shots = shots.filter((sh) => !sh.required);
   const part = (slot: string) => garment?.parts.find((p) => p.slot === slot) ?? null;
   const visible = shots.filter((sh) => sh.required || part(sh.slot) || sh.slot in pending || opened.has(sh.slot));
@@ -1653,7 +1671,8 @@ function ShotList({
                 <Image source={{ uri: shown(p) }} style={s.fill} />
               ) : (
                 <>
-                  <Image source={{ uri: `${api.API_BASE}${shot.frame ?? shot.sample}` }} style={[s.fill, { opacity: 0.38 }]} />
+                  {/* New shots (30 Oct) have no sample photo yet: just the plus. */}
+                  {(shot.frame ?? shot.sample) ? <Image source={{ uri: `${api.API_BASE}${shot.frame ?? shot.sample}` }} style={[s.fill, { opacity: 0.38 }]} /> : null}
                   <Text style={[s.plus, s.plusAbs]}>+</Text>
                 </>
               )}

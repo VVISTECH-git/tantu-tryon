@@ -90,6 +90,19 @@ const SLOT_WORDS: Record<string, string> = {
   body: "the body fabric",
   pallu: "the pallu",
   border: "the border",
+  // 30 Oct: the phone photographer's close-ups.
+  end: "the decorated end panel",
+  body_motif: "a close-up of the print",
+  neck: "a close-up of the neckline",
+  sleeve: "a close-up of one sleeve, shoulder to cuff",
+  fastening: "a close-up of where it buttons or fastens",
+  waist: "a close-up of the waistband",
+  pallu_motif: "a close-up of the pallu's motif",
+  zari: "a close-up of the zari work",
+  tassels: "the tassels at the end",
+  ends: "the two decorated ends side by side",
+  fabric: "a close-up of the fabric's weave",
+  mannequin: "the piece draped on a mannequin",
 };
 
 function who(c: TwoChoices, seed: number, type: string): string {
