@@ -212,10 +212,12 @@ const KURTI_SAMPLES: Shot[] = [
 
 export const CAPTURE_SHOTS: Record<string, Shot[]> = {
   saree: [
-    { ...SAREE_SHOTS[0]!, required: true },
-    { ...SAREE_SHOTS[1]!, required: true },
-    { ...SAREE_SHOTS[2]!, required: true, where: "Half a metre, at the side, the border through the middle" },
-    { ...SAREE_SHOTS[3]!, required: true, where: "Knee height, the blouse piece filling the frame" },
+    // 30 Oct, user: these four reworked to show the same saree as floor and folded (Durga Rao's
+    // pen Kalamkari pattu). Phone list only: the web studio keeps its rod photos and framing diagrams.
+    { ...SAREE_SHOTS[0]!, required: true, sample: "/shots/saree/capture-body.jpg", frame: undefined },
+    { ...SAREE_SHOTS[1]!, required: true, sample: "/shots/saree/capture-pallu.jpg", frame: undefined },
+    { ...SAREE_SHOTS[2]!, required: true, where: "Half a metre, at the side, the border through the middle", sample: "/shots/saree/capture-border.jpg", frame: undefined },
+    { ...SAREE_SHOTS[3]!, required: true, where: "Knee height, the blouse piece filling the frame", sample: "/shots/saree/capture-blouse.jpg" },
     // Samples (30 Oct): fabric, zari, tassels and mannequin from Mangalagiri sarees on iTokri;
     // floor and folded made in Gemini from Durga Rao's pen Kalamkari pattu saree.
     { ...FABRIC, sample: "/shots/saree/fabric.jpg" },
