@@ -211,8 +211,23 @@ export const CAPTURE_SHOTS: Record<string, Shot[]> = {
     FABRIC, ZARI, TASSELS, MANNEQUIN, FLOOR, FOLDED,
   ],
   dupatta: [BODY, BORDER, END, FABRIC, ZARI, TASSELS, MANNEQUIN, FLOOR, FOLDED],
-  stole: [BODY, BORDER, END, FABRIC, { ...MANNEQUIN, where: "Around the mannequin's neck, both ends hanging" }, take("ends", "Ends close-up", "The two ends hanging side by side", "With the stole on the mannequin, get both decorated ends side by side in the frame.")],
-  scarf: [{ ...BODY, where: "Flat, the whole square" }, BORDER, FABRIC, { ...MANNEQUIN, where: "Tied around the mannequin's neck" }, take("hanging", "Hanging", "Hung from one corner on a string or rod", "Hang the scarf from one corner so the print and border fall open, and get the whole of it in the frame.")],
+  // 30 Oct: no Border for a stole (its side border is a thin line; the End shows the decoration).
+  // Samples: one Pedana block-print stole; body and end made in Gemini from its photos.
+  stole: [
+    { ...BODY, sample: "/shots/stole/body.jpg" },
+    { ...END, sample: "/shots/stole/end.jpg" },
+    FABRIC,
+    { ...MANNEQUIN, where: "Around the mannequin's neck, both ends hanging", sample: "/shots/stole/mannequin.jpg" },
+    take("ends", "Ends close-up", "The two ends hanging side by side", "With the stole on the mannequin, get both decorated ends side by side in the frame.", "/shots/stole/ends.jpg"),
+  ],
+  // Samples (30 Oct): one Pedana block-print scarf; body and border made in Gemini from its photos.
+  scarf: [
+    { ...BODY, where: "Flat, the whole square", sample: "/shots/scarf/body.jpg" },
+    { ...BORDER, sample: "/shots/scarf/border.jpg" },
+    { ...FABRIC, sample: "/shots/scarf/fabric.jpg" },
+    { ...MANNEQUIN, where: "Tied around the mannequin's neck", sample: "/shots/scarf/mannequin.jpg" },
+    take("hanging", "Hanging", "Hung from one corner on a string or rod", "Hang the scarf from one corner so the print and border fall open, and get the whole of it in the frame.", "/shots/scarf/hanging.jpg"),
+  ],
   kurti: [FRONT, BACK, PRINT, NECK, SLEEVE],
   frock: [FRONT, BACK, PRINT, NECK, SLEEVE],
   blouse: [FRONT, BACK, FASTENING, PRINT, NECK, SLEEVE],
