@@ -240,7 +240,15 @@ export const CAPTURE_SHOTS: Record<string, Shot[]> = {
   // photo. The frock shows the same kurti until it has its own.
   kurti: KURTI_SAMPLES,
   frock: KURTI_SAMPLES,
-  blouse: [FRONT, BACK, FASTENING, PRINT, NECK, SLEEVE],
+  // Samples (30 Oct): Durga Rao's block-print blouse, cleaned and put on a mannequin in Gemini from his photo.
+  blouse: [
+    { ...FRONT, sample: "/shots/blouse/front.jpg" },
+    { ...BACK, sample: "/shots/blouse/back.jpg" },
+    { ...FASTENING, sample: "/shots/blouse/fastening.jpg" },
+    { ...PRINT, sample: "/shots/blouse/print.jpg" },
+    { ...NECK, sample: "/shots/blouse/neck.jpg" },
+    { ...SLEEVE, sample: "/shots/blouse/sleeve.jpg" },
+  ],
   coord_set: [FRONT, BACK, WAIST, PRINT, NECK, SLEEVE],
   lehenga: [FRONT, BACK, WAIST, PRINT, NECK, SLEEVE],
 };
