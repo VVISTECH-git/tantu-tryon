@@ -249,7 +249,15 @@ export const CAPTURE_SHOTS: Record<string, Shot[]> = {
     { ...NECK, sample: "/shots/blouse/neck.jpg" },
     { ...SLEEVE, sample: "/shots/blouse/sleeve.jpg" },
   ],
-  coord_set: [FRONT, BACK, WAIST, PRINT, NECK, SLEEVE],
+  // Samples (30 Oct): Durga Rao's block-print co-ord set, background cleaned and views made in Gemini from his photo.
+  coord_set: [
+    { ...FRONT, sample: "/shots/coord/front.jpg" },
+    { ...BACK, sample: "/shots/coord/back.jpg" },
+    { ...WAIST, sample: "/shots/coord/waist.jpg" },
+    { ...PRINT, sample: "/shots/coord/print.jpg" },
+    { ...NECK, sample: "/shots/coord/neck.jpg" },
+    { ...SLEEVE, sample: "/shots/coord/sleeve.jpg" },
+  ],
   lehenga: [FRONT, BACK, WAIST, PRINT, NECK, SLEEVE],
 };
 
