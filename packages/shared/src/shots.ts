@@ -216,7 +216,7 @@ export const CAPTURE_SHOTS: Record<string, Shot[]> = {
   stole: [
     { ...BODY, sample: "/shots/stole/body.jpg" },
     { ...END, sample: "/shots/stole/end.jpg" },
-    FABRIC,
+    { ...FABRIC, sample: "/shots/stole/fabric.jpg" },
     { ...MANNEQUIN, where: "Around the mannequin's neck, both ends hanging", sample: "/shots/stole/mannequin.jpg" },
     take("ends", "Ends close-up", "The two ends hanging side by side", "With the stole on the mannequin, get both decorated ends side by side in the frame.", "/shots/stole/ends.jpg"),
   ],
