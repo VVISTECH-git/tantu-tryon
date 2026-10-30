@@ -68,6 +68,9 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
   // How much of the frame the saree fills, from a quiet still every few seconds.
   const [framing, setFraming] = useState<{ fill: number; box: { y: number } | null } | null>(null);
   const checking = useRef(false);
+  // 30 Oct: true only while the framing still is being taken, so the shutter does not
+  // wait for that still's upload and check (the user found photos took seconds).
+  const cameraBusy = useRef(false);
   const shooting = useRef(false);
   const cameraRef = useRef<CameraView>(null);
   const { width: winW, height: winH } = useWindowDimensions();
@@ -117,7 +120,13 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
       checking.current = true;
       void (async () => {
         try {
-          const still = await cameraRef.current?.takePictureAsync({ quality: 0.3, shutterSound: false });
+          cameraBusy.current = true;
+          let still;
+          try {
+            still = await cameraRef.current?.takePictureAsync({ quality: 0.3, shutterSound: false });
+          } finally {
+            cameraBusy.current = false;
+          }
           if (still && !shooting.current) {
             const found = await api.frameFill(still.uri);
             if (found && !shooting.current) setFraming(found);
@@ -190,18 +199,18 @@ export function ShotCamera({ shot, onCapture, onClose }: { shot: Shot; onCapture
     void SecureStore.setItemAsync(WIDE_KEY, next ? "1" : "0");
   }
 
-  /** Wait up to a second and a half for the phone to settle, then shoot either way. */
+  /** Wait up to 0.7 s for the phone to settle, then shoot either way. */
   async function shoot() {
     if (!cameraRef.current || busy) return;
     setBusy(true);
     shooting.current = true;
     try {
-      // A framing still may be in progress: let it finish (at most a second) so the camera is free.
+      // A framing still may be being taken: let only that finish (not its upload), so the camera is free.
       const freeBy = Date.now() + 1000;
-      while (checking.current && Date.now() < freeBy) await new Promise((r) => setTimeout(r, 50));
+      while (cameraBusy.current && Date.now() < freeBy) await new Promise((r) => setTimeout(r, 30));
       if (poseRef.current && !poseRef.current.still) {
         setWaiting(true);
-        const until = Date.now() + 1500;
+        const until = Date.now() + 700;
         while (Date.now() < until && poseRef.current && !poseRef.current.still) {
           await new Promise((r) => setTimeout(r, 100));
         }
