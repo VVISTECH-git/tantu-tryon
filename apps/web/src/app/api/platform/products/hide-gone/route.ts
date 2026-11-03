@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { db, garments, settings } from "@/db";
+import { db, garments, generations, settings } from "@/db";
 import { deleteGarment } from "@/lib/garments";
 import { requirePlatform, unauthorised } from "@/lib/session";
 import { listObjects } from "@/lib/storage";
@@ -72,7 +72,8 @@ export async function PATCH() {
     let removed = 0;
     const stillHidden: string[] = [];
     for (const g of rows) {
-      // deleteGarment expects a live row; it hides or removes as one admin delete would.
+      // 3 Nov, user: delete them for good, AI images included (their files are already gone from storage).
+      await db.delete(generations).where(eq(generations.garmentId, g.id));
       const outcome = await deleteGarment(g);
       if (outcome === "removed") removed++;
       else stillHidden.push(g.id);

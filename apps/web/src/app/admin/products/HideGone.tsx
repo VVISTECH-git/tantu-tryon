@@ -62,7 +62,7 @@ export function HideGone() {
           {hidden > 0 && (
             <>
               <ConfirmButton
-                label={`2. Delete the ${hidden} hidden products for good`}
+                label={`Delete the ${hidden} hidden products for good (with their AI images)`}
                 confirmLabel="Tap again: this cannot be undone"
                 onConfirm={() => call("PATCH")}
               />
