@@ -6,7 +6,7 @@ import { useState } from "react";
  * A product's photos as one image: Copy (to paste into Gemini) or Download.
  * The browser can only copy PNG, so the JPEG is redrawn as PNG to copy it.
  */
-export function Combined({ id, code }: { id: string; code: string }) {
+export function Combined({ id, code, compact = false }: { id: string; code: string; compact?: boolean }) {
   const [state, setState] = useState<"" | "busy" | "copied" | "failed">("");
   const url = `/api/platform/products/${id}/combined`;
 
@@ -31,6 +31,20 @@ export function Combined({ id, code }: { id: string; code: string }) {
       setState("failed");
     }
   };
+
+  if (compact) {
+    return (
+      <div className="flex shrink-0 flex-col items-end gap-1 text-[12.5px]">
+        <button type="button" onClick={() => void copy()} disabled={state === "busy"} className="rounded-lg bg-accent px-3 py-1.5 font-semibold text-white disabled:opacity-60">
+          {state === "busy" ? "Making it…" : state === "copied" ? "Copied: paste in Gemini" : "Export"}
+        </button>
+        <a href={url} download={`${code}-combined.jpg`} className="text-accent underline">
+          Download
+        </a>
+        {state === "failed" && <span className="text-danger">Could not copy. Use Download.</span>}
+      </div>
+    );
+  }
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-3 text-[13px]">

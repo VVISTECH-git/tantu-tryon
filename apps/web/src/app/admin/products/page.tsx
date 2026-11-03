@@ -9,6 +9,7 @@ import { LabelCard } from "../labels/LabelCard";
 import { CropPhoto } from "./CropPhoto";
 import { DeleteProduct } from "./DeleteProduct";
 import { HideGone } from "./HideGone";
+import { Combined } from "../photos/Combined";
 
 export const dynamic = "force-dynamic";
 
@@ -284,6 +285,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
               })()}
             </div>
           </Link>
+          {platform && r.photos.some((p) => p.slot !== "tag") && <Combined id={r.id} code={r.productCode ?? "product"} compact />}
           {platform && <DeleteProduct id={r.id} name={r.productCode ?? "this product"} compact />}
           </div>
         ))}
