@@ -280,7 +280,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
 
       <div className="mt-5 grid gap-3">
         {rows.map((r) => (
-          <Link key={r.id} href={listHref({ open: r.id, by, type, q })} className="flex items-center gap-4 rounded-xl border border-line bg-surface p-3 hover:border-ink-faint">
+          <div key={r.id} className="flex items-center gap-3 rounded-xl border border-line bg-surface pr-4 hover:border-ink-faint">
+          <Link href={listHref({ open: r.id, by, type, q })} className="flex min-w-0 flex-1 items-center gap-4 p-3">
             <div className="flex gap-1.5">
               {r.photos.slice(0, 4).map((p) => (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -306,6 +307,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
               })()}
             </div>
           </Link>
+          {platform && <DeleteProduct id={r.id} name={r.productCode ?? "this product"} compact />}
+          </div>
         ))}
         {rows.length === 0 && (
           <p className="text-[14px] text-ink-soft">{q ? `No product ID with “${q}”.` : "No products captured yet."}</p>
