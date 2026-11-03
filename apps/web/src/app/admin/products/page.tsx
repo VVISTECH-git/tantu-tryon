@@ -7,7 +7,6 @@ import { GARMENT_TYPES, garmentType } from "@/content/shots";
 import { productInputsById, productRows } from "@/lib/productInputs";
 import { LabelCard } from "../labels/LabelCard";
 import { CropPhoto } from "./CropPhoto";
-import { MarkPhoto } from "./MarkPhoto";
 import { DeleteProduct } from "./DeleteProduct";
 import { HideGone } from "./HideGone";
 
@@ -151,13 +150,6 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                       <>
                         {" · "}
                         <CropPhoto garmentId={g.id} slot={p.slot} src={p.previewUrl ?? p.url} width={p.width} height={p.height} marked={!!l} />
-                      </>
-                    )}
-                    {!l && p.width && p.height && (
-                      <>
-                        {" · "}
-                        <span className="text-ink-faint">parts not marked yet: </span>
-                        <MarkPhoto garmentId={g.id} slot={p.slot} src={p.previewUrl ?? p.url} width={p.width} height={p.height} />
                       </>
                     )}
                   </figcaption>
