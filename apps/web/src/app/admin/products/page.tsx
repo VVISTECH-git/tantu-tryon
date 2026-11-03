@@ -168,21 +168,6 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
               <p className="mt-2 text-[13px] text-ink-faint">Not made yet: it is built the first time Continue is tapped on the phone.</p>
             )}
 
-            {g.prompts.length > 0 && (
-              <>
-                <p className="mt-6 text-[12px] uppercase tracking-wide text-ink-faint">Prompt each pose would send (the phone&apos;s look: woman, late 20s, courtyard)</p>
-                <div className="mt-2 grid gap-2">
-                  {g.prompts.map((pr) => (
-                    <details key={pr.promptId} className="rounded-lg border border-line-soft bg-surface p-3">
-                      <summary className="cursor-pointer text-[13.5px]">
-                        <b>{pr.promptId}</b> · {pr.title} · <span className="text-ink-soft">{pr.version}</span> · {pr.text.length.toLocaleString("en-IN")} characters
-                      </summary>
-                      <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap rounded-lg bg-ground p-3 text-[12.5px] leading-relaxed">{pr.text}</pre>
-                    </details>
-                  ))}
-                </div>
-              </>
-            )}
             {g.productCode && (
               <p className="mt-6 text-[13.5px]">
                 <Link href={`/admin/generations?product=${encodeURIComponent(g.productCode)}`} className="text-accent underline">
@@ -216,7 +201,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         </p>
       )}
       <h1 className="mt-1 text-[24px] font-semibold tracking-tight">Products</h1>
-      <p className="mt-1 text-[13px] text-ink-soft">Every product captured on the phones, newest first. Open one to see its photos, input sheet and prompts.</p>
+      <p className="mt-1 text-[13px] text-ink-soft">Every product captured on the phones, newest first. Open one to see its photos.</p>
       {platform && <HideGone />}
 
       <form action="/admin/products" className="mt-4 flex flex-wrap gap-2">
