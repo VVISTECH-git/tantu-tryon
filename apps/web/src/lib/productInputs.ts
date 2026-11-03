@@ -31,7 +31,8 @@ export interface ProductRow {
   title: string;
   /** saree, kurti, frock … (GARMENT_TYPES). */
   garmentType: string;
-  photos: { slot: string; thumbUrl: string }[];
+  /** thumbUrl for the list; bigUrl (the preview, else the original) for viewing large. */
+  photos: { slot: string; thumbUrl: string; bigUrl: string }[];
   /** Everyone who took a photo of it. */
   takenBy: string[];
   lastTakenAt: string | null;
@@ -59,7 +60,11 @@ export async function productRows(shopId?: string): Promise<ProductRow[]> {
         productCode: g.productCode,
         title: g.title,
         garmentType: g.garmentType,
-        photos: g.parts.map((p) => ({ slot: p.slot, thumbUrl: p.thumbKey ? assetUrl(p.thumbKey) : p.previewKey ? assetUrl(p.previewKey) : p.key ? assetUrl(p.key) : p.url })),
+        photos: g.parts.map((p) => ({
+          slot: p.slot,
+          thumbUrl: p.thumbKey ? assetUrl(p.thumbKey) : p.previewKey ? assetUrl(p.previewKey) : p.key ? assetUrl(p.key) : p.url,
+          bigUrl: p.previewKey ? assetUrl(p.previewKey) : p.key ? assetUrl(p.key) : p.url,
+        })),
         takenBy: [...new Set(g.parts.map((p) => p.takenBy).filter((t): t is string => Boolean(t)))],
         lastTakenAt: times.at(-1) ?? null,
         sheetReady: Boolean(g.sheetKey && g.sheetKey.endsWith(".w2.jpg")),
