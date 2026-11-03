@@ -14,7 +14,7 @@ export default async function PhotosPage() {
     <main className="mx-auto max-w-5xl px-6 py-8">
       <h1 className="text-[24px] font-semibold tracking-tight">Photos</h1>
       <ShareLink />
-      <PhotoWall items={items} />
+      <PhotoWall items={items} combined />
     </main>
   );
 }

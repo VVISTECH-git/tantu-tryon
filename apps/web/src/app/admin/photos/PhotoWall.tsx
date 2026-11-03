@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Combined } from "./Combined";
 
 type Item = { id: string; code: string; photos: { slot: string; thumbUrl: string; bigUrl: string }[] };
 
 const PER_PAGE = 20;
 
 /** Product ID, then its photos. Search by ID, pages of 20, tap a photo to see it large. */
-export function PhotoWall({ items }: { items: Item[] }) {
+export function PhotoWall({ items, combined = false }: { items: Item[]; combined?: boolean }) {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState<{ item: Item; i: number } | null>(null);
@@ -51,6 +52,7 @@ export function PhotoWall({ items }: { items: Item[] }) {
         {rows.map((it) => (
           <section key={it.id}>
             <h2 className="font-mono text-[15px] font-semibold">{it.code}</h2>
+            {combined && it.photos.some((p) => p.slot !== "tag") && <Combined id={it.id} code={it.code} />}
             <div className="mt-2 flex flex-wrap gap-2">
               {it.photos.map((p, i) => (
                 <button key={p.slot + i} type="button" onClick={() => setOpen({ item: it, i })} className="block" title={p.slot}>
