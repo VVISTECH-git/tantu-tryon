@@ -9,6 +9,7 @@ import { LabelCard } from "../labels/LabelCard";
 import { CropPhoto } from "./CropPhoto";
 import { MarkPhoto } from "./MarkPhoto";
 import { DeleteProduct } from "./DeleteProduct";
+import { HideGone } from "./HideGone";
 
 export const dynamic = "force-dynamic";
 
@@ -224,6 +225,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
       )}
       <h1 className="mt-1 text-[24px] font-semibold tracking-tight">Products</h1>
       <p className="mt-1 text-[13px] text-ink-soft">Every product captured on the phones, newest first. Open one to see its photos, input sheet and prompts.</p>
+      {platform && <HideGone />}
 
       <form action="/admin/products" className="mt-4 flex flex-wrap gap-2">
         {by && <input type="hidden" name="by" value={by} />}
