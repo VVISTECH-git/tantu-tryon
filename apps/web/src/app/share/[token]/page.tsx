@@ -21,7 +21,6 @@ export default async function SharedPhotos({ params }: { params: Promise<{ token
     .filter((it) => it.photos.length > 0);
   return (
     <main className="mx-auto max-w-5xl px-5 py-8">
-      <h1 className="text-[24px] font-semibold tracking-tight">Products</h1>
       <PhotoWall items={items} />
     </main>
   );

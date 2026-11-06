@@ -1,22 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Combined } from "./Combined";
+import { useEffect, useState } from "react";
 
 type Item = { id: string; code: string; photos: { slot: string; thumbUrl: string; bigUrl: string }[] };
 
 const PER_PAGE = 20;
 
-/** Product ID, then its photos. Search by ID, pages of 20, tap a photo to see it large. */
-export function PhotoWall({ items, combined = false }: { items: Item[]; combined?: boolean }) {
-  const [q, setQ] = useState("");
+/** Only the product ID and its photos (3 Nov, user: nothing else). Pages of 20; tap a photo to see it large. */
+export function PhotoWall({ items }: { items: Item[] }) {
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState<{ item: Item; i: number } | null>(null);
 
-  const shown = useMemo(() => {
-    const n = q.trim().toLowerCase();
-    return n ? items.filter((it) => it.code.toLowerCase().includes(n)) : items;
-  }, [items, q]);
+  const shown = items;
   const pages = Math.max(1, Math.ceil(shown.length / PER_PAGE));
   const at = Math.min(page, pages);
   const rows = shown.slice((at - 1) * PER_PAGE, at * PER_PAGE);
@@ -35,24 +30,10 @@ export function PhotoWall({ items, combined = false }: { items: Item[]; combined
 
   return (
     <>
-      <div className="mt-4 flex flex-wrap items-center gap-3 text-[13px]">
-        <input
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setPage(1);
-          }}
-          placeholder="Find a product ID"
-          className="w-64 rounded-lg border border-line bg-surface px-3 py-2"
-        />
-        <span className="text-ink-soft">{shown.length} product{shown.length === 1 ? "" : "s"}</span>
-      </div>
-
-      <div className="mt-5 grid gap-6">
+      <div className="grid gap-6">
         {rows.map((it) => (
           <section key={it.id}>
             <h2 className="font-mono text-[15px] font-semibold">{it.code}</h2>
-            {combined && it.photos.some((p) => p.slot !== "tag") && <Combined id={it.id} code={it.code} />}
             <div className="mt-2 flex flex-wrap gap-2">
               {it.photos.map((p, i) => (
                 <button key={p.slot + i} type="button" onClick={() => setOpen({ item: it, i })} className="block" title={p.slot}>
@@ -63,7 +44,7 @@ export function PhotoWall({ items, combined = false }: { items: Item[]; combined
             </div>
           </section>
         ))}
-        {rows.length === 0 && <p className="text-ink-soft">No products match.</p>}
+        {rows.length === 0 && <p className="text-ink-soft">No products yet.</p>}
       </div>
 
       {pages > 1 && (

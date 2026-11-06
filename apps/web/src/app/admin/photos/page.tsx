@@ -1,7 +1,6 @@
 import { requirePage } from "@/lib/page-auth";
 import { productRows } from "@/lib/productInputs";
 import { PhotoWall } from "./PhotoWall";
-import { ShareLink } from "./ShareLink";
 
 export const dynamic = "force-dynamic";
 
@@ -12,9 +11,7 @@ export default async function PhotosPage() {
   const items = rows.map((r) => ({ id: r.id, code: r.productCode ?? "No product ID", photos: r.photos }));
   return (
     <main className="mx-auto max-w-5xl px-6 py-8">
-      <h1 className="text-[24px] font-semibold tracking-tight">Photos</h1>
-      <ShareLink />
-      <PhotoWall items={items} combined />
+      <PhotoWall items={items} />
     </main>
   );
 }
