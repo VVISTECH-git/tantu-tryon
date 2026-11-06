@@ -63,24 +63,39 @@ export function proxy(request: NextRequest) {
     url.pathname = pathname === "/" ? "/two/tantu-landing.html" : `/two${pathname}`;
     return NextResponse.rewrite(url);
   }
-  // The same paths on the tantu-tryon address are the public site's own: untouched.
-  if (pathname === "/" || pathname.startsWith("/tantu-") || pathname.startsWith("/img/")) return NextResponse.next();
   const signedIn = Boolean(request.cookies.get(COOKIE)?.value) || /^bearer /i.test(request.headers.get("authorization") ?? "");
-  if (signedIn) return NextResponse.next();
 
   if (pathname.startsWith("/api/")) {
-    if (PUBLIC_API.some((p) => p.test(pathname))) return NextResponse.next();
+    if (signedIn || PUBLIC_API.some((p) => p.test(pathname))) return NextResponse.next();
     return NextResponse.json({ error: "Sign in to do that." }, { status: 401 });
   }
 
-  // /app itself is the sign-in screen; everything under it needs a session.
+  /*
+    6 Nov 2026, user: "remove everything else and let us only have a web page
+    with these products". The website is now ONE page: /admin/photos (product
+    ID and photos), behind sign-in. Every other page goes there. The full site
+    is archived in git (tag archive-full-site-2026-11-06). Still open: the
+    sign-in screen (/app), share links, and the privacy and support pages the
+    App Store listing points to. The phone app only calls /api, untouched.
+  */
+  const HOME = "/admin/photos";
+  if (pathname.startsWith("/share/") || pathname === "/privacy" || pathname === "/support") return NextResponse.next();
+  if (signedIn) {
+    if (pathname === HOME) return NextResponse.next();
+    const url = request.nextUrl.clone();
+    url.pathname = HOME;
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
   if (pathname === "/app") return NextResponse.next();
   const url = request.nextUrl.clone();
   url.pathname = "/app";
-  url.searchParams.set("next", pathname);
+  url.search = "";
+  url.searchParams.set("next", HOME);
   return NextResponse.redirect(url);
 }
 
 export const config = {
-  matcher: ["/", "/tantu-:file*", "/img/:path*", "/app/:path*", "/admin/:path*", "/studio", "/library", "/api/:path*"],
+  // Every page and API; not Next.js files or anything with a file extension (photos, samples, scripts).
+  matcher: ["/((?!_next/|.*\\.[A-Za-z0-9]+$).*)"],
 };
